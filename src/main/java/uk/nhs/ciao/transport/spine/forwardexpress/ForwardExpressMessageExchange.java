@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.example;
+package uk.nhs.ciao.transport.spine.forwardexpress;
 
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -13,16 +13,19 @@ import com.google.common.util.concurrent.SettableFuture;
 /**
  * Represents the aggregate of an initial synchronous request-response
  * and a later asynchronous ACK response which form the message exchange
- * for the 'End-Party Reliability' pattern.
+ * for the 'Forward Express' / 'End-Party Reliability' pattern.
  */
-public class EndPartyReliabilityMessageExchange {
-	public static final String CIAO_FUTURE = "ciao.future";
+public class ForwardExpressMessageExchange {
+	public static final String ACK_FUTURE = "ciao.future.ack";
+	public static final String MESSAGE_TYPE = "ciao.message.type";
+	public static final String REQUEST_MESSAGE = "forward-express-request";
+	public static final String ACK_MESSAGE = "forward-express-ack";
 	
 	private final String correlationId;
 	private Exchange request;
 	private Exchange ack;
 	
-	public EndPartyReliabilityMessageExchange(final String correlationId) {
+	public ForwardExpressMessageExchange(final String correlationId) {
 		this.correlationId = correlationId;
 	}
 	
@@ -30,17 +33,17 @@ public class EndPartyReliabilityMessageExchange {
 		return request != null && ack != null;
 	}
 	
-	public static boolean isComplete(final EndPartyReliabilityMessageExchange messageExchange) {
+	public static boolean isComplete(final ForwardExpressMessageExchange messageExchange) {
 		return messageExchange == null ? false : messageExchange.isComplete();
 	}
 	
-	public static void notifyCompletion(final EndPartyReliabilityMessageExchange messageExchange) {
+	public static void notifyCompletion(final ForwardExpressMessageExchange messageExchange) {
 		if (messageExchange == null || messageExchange.request == null) {
 			return;
 		}
 		
 		@SuppressWarnings("unchecked")
-		final SettableFuture<EndPartyReliabilityMessageExchange> future = messageExchange.request.getProperty(CIAO_FUTURE, SettableFuture.class);
+		final SettableFuture<ForwardExpressMessageExchange> future = messageExchange.request.getProperty(ACK_FUTURE, SettableFuture.class);
 		if (future != null) {
 			future.set(messageExchange);
 		}
@@ -55,10 +58,10 @@ public class EndPartyReliabilityMessageExchange {
 	}
 	
 	public void aggregate(final Exchange exchange) {
-		final String messageType = exchange.getIn().getHeader("ciao.message.type", String.class);
-		if (request == null && "trunk-request".equals(messageType)) {
+		final String messageType = exchange.getIn().getHeader(MESSAGE_TYPE, String.class);
+		if (request == null && REQUEST_MESSAGE.equals(messageType)) {
 			request = exchange;
-		} else if ("trunk-ack".equals(messageType)) {
+		} else if (ACK_MESSAGE.equals(messageType)) {
 			ack = exchange;
 		}
 	}
@@ -87,15 +90,15 @@ public class EndPartyReliabilityMessageExchange {
 		@Override
 		public void process(final Exchange exchange) throws Exception {
 			@SuppressWarnings("unchecked")
-			final Future<EndPartyReliabilityMessageExchange> future = exchange.getProperty(CIAO_FUTURE, Future.class);
-			final EndPartyReliabilityMessageExchange messageExchange = future.get(timeoutInMillis, TimeUnit.MILLISECONDS);
+			final Future<ForwardExpressMessageExchange> future = exchange.getProperty(ACK_FUTURE, Future.class);
+			final ForwardExpressMessageExchange messageExchange = future.get(timeoutInMillis, TimeUnit.MILLISECONDS);
 			exchange.getOut().copyFrom(exchange.getIn());
 			exchange.getOut().setBody(messageExchange);
 		}
 	}
 	
 	/**
-	 * Stores incoming exchanges as a {@link EndPartyReliabilityMessageExchange} instance on the body of the aggregate exchange
+	 * Stores incoming exchanges as a {@link ForwardExpressMessageExchange} instance on the body of the aggregate exchange
 	 */
 	public static class AggregationStrategy implements org.apache.camel.processor.aggregate.AggregationStrategy {
 		@Override
@@ -108,13 +111,13 @@ public class EndPartyReliabilityMessageExchange {
 				if (correlationId != null) {
 					result.getIn().setHeader(Exchange.CORRELATION_ID, correlationId);
 				}
-				result.getIn().setBody(new EndPartyReliabilityMessageExchange(correlationId));
+				result.getIn().setBody(new ForwardExpressMessageExchange(correlationId));
 			} else {
 				result = oldExchange;
 			}
 			
 			// Aggregate the incoming exchange
-			result.getIn().getBody(EndPartyReliabilityMessageExchange.class).aggregate(newExchange);
+			result.getIn().getBody(ForwardExpressMessageExchange.class).aggregate(newExchange);
 			
 			return result;
 		}

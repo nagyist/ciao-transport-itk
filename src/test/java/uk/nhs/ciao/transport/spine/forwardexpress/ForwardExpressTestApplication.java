@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.example;
+package uk.nhs.ciao.transport.spine.forwardexpress;
 
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
@@ -35,13 +35,13 @@ import com.google.common.base.Strings;
  * Additionally, puts the initial request message on a JMS queue to
  * trigger a sender to start the message exchange.
  */
-public class EndPartyReliabilityTestApplication {
+public class ForwardExpressTestApplication {
 	private final CamelContext context;
 	private final ProducerTemplate producerTemplate;
 	
 	private final UI ui;
 	
-	public EndPartyReliabilityTestApplication() throws Exception {
+	public ForwardExpressTestApplication() throws Exception {
 		final SimpleRegistry registry = new SimpleRegistry();
 		
 		this.context = new DefaultCamelContext(registry);
@@ -229,6 +229,6 @@ public class EndPartyReliabilityTestApplication {
 	}
 	
 	public static void main(final String[] args) throws Exception {
-		new EndPartyReliabilityTestApplication();
+		new ForwardExpressTestApplication();
 	}
 }

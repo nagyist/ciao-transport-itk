@@ -1,7 +1,4 @@
-package uk.nhs.ciao.transport.spine.example;
-
-import java.util.Collections;
-import java.util.Set;
+package uk.nhs.ciao.transport.spine.forwardexpress;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.camel.component.ActiveMQComponent;
@@ -14,26 +11,25 @@ import org.apache.camel.component.http4.HttpOperationFailedException;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultConsumerTemplate;
 import org.apache.camel.impl.SimpleRegistry;
-import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
+import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.spring.spi.SpringTransactionPolicy;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.LoggerFactory;
 import org.springframework.jms.connection.CachingConnectionFactory;
 import org.springframework.jms.connection.JmsTransactionManager;
 
-import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.SettableFuture;
+import static uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressSenderRoutes.*;
 
 /**
  * Example application to check routes required to support
  * retries, fail-over, and transaction management for
  * the sender role in an 'End-Party Reliability' pattern.
  */
-public class EndPartyReliabilitySenderApplication {	
+public class ForwardExpressSenderApplication {	
 	private final CamelContext context;
 	private final ConsumerTemplate consumerTemplate;
 	
-	public EndPartyReliabilitySenderApplication() throws Exception {
+	public ForwardExpressSenderApplication() throws Exception {
 		final SimpleRegistry registry = new SimpleRegistry();
 		
 		this.context = new DefaultCamelContext(registry);
@@ -83,67 +79,37 @@ public class EndPartyReliabilitySenderApplication {
 	private class Routes extends RouteBuilder {
 		@Override
 		public void configure() throws Exception {
-			final Set<String> inprogressIds = Collections.newSetFromMap(Maps.<String, Boolean>newConcurrentMap());
-			
+			final ProcessorDefinition<?> def = 
 			from("jms:queue:documents?destination.consumer.prefetchSize=0")
-				.errorHandler(new TransactionErrorHandlerBuilder()
-					.asyncDelayedRedelivery()
-					.maximumRedeliveries(2)
-					.backOffMultiplier(2)
-					.redeliveryDelay(2000)
-					.log(LoggerFactory.getLogger(EndPartyReliabilitySenderApplication.class))
-					.logExhausted(true)
-				)
-				.transacted("PROPAGATION_NOT_SUPPORTED")
-				
-				.setHeader(Exchange.CORRELATION_ID, simple("${bodyAs(String)}"))
-				.setHeader(Exchange.FILE_NAME, simple("${header.CamelCorrelationId}/message"))
-				.setHeader(Exchange.CONTENT_TYPE, constant("text/plain"))
-				.setHeader(Exchange.HTTP_METHOD, constant(org.apache.camel.component.http4.HttpMethods.POST))
-				.setHeader("ciao.message.type", constant("trunk-request"))
-				.to("file://./target/docs")				
-				.doTry()
-					.multicast()
-						.bean(inprogressIds, "add(${header.CamelCorrelationId})")
-						.to("http4://localhost:8123/")
-					.end()
-					.setProperty(EndPartyReliabilityMessageExchange.CIAO_FUTURE, method(SettableFuture.class, "create"))
-					.to("direct:trunk-request-response")
-					.process(new EndPartyReliabilityMessageExchange.WaitForAck(40000)) // timeout is slightly higher than the corresponding value in the aggregate
-					.validate().simple("${body.isComplete()}")
-					.transform().simple("${body.getAckBody()}")
-					.process(new AckProcessor())
-				.endDoTry()
-				.doCatch(HttpOperationFailedException.class)
-					.process(new HttpErrorHandler())
-				.doFinally()
-					.bean(inprogressIds, "remove(${header.CamelCorrelationId})")
-				;
+			.errorHandler(new TransactionErrorHandlerBuilder()
+				.asyncDelayedRedelivery()
+				.maximumRedeliveries(2)
+				.backOffMultiplier(2)
+				.redeliveryDelay(2000)
+				.log(LoggerFactory.getLogger(ForwardExpressSenderApplication.class))
+				.logExhausted(true)
+			)
+			.transacted("PROPAGATION_NOT_SUPPORTED")
 			
-			// Using a separate JMS component to ensure this route is not blocked
-			// if all other consumer queue threads (on jms:) are waiting for ACK responses
-			from("jms2:topic:document-ebxml-acks")
-				// multiple threads may be running - only process each incoming ack once
-				.idempotentConsumer(header("JMSMessageID"), new MemoryIdempotentRepository())
+			.setHeader(Exchange.CORRELATION_ID, simple("${bodyAs(String)}"))
+			.setHeader(Exchange.FILE_NAME, simple("${header.CamelCorrelationId}/message"))
+			.setHeader(Exchange.CONTENT_TYPE, constant("text/plain"))
+			.setHeader(Exchange.HTTP_METHOD, constant(org.apache.camel.component.http4.HttpMethods.POST))
+			.to("file://./target/docs")				
+			.doTry();
 				
-				// only handle IDs currently active in this process
-				.filter(method(inprogressIds, "contains(${header.JMSCorrelationId})"))
-				.setHeader(Exchange.CORRELATION_ID, header("JMSCorrelationId"))
-				.setHeader("ciao.message.type", constant("trunk-ack"))
-				.log("Incoming ebxml ack for ${header.CamelCorrelationId}")
-				.to("direct:trunk-request-response")
-				;
+			forwardExpressSender(getContext(), def)
+				.to("http4://localhost:8123/")
+			.waitForResponse("direct:trunk-request-response", 30000,
+				// Using a separate JMS component to ensure this route is not blocked
+				// if all other consumer queue threads (on jms:) are waiting for ACK responses
+				jmsForwardExpressAckReceiver("jms2:topic:document-ebxml-acks"))
+			.process(new AckProcessor())
 			
-			// Correlate original requests with incoming acks
-			// acks may be received with no corresponding open request (i.e.
-			// the request originated in another process)
-			from("direct:trunk-request-response")
-				.aggregate(header(Exchange.CORRELATION_ID), new EndPartyReliabilityMessageExchange.AggregationStrategy())
-					.completionPredicate(method(EndPartyReliabilityMessageExchange.class, "isComplete(${body})"))
-					.completionTimeout(30000)
-				.log("Completed aggregate trunk-request-response ${header.CamelCorrelationId}")
-				.bean(EndPartyReliabilityMessageExchange.class, "notifyCompletion(${body})")
-				;
+			.endDoTry()
+			.doCatch(HttpOperationFailedException.class)
+				.process(new HttpErrorHandler())
+			;
 		}
 	}
 	
@@ -152,6 +118,7 @@ public class EndPartyReliabilitySenderApplication {
 		public void process(final Exchange exchange) throws Exception {
 			final String id = exchange.getIn().getHeader(Exchange.CORRELATION_ID, String.class);
 			final String body = exchange.getIn().getBody(String.class);
+			
 			if ("ack".equalsIgnoreCase(body)) {
 				LoggerFactory.getLogger(getClass()).info("ebXml send-ack received - id: " + id);
 				exchange.getOut().copyFrom(exchange.getIn());
@@ -194,7 +161,7 @@ public class EndPartyReliabilitySenderApplication {
 	}
 	
 	public static void main(final String[] args) throws Exception {
-		new EndPartyReliabilitySenderApplication();
+		new ForwardExpressSenderApplication();
 		
 		while (true) {
 			Thread.sleep(1000);
