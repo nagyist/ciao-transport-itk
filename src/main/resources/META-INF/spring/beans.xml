@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+    
+	<!-- Make config properties available to both spring and camel -->	
+	<bean id="bridgePropertyPlaceholder" class="org.apache.camel.spring.spi.BridgePropertyPlaceholderConfigurer">
+	   <property name="properties" ref="ciaoProperties" />
+	</bean>
+
+	<bean id="objectMapperConfigurator" class="uk.nhs.ciao.cda.builder.json.ObjectMapperConfigurator" />
+	<bean id="objectMapper" class="com.fasterxml.jackson.databind.ObjectMapper"
+		factory-bean="objectMapperConfigurator" factory-method="createObjectMapper" />
+	
+	<!-- Select 'dynamic' spring imports - determined via CIAO properties -->
+	<import resource="classpath*:META-INF/spring/processors/${processorConfig}.xml"/>
+	<import resource="classpath*:META-INF/spring/messaging/${messagingConfig}.xml"/>
+    
+	<camelContext xmlns="http://camel.apache.org/schema/spring" id="camel" trace="true" streamCache="true">
+		<properties>
+			<property key="CamelLogDebugStreams" value="true" />
+		</properties>
+		
+		<package>uk.nhs.ciao.transport.spine</package>		
+	</camelContext>
+</beans>

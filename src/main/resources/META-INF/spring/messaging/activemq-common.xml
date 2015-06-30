@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+	<bean id="jmsTransactionManager" class="org.springframework.jms.connection.JmsTransactionManager">
+  		<constructor-arg ref="jmsConnectionFactory" />
+  		<!-- Default is SYNCHRONIZATION_NEVER - this seems to cause problems with propagation behaviour -->
+  		<property name="transactionSynchronization" value="#{T(org.springframework.jms.connection.JmsTransactionManager).SYNCHRONIZATION_ON_ACTUAL_TRANSACTION}" />
+  	</bean>
+  	
+  	<!-- 
+  		Definitions for how transactions are propagated (or not) across boundaries / nested transactions
+  	 -->
+  	<bean id="PROPAGATION_NOT_SUPPORTED" class="org.apache.camel.spring.spi.SpringTransactionPolicy">
+  		<property name="transactionManager" ref="jmsTransactionManager" />
+  		<property name="propagationBehaviorName" value="PROPAGATION_NOT_SUPPORTED" />
+  	</bean>
+  	
+  	<!-- 
+  		Transactions are enabled for JMS
+  		Also look at pre-fetch (default is 1000)
+		A setting of zero might help when using 'longer running' transactions
+  	-->
+  	<bean id="jms" class="org.apache.activemq.camel.component.ActiveMQComponent">
+    	<property name="connectionFactory" ref="jmsConnectionFactory" />
+    	<property name="transacted" value="true" />
+    	<property name="transactionManager" ref="jmsTransactionManager" />
+    	<property name="concurrentConsumers" value="${jms.concurrentConsumers}" />
+	</bean>
+	
+	<!-- Transactions are not enabled on JMS2 -->
+	<bean id="jms2" class="org.apache.activemq.camel.component.ActiveMQComponent">
+    	<property name="connectionFactory" ref="jmsConnectionFactory" />
+    	<property name="concurrentConsumers" value="${jms2.concurrentConsumers}" />
+	</bean>
+
+</beans>
