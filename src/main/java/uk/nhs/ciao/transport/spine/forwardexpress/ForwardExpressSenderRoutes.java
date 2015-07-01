@@ -23,12 +23,12 @@ public final class ForwardExpressSenderRoutes {
 		return new ForwardExpressSender(context, from);
 	}
 	
-	public static ForwardExpressAckReceiver forwardExpressAckReceiver(final String fromUri, final String messageIdHeader, final String correlationIdHeader) {
-		return new ForwardExpressAckReceiver(fromUri, messageIdHeader, correlationIdHeader);
+	public static ForwardExpressAckReceiver forwardExpressAckReceiver(final String routeId, final String fromUri, final String messageIdHeader, final String correlationIdHeader) {
+		return new ForwardExpressAckReceiver(routeId, fromUri, messageIdHeader, correlationIdHeader);
 	}
 	
-	public static ForwardExpressAckReceiver jmsForwardExpressAckReceiver(final String fromUri) {
-		return forwardExpressAckReceiver(fromUri, "JMSMessageID", "JMSCorrelationId");
+	public static ForwardExpressMessageAggregator forwardExpressMessageAggregator(final String routeId, final String fromUri, final int timeout) {
+		return new ForwardExpressMessageAggregator(routeId, fromUri, timeout);
 	}
 	
 	public static class ForwardExpressSender {
@@ -46,11 +46,11 @@ public final class ForwardExpressSenderRoutes {
 			return this;
 		}
 		
-		public ProcessorDefinition<?> waitForResponse(final String aggregateUri, final int timeout, final ForwardExpressAckReceiver ackReceiver) throws Exception {
+		public ProcessorDefinition<?> waitForResponse(final ForwardExpressAckReceiver ackReceiver, final ForwardExpressMessageAggregator aggregator) throws Exception {
 			final Set<String> inprogressIds = Collections.newSetFromMap(Maps.<String, Boolean>newConcurrentMap());
 			
-			support.getContext().addRoutes(ackReceiver.createRoute(inprogressIds, aggregateUri));
-			support.getContext().addRoutes(new ForwardExpressMessageAggregator(aggregateUri, timeout));
+			support.getContext().addRoutes(ackReceiver.createRoute(inprogressIds, aggregator.fromUri));
+			support.getContext().addRoutes(aggregator.createRoute());
 			
 			return from.doTry()
 				.setHeader(ForwardExpressMessageExchange.MESSAGE_TYPE, support.constant(ForwardExpressMessageExchange.REQUEST_MESSAGE))
@@ -59,8 +59,8 @@ public final class ForwardExpressSenderRoutes {
 					.to(toUri)
 				.end()
 				.setProperty(ForwardExpressMessageExchange.ACK_FUTURE, support.method(SettableFuture.class, "create"))
-				.to(aggregateUri)
-				.process(new ForwardExpressMessageExchange.WaitForAck(timeout + 1000)) // timeout is slightly higher than the corresponding value in the aggregate
+				.to(aggregator.fromUri)
+				.process(new ForwardExpressMessageExchange.WaitForAck(aggregator.timeout + 1000)) // timeout is slightly higher than the corresponding value in the aggregate
 				.validate().simple("${body.isComplete()}")
 				.transform().simple("${body.getAckBody()}")
 			.endDoTry()
@@ -77,11 +77,13 @@ public final class ForwardExpressSenderRoutes {
 	}
 	
 	public static class ForwardExpressAckReceiver {
+		private final String routeId;
 		private final String fromUri;
 		private final String messageIdHeader;
 		private final String correlationIdHeader;
 		
-		public ForwardExpressAckReceiver(final String fromUri, final String messageIdHeader, final String correlationIdHeader) {
+		public ForwardExpressAckReceiver(final String routeId, final String fromUri, final String messageIdHeader, final String correlationIdHeader) {
+			this.routeId = routeId;
 			this.fromUri = fromUri;
 			this.messageIdHeader = messageIdHeader;
 			this.correlationIdHeader = correlationIdHeader;
@@ -92,6 +94,7 @@ public final class ForwardExpressSenderRoutes {
 				@Override
 				public void configure() throws Exception {
 					from(fromUri)
+						.routeId(routeId)
 						// multiple threads may be running - only process each incoming ack once
 						.idempotentConsumer(header(messageIdHeader), new MemoryIdempotentRepository())
 						
@@ -110,27 +113,34 @@ public final class ForwardExpressSenderRoutes {
 	/**
 	 * Configures a direct route which aggregates incoming request messages with associated asynchronous ebXML acks
 	 */
-	private static class ForwardExpressMessageAggregator extends RouteBuilder {
+	public static class ForwardExpressMessageAggregator {
+		private final String routeId;
 		private final String fromUri;
 		private final int timeout;
 		
-		public ForwardExpressMessageAggregator(final String fromUri, final int timeout) {
+		public ForwardExpressMessageAggregator(final String routeId, final String fromUri, final int timeout) {
+			this.routeId = routeId;
 			this.fromUri = fromUri;
 			this.timeout = timeout;
 		}
 		
-		@Override
-		public void configure() throws Exception {
-			// Correlate original requests with incoming acks
-			// acks may be received with no corresponding open request (i.e.
-			// the request originated in another process)
-			from(fromUri)
-				.aggregate(header(Exchange.CORRELATION_ID), new ForwardExpressMessageExchange.AggregationStrategy())
-					.completionPredicate(method(ForwardExpressMessageExchange.class, "isComplete(${body})"))
-					.completionTimeout(timeout)
-				.log("Completed forward-express request-response aggregate: ${header.CamelCorrelationId}")
-				.bean(ForwardExpressMessageExchange.class, "notifyCompletion(${body})")
-				;
+		private RouteBuilder createRoute() {
+			return new RouteBuilder() {
+				@Override
+				public void configure() throws Exception {
+					// Correlate original requests with incoming acks
+					// acks may be received with no corresponding open request (i.e.
+					// the request originated in another process)
+					from(fromUri)
+						.routeId(routeId)
+						.aggregate(header(Exchange.CORRELATION_ID), new ForwardExpressMessageExchange.AggregationStrategy())
+							.completionPredicate(method(ForwardExpressMessageExchange.class, "isComplete(${body})"))
+							.completionTimeout(timeout)
+						.log("Completed forward-express request-response aggregate: ${header.CamelCorrelationId}")
+						.bean(ForwardExpressMessageExchange.class, "notifyCompletion(${body})")
+						;
+				}
+			};
 		}
 	}
 }

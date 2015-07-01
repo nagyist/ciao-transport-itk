@@ -15,7 +15,6 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultComponent;
 import org.apache.camel.impl.DefaultProducerTemplate;
 import org.apache.camel.impl.ProcessorEndpoint;
-import org.apache.camel.model.ProcessorDefinition;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
@@ -28,6 +27,8 @@ public class ForwardExpressComponent extends DefaultComponent {
 	private volatile String toUri;
 	private volatile int timeout = 30000;
 	private volatile String replyUri;
+	private volatile String ackCorrelationIdHeader = "JMSCorrelationId";
+	private volatile String ackMessageIdHeader = "JMSMessageID";
 	private volatile ProducerTemplate producerTemplate;
 	
 	public ForwardExpressComponent() {
@@ -77,6 +78,21 @@ public class ForwardExpressComponent extends DefaultComponent {
 		this.replyUri = replyUri;
 	}
 	
+	public String getAckMessageIdHeader() {
+		return ackMessageIdHeader;
+	}
+	
+	public void setAckMessageIdHeader(final String ackMessageIdHeader) {
+		this.ackMessageIdHeader = ackMessageIdHeader;
+	}
+	
+	public String getAckCorrelationIdHeader() {
+		return ackCorrelationIdHeader;
+	}
+	
+	public void setAckCorrelationIdHeader(final String ackCorrelationIdHeader) {
+		this.ackCorrelationIdHeader = ackCorrelationIdHeader;
+	}
 
 	@Override
 	protected Endpoint createEndpoint(final String uri, final String remaining,
@@ -91,6 +107,8 @@ public class ForwardExpressComponent extends DefaultComponent {
 		Preconditions.checkNotNull(name, "name");
 		Preconditions.checkNotNull(toUri, "toUri");
 		Preconditions.checkNotNull(replyUri, "replyUri");
+		Preconditions.checkNotNull(ackMessageIdHeader, "ackMessageIdHeader");
+		Preconditions.checkNotNull(ackCorrelationIdHeader, "ackCorrelationIdHeader");
 		
 		if (producerTemplate == null) {
 			producerTemplate = new DefaultProducerTemplate(getCamelContext());
@@ -100,19 +118,22 @@ public class ForwardExpressComponent extends DefaultComponent {
 		getCamelContext().addRoutes(new RouteBuilder() {
 			@Override
 			public void configure() throws Exception {
-				requestUri = "direct:" + name + "-request";
-				final String aggregateUri = "direct:" + name + "-aggregate";
+				final String requestRouteId = name + "-request";
+				final String ackRouteId = name + "-ack";
+				final String aggregateRouteId = name + "-aggregate";
 				
-				routeIds.add(name + "-request");
-				final ProcessorDefinition<?> def =
-						from(requestUri).routeId(name + "-request");
+				routeIds.add(requestRouteId);
+				routeIds.add(ackRouteId);
+				routeIds.add(aggregateRouteId);
 				
-				forwardExpressSender(getContext(), def)
+				requestUri = "direct:" + requestRouteId;
+				
+				forwardExpressSender(getContext(),
+					from(requestUri).routeId(requestRouteId))
 					.to(toUri)
-					.waitForResponse(aggregateUri, timeout,
-						// Using a separate JMS component to ensure this route is not blocked
-						// if all other consumer queue threads (on jms:) are waiting for ACK responses
-						jmsForwardExpressAckReceiver(replyUri));
+					.waitForResponse(
+						forwardExpressAckReceiver(ackRouteId, replyUri, ackMessageIdHeader, ackCorrelationIdHeader),
+						forwardExpressMessageAggregator(aggregateRouteId, "direct:" + aggregateRouteId, timeout));
 			}
 		});
 	}
