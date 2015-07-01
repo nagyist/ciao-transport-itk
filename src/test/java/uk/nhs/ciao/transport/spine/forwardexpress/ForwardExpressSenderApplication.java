@@ -11,14 +11,11 @@ import org.apache.camel.component.http4.HttpOperationFailedException;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultConsumerTemplate;
 import org.apache.camel.impl.SimpleRegistry;
-import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.spring.spi.SpringTransactionPolicy;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.LoggerFactory;
 import org.springframework.jms.connection.CachingConnectionFactory;
 import org.springframework.jms.connection.JmsTransactionManager;
-
-import static uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressSenderRoutes.*;
 
 /**
  * Example application to check routes required to support
@@ -71,6 +68,14 @@ public class ForwardExpressSenderApplication {
 		jms2Component.setConcurrentConsumers(2);
 		context.addComponent("jms2", jms2Component);
 		
+		final ForwardExpressComponent spineComponent = new ForwardExpressComponent();
+		spineComponent.setToUri("http4://localhost:8123/");
+		spineComponent.setName("trunk");
+		// Using a separate JMS component to ensure this route is not blocked
+		// if all other consumer queue threads (on jms:) are waiting for ACK responses
+		spineComponent.setReplyUri("jms2:topic:document-ebxml-acks");
+		context.addComponent("spine", spineComponent);
+		
 		context.addRoutes(new Routes());		
 		context.start();
 		consumerTemplate.start();
@@ -79,7 +84,6 @@ public class ForwardExpressSenderApplication {
 	private class Routes extends RouteBuilder {
 		@Override
 		public void configure() throws Exception {
-			final ProcessorDefinition<?> def = 
 			from("jms:queue:documents?destination.consumer.prefetchSize=0")
 			.errorHandler(new TransactionErrorHandlerBuilder()
 				.asyncDelayedRedelivery()
@@ -96,16 +100,9 @@ public class ForwardExpressSenderApplication {
 			.setHeader(Exchange.CONTENT_TYPE, constant("text/plain"))
 			.setHeader(Exchange.HTTP_METHOD, constant(org.apache.camel.component.http4.HttpMethods.POST))
 			.to("file://./target/docs")				
-			.doTry();
-				
-			forwardExpressSender(getContext(), def)
-				.to("http4://localhost:8123/")
-			.waitForResponse("direct:trunk-request-response", 30000,
-				// Using a separate JMS component to ensure this route is not blocked
-				// if all other consumer queue threads (on jms:) are waiting for ACK responses
-				jmsForwardExpressAckReceiver("jms2:topic:document-ebxml-acks"))
-			.process(new AckProcessor())
-			
+			.doTry()
+				.to("spine:trunk")
+				.process(new AckProcessor())			
 			.endDoTry()
 			.doCatch(HttpOperationFailedException.class)
 				.process(new HttpErrorHandler())
