@@ -111,15 +111,108 @@ public class TrunkMessageTest {
 	// Temporary bean to declare variables required by freemarker
 	// Maybe replace with a Map<String, Object> ??
 	public static class TrunkMessageBody {
+		
+		/**
+		 * Uses:
+		 * HTTP Content-Type header - boundary parameter
+		 * Splits individual Multipart MIME sections in request body
+		 * 
+		 * A static value can be chosen - but it should be a value
+		 * with a small chance of appearing in actual multi-part
+		 * content - otherwise the document may fail to parse
+		 * properly
+		 */
 		private final String mimeBoundary = "--=_MIME-Boundary";
+		
+		// ebxml variables
+		
+		/**
+		 * Uses:
+		 * HTTP Content-Type header - start parameter
+		 * Multipart inline header - Content-ID for ebxml part
+		 */
 		private final String ebxmlContentId = generateId();
+		
+		/**
+		 * Uses (Request):
+		 * eb:ConversationId
+		 * eb:MessageId
+		 * 
+		 * Uses (ebxml ACK):
+		 * eb:ConversationId
+		 * eb:RefToMessageId
+		 * (ACK itself has it's own eb:MessageId)
+		 */
 		private final String ebxmlCorrelationId;
+		
+		/**
+		 * Uses:
+		 * eb:Timestamp (in MessageData)
+		 * HL7 - creationTime
+		 * 
+		 * TODO: Should this change if message is resent? Do they always refer to this same time?
+		 */
 		private final Date creationTime = new Date();
+		
+		// HL7 variables
+		
+		/**
+		 * Uses:
+		 * Multipart inline header - Content-ID for HL7 part
+		 * Manifest reference in ebxml part
+		 */
 		private final String hl7ContentId = generateId();
+		
+		/**
+		 * Uses:
+		 * HL7 root ID - no other references
+		 */
 		private final String hl7RootId = generateId();
+		
+		// ITK variables
+		
+		/**
+		 * Uses:
+		 * Multipart inline header - Content-ID for ITK part
+		 * Manifest reference in ebxml part
+		 */
 		private final String itkContentId = generateId();
+		
+		/**
+		 * Uses (ITK Request):
+		 * trackingid
+		 * 
+		 * Uses (ITK Inf ack):
+		 * trackingIdRef
+		 * 
+		 * Uses (ITK Bus Ack):
+		 * hl7:conveyingTransmission -> id
+		 * 
+		 */
 		private final String itkCorrelationId = generateId();
+		
+		/**
+		 * Uses (ITK request)
+		 * manifestitem id
+		 * payload id
+		 * Also - internal ID from ClinicalDocument but without the uuid_ prefix
+		 * 
+		 * Uses (ITK bus ack):
+		 * conveyingTransmition -> id
+		 * (This refers to the payload id (with uuid_ prefix) - not the internal ClinicalDocument id)
+		 * 
+		 * TODO: Are these IDs related as a convenience or is it required by the protocol
+		 */
 		private final String itkDocumentId = generateId();
+		
+		/**
+		 * Document payload
+		 * <p>
+		 * If document type is NOT xml additional encoding may be required to 
+		 * escape reserved XML characters
+		 * 
+		 * TODO: Check documentation for further details on GZIP encoding
+		 */
 		private final String itkDocumentBody;
 		
 		public TrunkMessageBody(final String ebxmlCorrelationId, final String itkDocumentBody) {
@@ -167,4 +260,21 @@ public class TrunkMessageTest {
 			return itkDocumentBody;
 		}
 	}
+	
+	/**
+	 * Notes from ebMS_v2_0.pdf
+	 * <p>
+	 * 6.1 Persistent Storage and System Failure
+	 * <p>
+	 * In order to support the filtering of duplicate messages, a Receiving MSH MUST save the MessageId in
+	 * persistent storage. It is also RECOMMENDED the following be kept in persistent storage:
+	 * <ul>
+	 * <li>the complete message, at least until the information in the message has been passed to the application or other process needing to process it,
+	 * <li>the time the message was received, so the information can be used to generate the response to a Message Status Request (see section 7.1.1),
+	 * <li>the complete response message. 
+	 * </ul>
+	 * <p>
+	 * 6.5 ebXML Reliable Messaging Protocol - contains details of how sender/receiever should handle
+	 * retries, acks and duplicates (based on message id and conversation id)
+	 */
 }
