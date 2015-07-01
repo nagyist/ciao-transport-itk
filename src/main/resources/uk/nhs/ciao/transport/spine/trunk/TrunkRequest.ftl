@@ -1,5 +1,5 @@
---${mimeBoundary}
-Content-Id: ${ebxmlContentId}
+--${body.mimeBoundary}
+Content-Id: ${body.ebxmlContentId}
 Content-Type: text/xml
 Content-Transfer-Encoding: 8bit
 
@@ -14,12 +14,12 @@ Content-Transfer-Encoding: 8bit
 				<eb:PartyId eb:type="urn:nhs:names:partyType:ocs+serviceInstance">BBB-654321</eb:PartyId>
 			</eb:To>
 			<eb:CPAId>S3024519A3110234</eb:CPAId>
-			<eb:ConversationId>${ebxmlCorrelationId}</eb:ConversationId>
+			<eb:ConversationId>${body.ebxmlCorrelationId}</eb:ConversationId>
 			<eb:Service>urn:nhs:names:services:itk</eb:Service>
 			<eb:Action>COPC_IN000001GB01</eb:Action>
 			<eb:MessageData>
-				<eb:MessageId>${ebxmlCorrelationId}</eb:MessageId>
-				<eb:Timestamp>${creationTime?string["yyyy-MM-dd'T'HH:mm:ss"]}</eb:Timestamp>
+				<eb:MessageId>${body.ebxmlCorrelationId}</eb:MessageId>
+				<eb:Timestamp>${body.creationTime?string["yyyy-MM-dd'T'HH:mm:ss"]}</eb:Timestamp>
 			</eb:MessageData>
 			<eb:DuplicateElimination/>
 		</eb:MessageHeader>
@@ -27,27 +27,27 @@ Content-Transfer-Encoding: 8bit
 	</SOAP:Header>
 	<SOAP:Body>
 		<eb:Manifest eb:version="2.0">
-			<eb:Reference xlink:href="cid:${hl7ContentId}">
+			<eb:Reference xlink:href="cid:${body.hl7ContentId}">
 				<eb:Schema eb:location="http://www.nhsia.nhs.uk/schemas/HL7-Message.xsd" eb:version="1.0"/>
 				<eb:Description xml:lang="en">HL7 payload</eb:Description>
 				<hl7ebxml:Payload style="HL7" encoding="XML" version="3.0"/>
 			</eb:Reference>
-			<eb:Reference xlink:href="cid:${itkWrapperContentId}">
+			<eb:Reference xlink:href="cid:${body.itkContentId}">
 				<eb:Description xml:lang="en">ITK Trunk Message</eb:Description>
 			</eb:Reference>
 		</eb:Manifest>
 	</SOAP:Body>
 </SOAP:Envelope>
 
---${mimeBoundary}
-Content-Id: <${hl7ContentId}>
+--${body.mimeBoundary}
+Content-Id: <${body.hl7ContentId}>
 Content-Type: application/xml; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
 <?xml version="1.0" encoding="UTF-8"?>
 <COPC_IN000001GB01 xmlns="urn:hl7-org:v3">
-   <id root="${hl7RootId}"/>
-   <creationTime value="${creationTime?string["yyyyMMddHHmmss"]}"/>
+   <id root="${body.hl7RootId}"/>
+   <creationTime value="${body.creationTime?string["yyyyMMddHHmmss"]}"/>
    <versionCode code="V3NPfIT4.2.00"/>
    <interactionId extension="COPC_IN000001GB01" root="2.16.840.1.113883.2.1.3.2.4.12"/>
    <processingCode code="P"/>
@@ -88,14 +88,14 @@ Content-Transfer-Encoding: 8bit
 	</ControlActEvent>
 </COPC_IN000001GB01>
 
---${mimeBoundary}
-Content-Id: <${itkWrapperContentId}>
+--${body.mimeBoundary}
+Content-Id: <${body.itkContentId}>
 Content-Type: text/xml
 Content-Transfer-Encoding: 8bit
 
 
 <itk:DistributionEnvelope xmlns:itk="urn:nhs-itk:ns:201005" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-	<itk:header service="urn:nhs-itk:services:201005:SendCDADocument-v2-0" trackingid="${itkCorrelationId}">
+	<itk:header service="urn:nhs-itk:services:201005:SendCDADocument-v2-0" trackingid="${body.itkCorrelationId}">
 		<itk:addresslist>
 			<itk:address uri="urn:nhs-uk:addressing:ods:X0912"/>
 		</itk:addresslist>
@@ -103,7 +103,7 @@ Content-Transfer-Encoding: 8bit
 			<itk:id uri="urn:nhs-uk:identity:ods:XZ901"/>
 		</itk:auditIdentity>
 		<itk:manifest count="1">
-			<itk:manifestitem mimetype="text/xml" id="uuid_${itkDocumentId}" profileid="urn:nhs-en:profile:ambulanceServicePatientReport-v1-0"/>
+			<itk:manifestitem mimetype="text/xml" id="uuid_${body.itkDocumentId}" profileid="urn:nhs-en:profile:ambulanceServicePatientReport-v1-0"/>
 		</itk:manifest>
 		<itk:senderAddress uri="urn:nhs-uk:addressing:AAA:XZ901:XY7650987"/>
 		<itk:handlingSpecification>
@@ -112,8 +112,8 @@ Content-Transfer-Encoding: 8bit
 		</itk:handlingSpecification>
 	</itk:header>
 	<itk:payloads count="1">
-		<itk:payload id="uuid_${itkDocumentId}">${itkDocumentBody}</itk:payload>
+		<itk:payload id="uuid_${body.itkDocumentId}">${body.itkDocumentBody}</itk:payload>
 	</itk:payloads>
 </itk:DistributionEnvelope>
 
---${mimeBoundary}--
+--${body.mimeBoundary}--
