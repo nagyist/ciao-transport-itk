@@ -142,6 +142,19 @@ public class TrunkMessageTest {
 		 * eb:ConversationId
 		 * eb:RefToMessageId
 		 * (ACK itself has it's own eb:MessageId)
+		 * <p>
+		 * This might be better split into two variables conversationId and messageId - for
+		 * the initial request they can have the same value (for convenience). The subsequent
+		 * ack will refer to conversationId but will have it's own messageId value.
+		 * <p>
+		 * The ack (probably) ends the conversation from the ebXml perspective. Subsequent
+		 * ITK ack messages 'may' be considered new conversations (from the ebXml perspective).
+		 * They will contain references to the original ITK trackingId - but may not have the
+		 * same ebXml conversationId. It might be safer not to rely on the conversationID being
+		 * the same across the whole (ITK) interaction - in any case when replying to the ITK
+		 * acks (with ebXml acks) the incoming ebXml values should be echoed back in the ebXml
+		 * ack. At a minimum, this requires storing the incoming eb:MessageId in persistent
+		 * storage to support duplicate detection (as described in the ebXml spec).
 		 */
 		private final String ebxmlCorrelationId;
 		
@@ -180,7 +193,7 @@ public class TrunkMessageTest {
 		
 		/**
 		 * Uses (ITK Request):
-		 * trackingid
+		 * trackingId
 		 * 
 		 * Uses (ITK Inf ack):
 		 * trackingIdRef
@@ -188,6 +201,15 @@ public class TrunkMessageTest {
 		 * Uses (ITK Bus Ack):
 		 * hl7:conveyingTransmission -> id
 		 * 
+		 * This ID is used throughout the ITK message interactions and spans
+		 * multiple ebXml interactions (the ebXml conversationId 'may' change).
+		 * <p>
+		 * Presumably the same trackingId should be used when resending messages
+		 * at the ITK protocol level (e.g. if an ebXml ack was received but
+		 * no ITK acks were received). In this case a new ebXml messageId would
+		 * be used - possibly a new ebXml conversationId too.
+		 * <p>
+		 * For the time being however, resends at the ITK protocol level are out of scope.
 		 */
 		private final String itkCorrelationId = generateId();
 		
