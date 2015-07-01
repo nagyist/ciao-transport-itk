@@ -59,6 +59,7 @@ public class TrunkMessageTest {
 			public void configure() throws Exception {
 				 from("direct:a")
 	                .to("freemarker:uk/nhs/ciao/transport/spine/trunk/TrunkRequest.ftl")
+	                .log("Message body:\n${body}")
 	                .to("mock:result");
 			}
 		});
