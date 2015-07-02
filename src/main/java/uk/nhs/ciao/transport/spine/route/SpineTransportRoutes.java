@@ -21,7 +21,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 	/**
 	 * The root property 
 	 */
-	public static final String ROOT_PROPERTY = "cdaBuilderRoutes";
+	public static final String ROOT_PROPERTY = "spineTransportRoutes";
 	
 	/**
 	 * Creates multiple document parser routes
