@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import uk.nhs.ciao.CIPRoutes;
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
-import uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressSenderApplication;
 import uk.nhs.ciao.transport.spine.trunk.TrunkRequestProperties;
 
 /**
