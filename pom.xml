@@ -26,6 +26,7 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>ciao-docs-parser-model</artifactId>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- For XML configuration / dependency injection -->
