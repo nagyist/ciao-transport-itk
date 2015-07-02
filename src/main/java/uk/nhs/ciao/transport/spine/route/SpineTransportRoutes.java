@@ -1,5 +1,7 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import org.apache.camel.Exchange;
+import org.apache.camel.component.http4.HttpOperationFailedException;
 import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
@@ -8,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import uk.nhs.ciao.CIPRoutes;
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
+import uk.nhs.ciao.transport.spine.forwardexpress.EbxmlAcknowledgementProcessor;
+import uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressSenderApplication;
 import uk.nhs.ciao.transport.spine.trunk.TrunkRequestProperties;
 
 /**
@@ -62,7 +66,29 @@ public class SpineTransportRoutes extends CIPRoutes {
 		.to("freemarker:uk/nhs/ciao/transport/spine/trunk/TrunkRequest.ftl")
 		.to("jms:queue:trunk-requests");
 		
+		from("jms:queue:trunk-requests?destination.consumer.prefetchSize=0")
+		.errorHandler(new TransactionErrorHandlerBuilder()
+			.asyncDelayedRedelivery()
+			.maximumRedeliveries(2)
+			.backOffMultiplier(2)
+			.redeliveryDelay(2000)
+			.log(LoggerFactory.getLogger(ForwardExpressSenderApplication.class))
+			.logExhausted(true)
+		)
+		.transacted("PROPAGATION_NOT_SUPPORTED")
 		
+		//.setHeader(Exchange.CORRELATION_ID, simple("${bodyAs(String)}"))
+		.setHeader(Exchange.FILE_NAME, simple("${header.CamelCorrelationId}/message"))
+		.setHeader(Exchange.CONTENT_TYPE, constant("text/plain"))
+		.setHeader(Exchange.HTTP_METHOD, constant(org.apache.camel.component.http4.HttpMethods.POST))
+		.to("file://./target/docs")				
+//		.doTry()
+			.to("spine:trunk")
+			.process(new EbxmlAcknowledgementProcessor())			
+//		.endDoTry()
+//		.doCatch(HttpOperationFailedException.class)
+//			.process(new HttpErrorHandler())
+		;
 		
 //		try {
 //			

@@ -41,6 +41,11 @@ public class ForwardExpressComponent extends DefaultComponent {
 		processor = new Processor() {
 			@Override
 			public void process(final Exchange exchange) throws Exception {
+				if (!createdDynamicRoutes) {
+					// Only create dynamic routes once
+					initDynamicRoutes();
+				}
+				
 				producerTemplate.send(requestUri, exchange);
 			}
 		};
@@ -114,28 +119,6 @@ public class ForwardExpressComponent extends DefaultComponent {
 			producerTemplate = new DefaultProducerTemplate(getCamelContext());
 		}
 		producerTemplate.start();
-		
-		getCamelContext().addRoutes(new RouteBuilder() {
-			@Override
-			public void configure() throws Exception {
-				final String requestRouteId = name + "-request";
-				final String ackRouteId = name + "-ack";
-				final String aggregateRouteId = name + "-aggregate";
-				
-				routeIds.add(requestRouteId);
-				routeIds.add(ackRouteId);
-				routeIds.add(aggregateRouteId);
-				
-				requestUri = "direct:" + requestRouteId;
-				
-				forwardExpressSender(getContext(),
-					from(requestUri).routeId(requestRouteId))
-					.to(toUri)
-					.waitForResponse(
-						forwardExpressAckReceiver(ackRouteId, replyUri, ackMessageIdHeader, ackCorrelationIdHeader),
-						forwardExpressMessageAggregator(aggregateRouteId, "direct:" + aggregateRouteId, timeout));
-			}
-		});
 	}
 	
 	@Override
@@ -146,12 +129,54 @@ public class ForwardExpressComponent extends DefaultComponent {
 			producerTemplate.stop();
 		}
 		
-		// Try to remove any created routes
-		for (final Iterator<String> iterator = routeIds.iterator(); iterator.hasNext(); ) {
-			final String routeId = iterator.next();
-			getCamelContext().stopRoute(routeId);
-			getCamelContext().removeRoute(routeId);
-			iterator.remove();
+		synchronized (lock) {
+			// Try to remove any created routes
+			for (final Iterator<String> iterator = routeIds.iterator(); iterator.hasNext(); ) {
+				final String routeId = iterator.next();
+				getCamelContext().stopRoute(routeId);
+				getCamelContext().removeRoute(routeId);
+				iterator.remove();
+			}
+			createdDynamicRoutes = false;
+		}
+	}
+	
+	private volatile boolean createdDynamicRoutes = false;
+	private final Object lock = new Object();
+	
+	/**
+	 * Creation of dynamic routes can't happen when the component is started otherwise
+	 * a concurrent modification exception is thrown
+	 */
+	private void initDynamicRoutes() throws Exception {
+		synchronized (lock) {
+			if (createdDynamicRoutes) {
+				return;
+			}
+			
+			getCamelContext().addRoutes(new RouteBuilder() {
+				@Override
+				public void configure() throws Exception {
+					final String requestRouteId = name + "-request";
+					final String ackRouteId = name + "-ack";
+					final String aggregateRouteId = name + "-aggregate";
+					
+					routeIds.add(requestRouteId);
+					routeIds.add(ackRouteId);
+					routeIds.add(aggregateRouteId);
+					
+					requestUri = "direct:" + requestRouteId;
+					
+					forwardExpressSender(getContext(),
+						from(requestUri).routeId(requestRouteId))
+						.to(toUri)
+						.waitForResponse(
+							forwardExpressAckReceiver(ackRouteId, replyUri, ackMessageIdHeader, ackCorrelationIdHeader),
+							forwardExpressMessageAggregator(aggregateRouteId, "direct:" + aggregateRouteId, timeout));
+				}
+			});
+			
+			createdDynamicRoutes = true;
 		}
 	}
 }

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -15,6 +16,7 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.Predicate;
+import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
@@ -147,8 +149,25 @@ public class SpineTransportApplicationTest {
 		camelContext.addRoutes(new RouteBuilder() {			
 			@Override
 			public void configure() throws Exception {
-				from("jms:queue:trunk-requests")
-				.to("mock:output");
+				from("seda:trunk-request")
+				.process(new Processor() {
+					@Override
+					public void process(final Exchange exchange) throws Exception {
+						final String body = "<root>somexml</root>";
+						exchange.getOut().setBody(body);
+						exchange.getOut().setHeader("JMSCorrelationID", "12345");
+						exchange.getOut().setHeader("JMSMessageID", UUID.randomUUID().toString());
+					}
+				})
+				.multicast()
+					.to("direct:document-ebxml-acks")
+					.process(new Processor() {
+						@Override
+						public void process(Exchange exchange) throws Exception {
+							Thread.sleep(100); // Give the main thread a chance to complete
+						}
+					})
+					.to("mock:output");
 			}
 		});
 		
@@ -179,6 +198,8 @@ public class SpineTransportApplicationTest {
 		final Exchange exchange = producer.createExchange();
 		final Message message = exchange.getIn();
 		message.setBody(body);
+		message.setHeader("JMSCorrelationID", "12345");
+		message.setHeader(Exchange.CORRELATION_ID, "12345");
 		producer.process(exchange);
 	}
 	

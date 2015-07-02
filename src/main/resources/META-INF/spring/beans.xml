@@ -11,6 +11,7 @@
 	<!-- Select 'dynamic' spring imports - determined via CIAO properties -->
 	<import resource="classpath*:META-INF/spring/processors/${processorConfig}.xml"/>
 	<import resource="classpath*:META-INF/spring/messaging/${messagingConfig}.xml"/>
+	<import resource="classpath*:META-INF/spring/messaging/spine.xml"/>
     
 	<camelContext xmlns="http://camel.apache.org/schema/spring" id="camel" trace="true" streamCache="true">
 		<properties>
