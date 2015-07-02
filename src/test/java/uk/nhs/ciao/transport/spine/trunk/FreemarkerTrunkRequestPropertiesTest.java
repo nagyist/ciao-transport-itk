@@ -12,9 +12,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Tests the generation of outgoing TrunkMessages
+ * Tests the generation of outgoing trunk request messages using freemarker templates
  */
-public class TrunkMessageTest {
+public class FreemarkerTrunkRequestPropertiesTest {
 
 	// Template variables:
 	
@@ -90,7 +90,7 @@ public class TrunkMessageTest {
 	public void checkTemplate() throws Exception {
 		final TrunkRequestProperties body = TrunkRequestProperties.builder()
 				.setItkCorrelationId("123567762")
-				.setItkDocumentBody("The document content")
+				.setItkDocumentBody("The document content".getBytes())
 				.build();
 		
 		
