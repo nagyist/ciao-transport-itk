@@ -1,11 +1,15 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import org.apache.camel.model.dataformat.JsonLibrary;
+import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uk.nhs.ciao.CIPRoutes;
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
+import uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressSenderApplication;
+import uk.nhs.ciao.transport.spine.trunk.TrunkRequestProperties;
 
 /**
  * Configures multiple camel CDA builder routes determined by properties specified
@@ -44,6 +48,22 @@ public class SpineTransportRoutes extends CIPRoutes {
 		 * it to a 'sending' queue - this would ensure that an identical outgoing message it sent
 		 * during retries (including metadata such as creation time etc)
 		 */
+		
+		from("jms:queue:documents?destination.consumer.prefetchSize=0")
+		.errorHandler(new TransactionErrorHandlerBuilder()
+			.asyncDelayedRedelivery()
+			.maximumRedeliveries(2)
+			.backOffMultiplier(2)
+			.redeliveryDelay(2000)
+			.log(LoggerFactory.getLogger(getClass()))
+			.logExhausted(true)
+		)
+		.transacted("PROPAGATION_NOT_SUPPORTED")
+		.unmarshal().json(JsonLibrary.Jackson, TrunkRequestProperties.class)
+		.to("freemarker:uk/nhs/ciao/transport/spine/trunk/TrunkRequest.ftl")
+		.to("jms:queue:trunk-requests");
+		
+		
 		
 //		try {
 //			
