@@ -11,7 +11,6 @@ import uk.nhs.ciao.CIPRoutes;
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.transport.spine.forwardexpress.EbxmlAcknowledgementProcessor;
-import uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressSenderApplication;
 import uk.nhs.ciao.transport.spine.trunk.TrunkRequestProperties;
 
 /**
@@ -58,7 +57,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 			.maximumRedeliveries(2)
 			.backOffMultiplier(2)
 			.redeliveryDelay(2000)
-			.log(LoggerFactory.getLogger(getClass()))
+			.log(LOGGER)
 			.logExhausted(true)
 		)
 		.transacted("PROPAGATION_NOT_SUPPORTED")
@@ -72,7 +71,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 			.maximumRedeliveries(2)
 			.backOffMultiplier(2)
 			.redeliveryDelay(2000)
-			.log(LoggerFactory.getLogger(ForwardExpressSenderApplication.class))
+			.log(LOGGER)
 			.logExhausted(true)
 		)
 		.transacted("PROPAGATION_NOT_SUPPORTED")
