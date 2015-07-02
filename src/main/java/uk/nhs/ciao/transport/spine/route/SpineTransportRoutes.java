@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine;
+package uk.nhs.ciao.transport.spine.route;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

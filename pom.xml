@@ -10,6 +10,8 @@
 	
 	<properties>
 		<ciao.core.version>0.0.1-SNAPSHOT</ciao.core.version>
+		<ciao-docs-parser.version>1.0.0-SNAPSHOT</ciao-docs-parser.version>
+		
 		<ciao.skipBinArchive>false</ciao.skipBinArchive>
 		<ciao.addClasspath>true</ciao.addClasspath>
 		<ciao.main>uk.nhs.ciao.transport.spine.SpineTransportApplication</ciao.main>
@@ -21,6 +23,10 @@
 			<artifactId>ciao-core</artifactId>
 		</dependency>
 		
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>ciao-docs-parser-model</artifactId>
+		</dependency>
 
 		<!-- For XML configuration / dependency injection -->
 		<dependency>
@@ -88,6 +94,12 @@
 				<groupId>${project.groupId}</groupId>
 				<artifactId>ciao-core</artifactId>
 				<version>${ciao.core.version}</version>
+			</dependency>
+			
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>ciao-docs-parser-model</artifactId>
+				<version>${ciao-docs-parser.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
