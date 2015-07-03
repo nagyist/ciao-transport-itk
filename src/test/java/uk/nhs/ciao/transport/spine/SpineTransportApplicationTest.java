@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -15,12 +15,14 @@ import java.util.concurrent.TimeUnit;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
-import org.apache.camel.Predicate;
 import org.apache.camel.Processor;
-import org.apache.camel.Producer;
+import org.apache.camel.ProducerTemplate;
+import org.apache.camel.Route;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.impl.DefaultProducerTemplate;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,6 +58,7 @@ public class SpineTransportApplicationTest {
 	private SpineTransportApplication application;
 	private AsyncExecution execution;
 	private ObjectMapper objectMapper;
+	private ProducerTemplate producerTemplate;
 	
 	@Before
 	public void setup() throws Exception {
@@ -103,6 +106,14 @@ public class SpineTransportApplicationTest {
 			return;
 		}
 		
+		if (producerTemplate != null) {
+			try {
+				producerTemplate.stop();
+			} catch (Exception e) {
+				LOGGER.warn("Unable to stop producerTemplate", e);
+			}
+		}
+		
 		final CamelContext context = getCamelContext();
 		try {
 			LOGGER.info("About to stop camel application");
@@ -127,6 +138,15 @@ public class SpineTransportApplicationTest {
 		return camelContexts.isEmpty() ? null : camelContexts.get(0);
 	}
 	
+	private ProducerTemplate getProducerTemplate() throws Exception {
+		if (producerTemplate == null) {
+			producerTemplate = new DefaultProducerTemplate(getCamelContext());
+			producerTemplate.start();
+		}
+		
+		return producerTemplate;
+	}
+	
 	@Test
 	public void testApplicationStartsUsingSpringConfig() throws Exception {
 		LOGGER.info("Checking the application starts via spring config");
@@ -144,63 +164,70 @@ public class SpineTransportApplicationTest {
 
 		runApplication();
 		
-		// Route the output to a mock
+		// Using latch to wait for response - using a mock with assertions does not seem to work as expected
+		final CountDownLatch latch = new CountDownLatch(1);
+		
 		final CamelContext camelContext = getCamelContext();
+		sendRouteTo("trunk-requests", "direct:trunk-responses");
+		
 		camelContext.addRoutes(new RouteBuilder() {			
 			@Override
 			public void configure() throws Exception {
+				// Send an ack whenever a request is received
 				from("seda:trunk-request")
-				.process(new Processor() {
-					@Override
-					public void process(final Exchange exchange) throws Exception {
-						final String body = "<root>somexml</root>";
-						exchange.getOut().setBody(body);
-						exchange.getOut().setHeader("JMSCorrelationID", "12345");
-						exchange.getOut().setHeader("JMSMessageID", UUID.randomUUID().toString());
-					}
-				})
-				.multicast()
-					.to("direct:document-ebxml-acks")
+				.to("language:constant:resource:classpath:/example-ack.xml")
+				.to("direct:trunk-reply");
+				
+				// Monitor the responses and unlock the latch
+				from("direct:trunk-responses")
+					.log("Got an ack response message: ${body}")
 					.process(new Processor() {
 						@Override
-						public void process(Exchange exchange) throws Exception {
-							Thread.sleep(100); // Give the main thread a chance to complete
+						public void process(final Exchange exchange) throws Exception {
+							latch.countDown();
 						}
-					})
-					.to("mock:output");
+					});
 			}
 		});
 		
-		final Producer producer = camelContext.getEndpoint("jms:queue:documents")
-				.createProducer();
-		final MockEndpoint endpoint = MockEndpoint.resolve(camelContext, "mock:output");
-		endpoint.expectedMessageCount(1);
-		endpoint.expectedMessagesMatches(new Predicate() {			
-			@Override
-			public boolean matches(final Exchange exchange) {
-				// For now just check that we get a text body out
-				final String multipartBody = exchange.getIn().getBody(String.class);
-				assertNotNull("multipartBody", multipartBody);
-				assertFalse("multipartBody should not be empty", multipartBody.isEmpty());
-				
-				LOGGER.info("Multipart body:\n" + multipartBody);
-				
-				return true;
-			}
-		});
+		// Send the initial document to JMS (returns before main processing begins)
+		sendMessage("jms:queue:documents", getExampleJson());
 		
-		sendMessage(producer, getExampleJson());
+		// Wait for ACK response to be processed by the main route
+		Assert.assertTrue("Expected one response message", latch.await(10, TimeUnit.SECONDS));
+	}
+	
+	/**
+	 * Sends the end of the route to a further endpoint for testing (e.g. direct:...)
+	 * @throws Exception 
+	 */
+	@SuppressWarnings("deprecation")
+	private void sendRouteTo(final String routeId, final String toUri) throws Exception {
+		// A little 'hacky' - 
+		// This version of camel does not support the failIfNoConsumers option on the direct component
+		// otherwise a NOOP route could have been added in the main route
+		// without the option the route would pass unit tests - but fail when running normally!
+		final CamelContext camelContext = getCamelContext();
 		
-		MockEndpoint.assertIsSatisfied(10, TimeUnit.SECONDS, endpoint);
+		final Route route = camelContext.getRoute(routeId);
+		Assert.assertNotNull(route);
+		
+		camelContext.stopRoute(routeId);
+		camelContext.removeRoute(routeId);		
+		camelContext.addRouteDefinition(route.getRouteContext().getRoute().to(toUri));
+		camelContext.startRoute(routeId);
 	}
 
-	private void sendMessage(final Producer producer, final Object body) throws Exception {
-		final Exchange exchange = producer.createExchange();
+	private Exchange sendMessage(final String uri, final Object body) throws Exception {
+		final Exchange exchange = getCamelContext().getEndpoint(uri).createExchange();
 		final Message message = exchange.getIn();
 		message.setBody(body);
-		message.setHeader("JMSCorrelationID", "12345");
-		message.setHeader(Exchange.CORRELATION_ID, "12345");
-		producer.process(exchange);
+		
+		// Add correlation ids matching the example-ack.xml
+		message.setHeader("JMSCorrelationID", "89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95");
+		message.setHeader(Exchange.CORRELATION_ID, "89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95");
+		
+		return getProducerTemplate().send(uri, exchange);
 	}
 	
 	private String getExampleJson() throws IOException {

@@ -22,14 +22,10 @@ public class EbxmlAcknowledgementProcessor implements Processor {
 		switch (ackType) {
 		case SUCCESS:
 			LOGGER.info("ebXml ack received - id: " + id);
-			exchange.getOut().copyFrom(exchange.getIn());
-			exchange.getOut().setBody(document);
 			break;
 		case FAILURE:
 			LOGGER.info("ebXml nack (failure) received - id: " + id + " - will not retry");
-			exchange.getOut().copyFrom(exchange.getIn());
-			exchange.getOut().setBody(document);
-			exchange.getOut().setFault(true); // Fault messages are not retried!
+			exchange.getIn().setFault(true); // Fault messages are not retried!
 			break;
 		case RETRY:
 			final String message = "ebXml nack (retry) received - id: " + id + " - will retry";

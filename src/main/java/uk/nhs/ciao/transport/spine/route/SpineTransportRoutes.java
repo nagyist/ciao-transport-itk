@@ -1,6 +1,7 @@
 package uk.nhs.ciao.transport.spine.route;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.component.http4.HttpOperationFailedException;
 import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
@@ -36,21 +37,10 @@ public class SpineTransportRoutes extends CIPRoutes {
 		super.configure();
 		
 		final CIAOConfig config = CamelApplication.getConfig(getContext());
-		// TODO: Complete routes
-		
-		/*
-		 * Documents to send are stored on a JMS queue
-		 * Prior to sending the document needs to be converted into
-		 * a multi-part request with associated ebXml, hl7, and ITK parts
-		 * This multi-part message needs to persist until an ebXml ack is received
-		 *  -> a transaction and blocking thread can be used to handle retrys and failover
-		 * 
-		 * It might be be best to take the original document off the original queue, transform it
-		 * into the outgoing message (generating associated tracking / message IDs), and then add
-		 * it to a 'sending' queue - this would ensure that an identical outgoing message it sent
-		 * during retries (including metadata such as creation time etc)
-		 */
-		
+
+		// Document input route
+		// * transforms the ParsedDocument json into a multi-part trunk request message
+		// * Adds the trunk request message onto a JMS queue for later processing (by any running process)
 		from("jms:queue:documents?destination.consumer.prefetchSize=0")
 		.errorHandler(new TransactionErrorHandlerBuilder()
 			.asyncDelayedRedelivery()
@@ -62,10 +52,18 @@ public class SpineTransportRoutes extends CIPRoutes {
 		)
 		.transacted("PROPAGATION_NOT_SUPPORTED")
 		.unmarshal().json(JsonLibrary.Jackson, TrunkRequestProperties.class)
+		.setHeader("SOAPAction").constant("urn:nhs:names:services:itk/COPC_IN000001GB01")
+		.setHeader(Exchange.CONTENT_TYPE).simple("multipart/related; boundary=\"${body.mimeBoundary}\"; type=\"text/xml\"; start=\"<${body.ebxmlContentId}>\"")
 		.to("freemarker:uk/nhs/ciao/transport/spine/trunk/TrunkRequest.ftl")
 		.to("jms:queue:trunk-requests");
 		
+		
+		 // Outgoing trunk message queue
+		 // * sends a multi-part trunk request message over the spine
+		 // * blocks until an async ebXml ack is received off a configured JMS topic or a timeout occurs
+		 // * marks message as success, retry or failure based on the ACK content
 		from("jms:queue:trunk-requests?destination.consumer.prefetchSize=0")
+		.id("trunk-requests")
 		.errorHandler(new TransactionErrorHandlerBuilder()
 			.asyncDelayedRedelivery()
 			.maximumRedeliveries(2)
@@ -76,23 +74,28 @@ public class SpineTransportRoutes extends CIPRoutes {
 		)
 		.transacted("PROPAGATION_NOT_SUPPORTED")
 		
-		//.setHeader(Exchange.CORRELATION_ID, simple("${bodyAs(String)}"))
 		.setHeader(Exchange.FILE_NAME, simple("${header.CamelCorrelationId}/message"))
-		.setHeader(Exchange.CONTENT_TYPE, constant("text/plain"))
 		.setHeader(Exchange.HTTP_METHOD, constant(org.apache.camel.component.http4.HttpMethods.POST))
 		.to("file://./target/docs")				
 //		.doTry()
 			.to("spine:trunk")
-			.process(new EbxmlAcknowledgementProcessor())			
+			.process(new EbxmlAcknowledgementProcessor())
 //		.endDoTry()
 //		.doCatch(HttpOperationFailedException.class)
 //			.process(new HttpErrorHandler())
 		;
 		
-//		try {
-//			
-//		} catch (CIAOConfigurationException e) {
-//			throw new RuntimeException("Unable to build routes from CIAOConfig", e);
-//		}
+		// Incoming ebXml ACK receiver route
+		// * Receives ebXml acks (over HTTP)
+		// * Extracts the related original message id (for correlation)
+		// * Adds the ebXml ack to a JMS topic for later processing (by the process holding the associated transaction open)
+		final Namespaces ns = new Namespaces("soap", "http://schemas.xmlsoap.org/soap/envelope/");
+		ns.add("eb", "http://www.oasis-open.org/committees/ebxml-msg/schema/msg-header-2_0.xsd");
+		
+		from("{{spine.fromUri}}")
+			.setHeader("JMSCorrelationID",
+				ns.xpath("/soap:Envelope/soap:Header/eb:Acknowledgment/eb:RefToMessageId", String.class))
+			.setHeader(Exchange.CORRELATION_ID).simple("${header.JMSCorrelationID}")
+			.to("{{spine.replyUri}}");
 	}
 }
