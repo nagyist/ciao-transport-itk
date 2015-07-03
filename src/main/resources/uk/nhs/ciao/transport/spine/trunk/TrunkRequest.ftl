@@ -19,7 +19,7 @@ Content-Transfer-Encoding: 8bit
 			<eb:Action>COPC_IN000001GB01</eb:Action>
 			<eb:MessageData>
 				<eb:MessageId>${body.ebxmlCorrelationId}</eb:MessageId>
-				<eb:Timestamp>${body.creationTime?string["yyyy-MM-dd'T'HH:mm:ss"]}</eb:Timestamp>
+				<eb:Timestamp>${body.ebxmlTimestamp}</eb:Timestamp>
 			</eb:MessageData>
 			<eb:DuplicateElimination/>
 		</eb:MessageHeader>
@@ -47,7 +47,7 @@ Content-Transfer-Encoding: 8bit
 <?xml version="1.0" encoding="UTF-8"?>
 <COPC_IN000001GB01 xmlns="urn:hl7-org:v3">
    <id root="${body.hl7RootId}"/>
-   <creationTime value="${body.creationTime?string["yyyyMMddHHmmss"]}"/>
+   <creationTime value="${body.hl7CreationTime}"/>
    <versionCode code="V3NPfIT4.2.00"/>
    <interactionId extension="COPC_IN000001GB01" root="2.16.840.1.113883.2.1.3.2.4.12"/>
    <processingCode code="P"/>

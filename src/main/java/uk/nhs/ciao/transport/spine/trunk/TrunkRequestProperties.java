@@ -1,6 +1,9 @@
 package uk.nhs.ciao.transport.spine.trunk;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -16,6 +19,31 @@ import com.google.common.base.Strings;
 @JsonDeserialize(builder=TrunkRequestProperties.Builder.class)
 public class TrunkRequestProperties {	
 	private static final String DEFAULT_MIME_BOUNDARY = "--=_MIME-Boundary";
+	
+	/**
+	 * Date format used in ebXml time-stamps
+	 * <p>
+	 * This is expressed in the UTC time-zone
+	 */
+	private static final ThreadLocal<DateFormat> EBXML_TIMESTAMP_FORMAT = new ThreadLocal<DateFormat>() {
+		protected DateFormat initialValue() {
+			final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+			dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+			return dateFormat;
+		};
+	};
+	
+	/**
+	 * Date format used in HL7 date-time fields
+	 * <p>
+	 * This is expressed in the local time-zone
+	 */
+	private static final ThreadLocal<DateFormat> HL7_DATE_FORMAT = new ThreadLocal<DateFormat>() {
+		protected DateFormat initialValue() {
+			return new SimpleDateFormat("yyyyMMddHHmmss");
+		};
+	};
+
 	
 	/**
 	 * Uses:
@@ -68,7 +96,11 @@ public class TrunkRequestProperties {
 	 * eb:Timestamp (in MessageData)
 	 * HL7 - creationTime
 	 * 
-	 * TODO: Should this change if message is resent? Do they always refer to this same time?
+	 * String format methods exist for ebxml and hl7 (different formats
+	 * and different time-zones)
+	 * 
+	 * @see #getEbxmlTimestamp()
+	 * @see #getHl7CreationTime()
 	 */
 	private final Date creationTime;
 	
@@ -170,6 +202,10 @@ public class TrunkRequestProperties {
 	public String getEbxmlCorrelationId() {
 		return ebxmlCorrelationId;
 	}
+	
+	public String getEbxmlTimestamp() {
+		return EBXML_TIMESTAMP_FORMAT.get().format(creationTime);
+	}
 
 	public Date getCreationTime() {
 		return creationTime;
@@ -181,6 +217,10 @@ public class TrunkRequestProperties {
 
 	public String getHl7RootId() {
 		return hl7RootId;
+	}
+	
+	public String getHl7CreationTime() {
+		return HL7_DATE_FORMAT.get().format(creationTime);
 	}
 
 	public String getItkContentId() {
