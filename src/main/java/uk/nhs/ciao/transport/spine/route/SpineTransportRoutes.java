@@ -1,6 +1,8 @@
 package uk.nhs.ciao.transport.spine.route;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.ExchangePattern;
+import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.component.http4.HttpOperationFailedException;
 import org.apache.camel.model.dataformat.JsonLibrary;
@@ -54,6 +56,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 		.unmarshal().json(JsonLibrary.Jackson, TrunkRequestProperties.class)
 		.setHeader("SOAPAction").constant("urn:nhs:names:services:itk/COPC_IN000001GB01")
 		.setHeader(Exchange.CONTENT_TYPE).simple("multipart/related; boundary=\"${body.mimeBoundary}\"; type=\"text/xml\"; start=\"<${body.ebxmlContentId}>\"")
+		.setHeader(Exchange.CORRELATION_ID).simple("${body.ebxmlCorrelationId}")
 		.to("freemarker:uk/nhs/ciao/transport/spine/trunk/TrunkRequest.ftl")
 		.to("jms:queue:trunk-requests");
 		
@@ -76,6 +79,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 		
 		.setHeader(Exchange.FILE_NAME, simple("${header.CamelCorrelationId}/message"))
 		.setHeader(Exchange.HTTP_METHOD, constant(org.apache.camel.component.http4.HttpMethods.POST))
+		
 		.to("file://./target/docs")				
 //		.doTry()
 			.to("spine:trunk")
@@ -93,9 +97,15 @@ public class SpineTransportRoutes extends CIPRoutes {
 		ns.add("eb", "http://www.oasis-open.org/committees/ebxml-msg/schema/msg-header-2_0.xsd");
 		
 		from("{{spine.fromUri}}")
-			.setHeader("JMSCorrelationID",
-				ns.xpath("/soap:Envelope/soap:Header/eb:Acknowledgment/eb:RefToMessageId", String.class))
-			.setHeader(Exchange.CORRELATION_ID).simple("${header.JMSCorrelationID}")
-			.to("{{spine.replyUri}}");
+			.choice()
+				.when(header("SOAPAction").isEqualTo("urn:urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
+					.setHeader("JMSCorrelationID",
+						ns.xpath("/soap:Envelope/soap:Header/eb:Acknowledgment/eb:RefToMessageId", String.class))
+					.setHeader(Exchange.CORRELATION_ID).simple("${header.JMSCorrelationID}")
+					.setExchangePattern(ExchangePattern.InOnly)
+					.to("{{spine.replyUri}}")
+					.endChoice()
+				.otherwise()
+					.log(LoggingLevel.WARN, LOGGER, "Unsupported SOAPAction receieved: ${header.SOAPAction}");		
 	}
 }
