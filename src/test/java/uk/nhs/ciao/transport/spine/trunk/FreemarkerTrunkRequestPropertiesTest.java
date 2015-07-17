@@ -91,6 +91,17 @@ public class FreemarkerTrunkRequestPropertiesTest {
 		final TrunkRequestProperties body = TrunkRequestProperties.builder()
 				.setItkCorrelationId("123567762")
 				.setItkDocumentBody("The document content".getBytes())
+				.setSenderPartyId("AAA-123456")
+				.setSenderAsid("866971180017")
+				.setSenderODSCode("AAA")				
+				.setReceiverPartyId("BBB-654321")
+				.setReceiverAsid("000000000000")
+				.setReceiverODSCode("BBB")
+				.setReceiverCPAId("S3024519A3110234")
+				.setAuditODSCode("AAA")
+				.setInteractionId("COPC_IN000001GB01")
+				.setItkProfileId("urn:nhs-en:profile:eDischargeInpatientDischargeSummary-v1-0")
+				.setItkHandlingSpec("urn:nhs-itk:interaction:copyRecipientAmbulanceServicePatientReport-v1-0")
 				.build();
 		
 		

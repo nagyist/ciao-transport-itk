@@ -8,15 +8,15 @@ Content-Transfer-Encoding: 8bit
 	<SOAP:Header>
 		<eb:MessageHeader SOAP:mustUnderstand="1" eb:version="2.0">
 			<eb:From>
-				<eb:PartyId eb:type="urn:nhs:names:partyType:ocs+serviceInstance">AAA-123456</eb:PartyId>
+				<eb:PartyId eb:type="urn:nhs:names:partyType:ocs+serviceInstance">${body.senderPartyId}</eb:PartyId>
 			</eb:From>
 			<eb:To>
-				<eb:PartyId eb:type="urn:nhs:names:partyType:ocs+serviceInstance">BBB-654321</eb:PartyId>
+				<eb:PartyId eb:type="urn:nhs:names:partyType:ocs+serviceInstance">${body.receiverPartyId}</eb:PartyId>
 			</eb:To>
-			<eb:CPAId>S3024519A3110234</eb:CPAId>
+			<eb:CPAId>${body.receiverCPAId}</eb:CPAId>
 			<eb:ConversationId>${body.ebxmlCorrelationId}</eb:ConversationId>
 			<eb:Service>urn:nhs:names:services:itk</eb:Service>
-			<eb:Action>COPC_IN000001GB01</eb:Action>
+			<eb:Action>${body.interactionId}</eb:Action>
 			<eb:MessageData>
 				<eb:MessageId>${body.ebxmlCorrelationId}</eb:MessageId>
 				<eb:Timestamp>${body.ebxmlTimestamp}</eb:Timestamp>
@@ -45,48 +45,35 @@ Content-Type: application/xml; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
 <?xml version="1.0" encoding="UTF-8"?>
-<COPC_IN000001GB01 xmlns="urn:hl7-org:v3">
+<${body.interactionId} xmlns="urn:hl7-org:v3">
    <id root="${body.hl7RootId}"/>
    <creationTime value="${body.hl7CreationTime}"/>
    <versionCode code="V3NPfIT4.2.00"/>
-   <interactionId extension="COPC_IN000001GB01" root="2.16.840.1.113883.2.1.3.2.4.12"/>
+   <interactionId extension="${body.interactionId}" root="2.16.840.1.113883.2.1.3.2.4.12"/>
    <processingCode code="P"/>
    <processingModeCode code="T"/>
    <acceptAckCode code="NE"/>
    <communicationFunctionRcv>
       <device classCode="DEV" determinerCode="INSTANCE">
-         <id extension="000000000000" root="1.2.826.0.1285.0.2.0.107"/>
+         <id extension="${body.receiverAsid}" root="1.2.826.0.1285.0.2.0.107"/>
       </device>
    </communicationFunctionRcv>
    <communicationFunctionSnd>
       <device classCode="DEV" determinerCode="INSTANCE">
-         <id extension="866971180017" root="1.2.826.0.1285.0.2.0.107"/>
+         <id extension="${body.senderAsid}" root="1.2.826.0.1285.0.2.0.107"/>
       </device>
    </communicationFunctionSnd>
+   
    <ControlActEvent classCode="CACT" moodCode="EVN">
-      <author typeCode="AUT">
-         <AgentPersonSDS classCode="AGNT">
-            <id extension="012345678901" root="1.2.826.0.1285.0.2.0.67"/>
-            <agentPersonSDS classCode="PSN" determinerCode="INSTANCE">
-               <id extension="687227875014" root="1.2.826.0.1285.0.2.0.65"/>
-            </agentPersonSDS>
-            <part typeCode="PART">
-               <partSDSRole classCode="ROL">
-                  <id extension="S0080:G0450:R5080" root="1.2.826.0.1285.0.2.1.104"/>
-               </partSDSRole>
-            </part>
-         </AgentPersonSDS>
-      </author>
-
       <author1 typeCode="AUT">
          <AgentSystemSDS classCode="AGNT">
             <agentSystemSDS classCode="DEV" determinerCode="INSTANCE">
-               <id extension="866971180017" root="1.2.826.0.1285.0.2.0.107"/>
+               <id extension="${body.senderAsid}" root="1.2.826.0.1285.0.2.0.107"/>
             </agentSystemSDS>
          </AgentSystemSDS>
       </author1>
 	</ControlActEvent>
-</COPC_IN000001GB01>
+</${body.interactionId}>
 
 --${body.mimeBoundary}
 Content-Id: <${body.itkContentId}>
@@ -97,18 +84,18 @@ Content-Transfer-Encoding: 8bit
 <itk:DistributionEnvelope xmlns:itk="urn:nhs-itk:ns:201005" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<itk:header service="urn:nhs-itk:services:201005:SendCDADocument-v2-0" trackingid="${body.itkCorrelationId}">
 		<itk:addresslist>
-			<itk:address uri="urn:nhs-uk:addressing:ods:X0912"/>
+			<itk:address uri="urn:nhs-uk:addressing:ods:${body.receiverODSCode}"/>
 		</itk:addresslist>
 		<itk:auditIdentity>
-			<itk:id uri="urn:nhs-uk:identity:ods:XZ901"/>
+			<itk:id uri="urn:nhs-uk:identity:ods:${body.auditODSCode}"/>
 		</itk:auditIdentity>
 		<itk:manifest count="1">
-			<itk:manifestitem mimetype="text/xml" id="uuid_${body.itkDocumentId}" profileid="urn:nhs-en:profile:ambulanceServicePatientReport-v1-0"/>
+			<itk:manifestitem mimetype="text/xml" id="uuid_${body.itkDocumentId}" profileid="${body.itkProfileId}"/>
 		</itk:manifest>
-		<itk:senderAddress uri="urn:nhs-uk:addressing:AAA:XZ901:XY7650987"/>
+		<itk:senderAddress uri="urn:nhs-uk:addressing:${body.senderODSCode}"/>
 		<itk:handlingSpecification>
 			<itk:spec value="true" key="urn:nhs-itk:ns:201005:ackrequested"/>
-			<itk:spec value="urn:nhs-itk:interaction:copyRecipientAmbulanceServicePatientReport-v1-0" key="urn:nhs-itk:ns:201005:interaction"/>
+			<itk:spec value="${body.itkHandlingSpec}" key="urn:nhs-itk:ns:201005:interaction"/>
 		</itk:handlingSpecification>
 	</itk:header>
 	<itk:payloads count="1">

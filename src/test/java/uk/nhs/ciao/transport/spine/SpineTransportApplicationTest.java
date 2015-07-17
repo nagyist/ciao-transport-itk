@@ -235,6 +235,13 @@ public class SpineTransportApplicationTest {
 		properties.put("itkCorrelationId", "12345");
 		properties.put("ebxmlCorrelationId", "89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95");
 		
+		properties.put("receiverPartyId", "BBB-654321");
+		properties.put("receiverAsid", "000000000000");
+		properties.put("receiverODSCode", "BBB");
+		properties.put("receiverCPAId", "S3024519A3110234");
+		properties.put("itkProfileId", "urn:nhs-en:profile:eDischargeInpatientDischargeSummary-v1-0");
+		properties.put("itkHandlingSpec", "urn:nhs-itk:interaction:copyRecipientAmbulanceServicePatientReport-v1-0");
+		
 		final Document originalDocument = new Document("myfile.xml", "<root>content</root>".getBytes(), "text/xml");
 		final ParsedDocument parsedDocument = new ParsedDocument(originalDocument, properties);
 		return objectMapper.writeValueAsString(parsedDocument);

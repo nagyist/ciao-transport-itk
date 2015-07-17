@@ -1,5 +1,7 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import java.util.Map;
+
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
@@ -14,6 +16,7 @@ import uk.nhs.ciao.CIPRoutes;
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.transport.spine.forwardexpress.EbxmlAcknowledgementProcessor;
+import uk.nhs.ciao.transport.spine.trunk.ConfigPropertiesEnricher;
 import uk.nhs.ciao.transport.spine.trunk.TrunkRequestProperties;
 
 /**
@@ -53,8 +56,11 @@ public class SpineTransportRoutes extends CIPRoutes {
 			.logExhausted(true)
 		)
 		.transacted("PROPAGATION_NOT_SUPPORTED")
+		.unmarshal().json(JsonLibrary.Jackson, Map.class)
+		.beanRef("configPropertiesEnricher", "enrich")
+		.marshal().json(JsonLibrary.Jackson) // TODO: Look into removing the marshal -> unmarshal step
 		.unmarshal().json(JsonLibrary.Jackson, TrunkRequestProperties.class)
-		.setHeader("SOAPAction").constant("urn:nhs:names:services:itk/COPC_IN000001GB01")
+		.setHeader("SOAPAction").constant("urn:nhs:names:services:itk/${body.interactionId}")
 		.setHeader(Exchange.CONTENT_TYPE).simple("multipart/related; boundary=\"${body.mimeBoundary}\"; type=\"text/xml\"; start=\"<${body.ebxmlContentId}>\"")
 		.setHeader(Exchange.CORRELATION_ID).simple("${body.ebxmlCorrelationId}")
 		.to("freemarker:uk/nhs/ciao/transport/spine/trunk/TrunkRequest.ftl")

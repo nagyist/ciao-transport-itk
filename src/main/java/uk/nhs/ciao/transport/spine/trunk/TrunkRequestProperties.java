@@ -1,5 +1,7 @@
 package uk.nhs.ciao.transport.spine.trunk;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -10,7 +12,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 /**
@@ -164,6 +165,21 @@ public class TrunkRequestProperties {
 	 */
 	private final String itkDocumentId;
 	
+	private final String senderPartyId;
+	private final String senderAsid;
+	private final String senderODSCode;
+	
+	private final String receiverPartyId;
+	private final String receiverAsid;
+	private final String receiverODSCode;
+	private final String receiverCPAId;
+	
+	private final String auditODSCode;
+	
+	private final String interactionId;
+	private final String itkProfileId;
+	private final String itkHandlingSpec;
+	
 	/**
 	 * Document payload
 	 * <p>
@@ -173,6 +189,7 @@ public class TrunkRequestProperties {
 	 * TODO: Check documentation for further details on GZIP encoding
 	 */
 	private final String itkDocumentBody;
+
 	
 	// Using builder pattern to only generate UUIDs when actually required
 	private TrunkRequestProperties(final Builder builder) {
@@ -186,7 +203,22 @@ public class TrunkRequestProperties {
 		this.itkCorrelationId = valueOrUUID(builder.properties.itkCorrelationId);
 		this.itkDocumentId = valueOrUUID(builder.properties.itkDocumentId);
 		
-		Preconditions.checkNotNull(builder.originalDocument.itkDocumentBody);
+		this.senderPartyId = checkNotNull(builder.properties.senderPartyId);
+		this.senderAsid = checkNotNull(builder.properties.senderAsid);
+		this.senderODSCode = checkNotNull(builder.properties.senderODSCode);
+		
+		this.receiverPartyId = checkNotNull(builder.properties.receiverPartyId);
+		this.receiverAsid = checkNotNull(builder.properties.receiverAsid);
+		this.receiverODSCode = checkNotNull(builder.properties.receiverODSCode);
+		this.receiverCPAId = checkNotNull(builder.properties.receiverCPAId);
+		
+		this.auditODSCode = valueOrDefault(builder.properties.auditODSCode, builder.properties.senderODSCode);
+		
+		this.interactionId = checkNotNull(builder.properties.interactionId);
+		this.itkProfileId = checkNotNull(builder.properties.itkProfileId);
+		this.itkHandlingSpec = checkNotNull(builder.properties.itkHandlingSpec);
+		
+		checkNotNull(builder.originalDocument.itkDocumentBody);
 		// TODO: compress and encode as Base64
 		this.itkDocumentBody = new String(builder.originalDocument.itkDocumentBody);
 	}
@@ -239,6 +271,50 @@ public class TrunkRequestProperties {
 		return itkDocumentBody;
 	}
 	
+	public String getSenderPartyId() {
+		return senderPartyId;
+	}
+
+	public String getSenderAsid() {
+		return senderAsid;
+	}
+
+	public String getSenderODSCode() {
+		return senderODSCode;
+	}
+
+	public String getReceiverPartyId() {
+		return receiverPartyId;
+	}
+
+	public String getReceiverAsid() {
+		return receiverAsid;
+	}
+
+	public String getReceiverODSCode() {
+		return receiverODSCode;
+	}
+
+	public String getReceiverCPAId() {
+		return receiverCPAId;
+	}
+
+	public String getAuditODSCode() {
+		return auditODSCode;
+	}
+
+	public String getInteractionId() {
+		return interactionId;
+	}
+
+	public String getItkProfileId() {
+		return itkProfileId;
+	}
+
+	public String getItkHandlingSpec() {
+		return itkHandlingSpec;
+	}
+
 	public static Builder builder() {
 		return new Builder();
 	}
@@ -257,12 +333,12 @@ public class TrunkRequestProperties {
 		
 		// For jackson
 		void setProperties(final PropertiesView properties) {
-			this.properties = Preconditions.checkNotNull(properties);
+			this.properties = checkNotNull(properties);
 		}
 		
 		// For jackson
 		void setOriginalDocument(final OriginalDocumentView originalDocument) {
-			this.originalDocument = Preconditions.checkNotNull(originalDocument);
+			this.originalDocument = checkNotNull(originalDocument);
 		}
 		
 		public Builder setMimeBoundary(final String mimeBoundary) {
@@ -315,6 +391,61 @@ public class TrunkRequestProperties {
 			return this;
 		}
 		
+		public Builder setSenderPartyId(final String senderPartyId) {
+			properties.senderPartyId = senderPartyId;
+			return this;
+		}
+		
+		public Builder setSenderAsid(final String senderAsid) {
+			properties.senderAsid = senderAsid;
+			return this;
+		}
+		
+		public Builder setSenderODSCode(final String senderODSCode) {
+			properties.senderODSCode = senderODSCode;
+			return this;
+		}
+		
+		public Builder setReceiverPartyId(final String receiverPartyId) {
+			properties.receiverPartyId = receiverPartyId;
+			return this;
+		}
+		
+		public Builder setReceiverAsid(final String receiverAsid) {
+			properties.receiverAsid = receiverAsid;
+			return this;
+		}
+		
+		public Builder setReceiverODSCode(final String receiverODSCode) {
+			properties.receiverODSCode = receiverODSCode;
+			return this;
+		}
+		
+		public Builder setReceiverCPAId(final String receiverCPAId) {
+			properties.receiverCPAId = receiverCPAId;
+			return this;
+		}
+		
+		public Builder setAuditODSCode(final String auditODSCode) {
+			properties.auditODSCode = auditODSCode;
+			return this;
+		}
+		
+		public Builder setInteractionId(final String interactionId) {
+			properties.interactionId = interactionId;
+			return this;
+		}
+		
+		public Builder setItkProfileId(final String itkProfileId) {
+			properties.itkProfileId = itkProfileId;
+			return this;
+		}
+		
+		public Builder setItkHandlingSpec(final String itkHandlingSpec) {
+			properties.itkHandlingSpec = itkHandlingSpec;
+			return this;
+		}
+		
 		public TrunkRequestProperties build() {
 			return new TrunkRequestProperties(this);
 		}
@@ -345,6 +476,32 @@ public class TrunkRequestProperties {
 		private String itkCorrelationId;
 		@JsonProperty
 		private String itkDocumentId;
+		
+		@JsonProperty
+		private String senderPartyId;
+		@JsonProperty
+		private String senderAsid;
+		@JsonProperty
+		private String senderODSCode;
+		
+		@JsonProperty
+		private String receiverPartyId;
+		@JsonProperty
+		private String receiverAsid;
+		@JsonProperty
+		private String receiverODSCode;
+		@JsonProperty
+		private String receiverCPAId;
+		
+		@JsonProperty
+		private String auditODSCode;
+		
+		@JsonProperty
+		private String interactionId;
+		@JsonProperty
+		private String itkProfileId;
+		@JsonProperty
+		private String itkHandlingSpec;
 	}
 	
 	@JsonIgnoreProperties(ignoreUnknown=true)

@@ -41,6 +41,17 @@ public class JsonTrunkRequestPropertiesTest {
 		final Map<String, Object> properties = Maps.newLinkedHashMap();
 		properties.put("testkey", "testvalue");
 		properties.put("itkCorrelationId", "12345");
+		properties.put("senderPartyId", "AAA-123456");
+		properties.put("senderAsid", "866971180017");
+		properties.put("senderODSCode", "AAA");
+		properties.put("receiverPartyId", "BBB-654321");
+		properties.put("receiverAsid", "000000000000");
+		properties.put("receiverODSCode", "BBB");
+		properties.put("receiverCPAId", "S3024519A3110234");
+		properties.put("auditODSCode", "AAA");
+		properties.put("interactionId", "COPC_IN000001GB01");
+		properties.put("itkProfileId", "urn:nhs-en:profile:eDischargeInpatientDischargeSummary-v1-0");
+		properties.put("itkHandlingSpec", "urn:nhs-itk:interaction:copyRecipientAmbulanceServicePatientReport-v1-0");
 
 		final Document originalDocument = new Document("filename.txt", "document content".getBytes(), "text/plain");
 		
