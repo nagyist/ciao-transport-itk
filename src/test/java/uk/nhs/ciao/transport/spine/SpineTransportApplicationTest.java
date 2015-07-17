@@ -176,6 +176,9 @@ public class SpineTransportApplicationTest {
 				// Send an ack whenever a request is received
 				from("seda:trunk-request")
 				.to("language:constant:resource:classpath:/example-ack.xml")
+				.setHeader("JMSCorrelationID", constant("89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95"))
+				.setHeader(Exchange.CORRELATION_ID, constant("89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95"))
+				.setHeader("SOAPAction", constant("urn:urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
 				.to("direct:trunk-reply");
 				
 				// Monitor the responses and unlock the latch
@@ -223,10 +226,6 @@ public class SpineTransportApplicationTest {
 		final Message message = exchange.getIn();
 		message.setBody(body);
 		
-		// Add correlation ids matching the example-ack.xml
-		message.setHeader("JMSCorrelationID", "89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95");
-		message.setHeader(Exchange.CORRELATION_ID, "89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95");
-		
 		return getProducerTemplate().send(uri, exchange);
 	}
 	
@@ -234,6 +233,7 @@ public class SpineTransportApplicationTest {
 		final Map<String, Object> properties = Maps.newLinkedHashMap();
 		properties.put("somekey", "somevalue");
 		properties.put("itkCorrelationId", "12345");
+		properties.put("ebxmlCorrelationId", "89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95");
 		
 		final Document originalDocument = new Document("myfile.xml", "<root>content</root>".getBytes(), "text/xml");
 		final ParsedDocument parsedDocument = new ParsedDocument(originalDocument, properties);
