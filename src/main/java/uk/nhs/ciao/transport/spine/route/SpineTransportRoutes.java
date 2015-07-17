@@ -54,7 +54,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 		.transacted("PROPAGATION_NOT_SUPPORTED")
 		.unmarshal().json(JsonLibrary.Jackson, ParsedDocument.class)
 		.bean(new TrunkRequestPropertiesFactory(config), "newTrunkRequestProperties")
-		.setHeader("SOAPAction").constant("urn:nhs:names:services:itk/${body.interactionId}")
+		.setHeader("SOAPAction").simple("urn:nhs:names:services:itk/${body.interactionId}")
 		.setHeader(Exchange.CONTENT_TYPE).simple("multipart/related; boundary=\"${body.mimeBoundary}\"; type=\"text/xml\"; start=\"<${body.ebxmlContentId}>\"")
 		.setHeader(Exchange.CORRELATION_ID).simple("${body.ebxmlCorrelationId}")
 		.to("freemarker:uk/nhs/ciao/transport/spine/trunk/TrunkRequest.ftl")

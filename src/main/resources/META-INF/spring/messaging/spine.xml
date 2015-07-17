@@ -4,6 +4,16 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring-2.15.2.xsd">
 	
+	<bean id="http" class="org.apache.camel.component.http4.HttpComponent" />
+	
+	<bean id="https" class="org.apache.camel.component.http4.HttpComponent">
+	   <property name="sslContextParameters" ref="spineSSLContextParameters"/>
+	</bean>
+	
+	<bean id="jetty" class="org.apache.camel.component.jetty.JettyHttpComponent">
+		<property name="sslContextParameters" ref="spineSSLContextParameters"/>
+	</bean>
+	
 	<bean id="spine" class="uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressComponent">
 		<property name="name" value="trunk" />
 		<property name="toUri" value="${spine.toUri}" />
