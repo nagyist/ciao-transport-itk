@@ -1,5 +1,7 @@
 package uk.nhs.ciao.transport.spine.trunk;
 
+import java.util.Map;
+
 import org.apache.camel.CamelContext;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
@@ -10,6 +12,13 @@ import org.apache.camel.impl.DefaultProducerTemplate;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import uk.nhs.ciao.configuration.CIAOConfig;
+import uk.nhs.ciao.configuration.impl.MemoryCipProperties;
+import uk.nhs.ciao.docs.parser.Document;
+import uk.nhs.ciao.docs.parser.ParsedDocument;
+
+import com.google.common.collect.Maps;
 
 /**
  * Tests the generation of outgoing trunk request messages using freemarker templates
@@ -88,22 +97,26 @@ public class FreemarkerTrunkRequestPropertiesTest {
 	
 	@Test
 	public void checkTemplate() throws Exception {
-		final TrunkRequestProperties body = TrunkRequestProperties.builder()
-				.setItkCorrelationId("123567762")
-				.setItkDocumentBody("The document content".getBytes())
-				.setSenderPartyId("AAA-123456")
-				.setSenderAsid("866971180017")
-				.setSenderODSCode("AAA")				
-				.setReceiverPartyId("BBB-654321")
-				.setReceiverAsid("000000000000")
-				.setReceiverODSCode("BBB")
-				.setReceiverCPAId("S3024519A3110234")
-				.setAuditODSCode("AAA")
-				.setInteractionId("COPC_IN000001GB01")
-				.setItkProfileId("urn:nhs-en:profile:eDischargeInpatientDischargeSummary-v1-0")
-				.setItkHandlingSpec("urn:nhs-itk:interaction:copyRecipientAmbulanceServicePatientReport-v1-0")
-				.build();
+		final Map<String, Object> properties = Maps.newHashMap();
+		properties.put("itkCorrelationId", "123567762");
+		properties.put("senderPartyId", "AAA-123456");
+		properties.put("senderAsid", "866971180017");
+		properties.put("senderODSCode", "AAA");
+		properties.put("receiverPartyId", "BBB-654321");
+		properties.put("receiverAsid", "000000000000");
+		properties.put("receiverODSCode", "BBB");
+		properties.put("receiverCPAId", "S3024519A3110234");
+		properties.put("auditODSCode", "AAA");
+		properties.put("interactionId", "COPC_IN000001GB01");
+		properties.put("itkProfileId", "urn:nhs-en:profile:eDischargeInpatientDischargeSummary-v1-0");
+		properties.put("itkHandlingSpec", "urn:nhs-itk:interaction:copyRecipientAmbulanceServicePatientReport-v1-0");
 		
+		final Document originalDocument = new Document("data.txt", "The document content".getBytes());
+		final ParsedDocument parsedDocument = new ParsedDocument(originalDocument, properties);
+		
+		final CIAOConfig config = new CIAOConfig(new MemoryCipProperties("cip-name", "cip-version"));
+		
+		final TrunkRequestProperties body = new TrunkRequestProperties(config, parsedDocument);
 		
 		MockEndpoint mock = context.getEndpoint("mock:result", MockEndpoint.class);
 		

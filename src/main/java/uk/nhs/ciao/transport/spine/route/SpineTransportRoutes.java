@@ -1,12 +1,9 @@
 package uk.nhs.ciao.transport.spine.route;
 
-import java.util.Map;
-
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.xml.Namespaces;
-import org.apache.camel.component.http4.HttpOperationFailedException;
 import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
@@ -15,15 +12,14 @@ import org.slf4j.LoggerFactory;
 import uk.nhs.ciao.CIPRoutes;
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
+import uk.nhs.ciao.docs.parser.ParsedDocument;
 import uk.nhs.ciao.transport.spine.forwardexpress.EbxmlAcknowledgementProcessor;
-import uk.nhs.ciao.transport.spine.trunk.ConfigPropertiesEnricher;
-import uk.nhs.ciao.transport.spine.trunk.TrunkRequestProperties;
+import uk.nhs.ciao.transport.spine.trunk.TrunkRequestPropertiesFactory;
 
 /**
  * Configures multiple camel CDA builder routes determined by properties specified
  * in the applications registered {@link CIAOConfig}.
  */
-@SuppressWarnings("unused")
 public class SpineTransportRoutes extends CIPRoutes {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SpineTransportRoutes.class);
 	
@@ -56,10 +52,8 @@ public class SpineTransportRoutes extends CIPRoutes {
 			.logExhausted(true)
 		)
 		.transacted("PROPAGATION_NOT_SUPPORTED")
-		.unmarshal().json(JsonLibrary.Jackson, Map.class)
-		.beanRef("configPropertiesEnricher", "enrich")
-		.marshal().json(JsonLibrary.Jackson) // TODO: Look into removing the marshal -> unmarshal step
-		.unmarshal().json(JsonLibrary.Jackson, TrunkRequestProperties.class)
+		.unmarshal().json(JsonLibrary.Jackson, ParsedDocument.class)
+		.bean(new TrunkRequestPropertiesFactory(config), "newTrunkRequestProperties")
 		.setHeader("SOAPAction").constant("urn:nhs:names:services:itk/${body.interactionId}")
 		.setHeader(Exchange.CONTENT_TYPE).simple("multipart/related; boundary=\"${body.mimeBoundary}\"; type=\"text/xml\"; start=\"<${body.ebxmlContentId}>\"")
 		.setHeader(Exchange.CORRELATION_ID).simple("${body.ebxmlCorrelationId}")

@@ -5,19 +5,21 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TimeZone;
 import java.util.UUID;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+import uk.nhs.ciao.configuration.CIAOConfig;
+import uk.nhs.ciao.docs.parser.ParsedDocument;
+import uk.nhs.ciao.exceptions.CIAOConfigurationException;
+
 import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
 
 /**
  * Bean to declare variables required by freemarker
  */
-@JsonDeserialize(builder=TrunkRequestProperties.Builder.class)
 public class TrunkRequestProperties {	
 	private static final String DEFAULT_MIME_BOUNDARY = "--=_MIME-Boundary";
 	
@@ -189,38 +191,37 @@ public class TrunkRequestProperties {
 	 * TODO: Check documentation for further details on GZIP encoding
 	 */
 	private final String itkDocumentBody;
-
 	
-	// Using builder pattern to only generate UUIDs when actually required
-	private TrunkRequestProperties(final Builder builder) {
-		this.mimeBoundary = valueOrDefault(builder.properties.mimeBoundary, DEFAULT_MIME_BOUNDARY);
-		this.ebxmlContentId = valueOrUUID(builder.properties.ebxmlContentId);
-		this.ebxmlCorrelationId = valueOrUUID(builder.properties.ebxmlCorrelationId);
-		this.creationTime = valueOrNow(builder.properties.creationTime);
-		this.hl7ContentId = valueOrUUID(builder.properties.hl7ContentId);
-		this.hl7RootId = valueOrUUID(builder.properties.hl7RootId);
-		this.itkContentId = valueOrUUID(builder.properties.itkContentId);
-		this.itkCorrelationId = valueOrUUID(builder.properties.itkCorrelationId);
-		this.itkDocumentId = valueOrUUID(builder.properties.itkDocumentId);
+	public TrunkRequestProperties(final CIAOConfig config, final ParsedDocument parsedDocument) throws CIAOConfigurationException {
+		final ValueFinder values = new ValueFinder(config, parsedDocument);
 		
-		this.senderPartyId = checkNotNull(builder.properties.senderPartyId);
-		this.senderAsid = checkNotNull(builder.properties.senderAsid);
-		this.senderODSCode = checkNotNull(builder.properties.senderODSCode);
+		this.mimeBoundary = values.valueOrDefault("mimeBoundary", DEFAULT_MIME_BOUNDARY);
+		this.ebxmlContentId = values.valueOrUUID("ebxmlContentId");
+		this.ebxmlCorrelationId = values.valueOrUUID("ebxmlCorrelationId");
+		this.creationTime = values.valueOrNow("creationTime");
+		this.hl7ContentId = values.valueOrUUID("hl7ContentId");
+		this.hl7RootId = values.valueOrUUID("hl7RootId");
+		this.itkContentId = values.valueOrUUID("itkContentId");
+		this.itkCorrelationId = values.valueOrUUID("itkCorrelationId");
+		this.itkDocumentId = values.valueOrUUID("itkDocumentId");
 		
-		this.receiverPartyId = checkNotNull(builder.properties.receiverPartyId);
-		this.receiverAsid = checkNotNull(builder.properties.receiverAsid);
-		this.receiverODSCode = checkNotNull(builder.properties.receiverODSCode);
-		this.receiverCPAId = checkNotNull(builder.properties.receiverCPAId);
+		this.senderPartyId = values.requiredValue("senderPartyId");
+		this.senderAsid = values.requiredValue("senderAsid");
+		this.senderODSCode = values.requiredValue("senderODSCode");
 		
-		this.auditODSCode = valueOrDefault(builder.properties.auditODSCode, builder.properties.senderODSCode);
+		this.receiverPartyId = values.requiredValue("receiverPartyId");
+		this.receiverAsid = values.requiredValue("receiverAsid");
+		this.receiverODSCode = values.requiredValue("receiverODSCode");
+		this.receiverCPAId = values.requiredValue("receiverCPAId");
 		
-		this.interactionId = checkNotNull(builder.properties.interactionId);
-		this.itkProfileId = checkNotNull(builder.properties.itkProfileId);
-		this.itkHandlingSpec = checkNotNull(builder.properties.itkHandlingSpec);
+		this.auditODSCode = values.valueOrDefault("auditODSCode", this.senderODSCode);
 		
-		checkNotNull(builder.originalDocument.itkDocumentBody);
+		this.interactionId = values.requiredValue("interactionId");
+		this.itkProfileId = values.requiredValue("itkProfileId");
+		this.itkHandlingSpec = values.requiredValue("itkHandlingSpec");
+		
 		// TODO: compress and encode as Base64
-		this.itkDocumentBody = new String(builder.originalDocument.itkDocumentBody);
+		this.itkDocumentBody = new String(parsedDocument.getOriginalDocument().getContent());
 	}
 
 	public String getMimeBoundary() {
@@ -314,211 +315,62 @@ public class TrunkRequestProperties {
 	public String getItkHandlingSpec() {
 		return itkHandlingSpec;
 	}
-
-	public static Builder builder() {
-		return new Builder();
-	}
 	
-	/**
-	 * Builds {@link TrunkRequestProperties} instances
-	 */
-	@JsonPOJOBuilder
-	@JsonIgnoreProperties(ignoreUnknown=true)
-	public static class Builder {
-		@JsonProperty
-		private PropertiesView properties = new PropertiesView();
+	private static class ValueFinder {
+		/**
+		 * To allow property lookups to be handled in a case insensitive way (and to handle defaults from CIAOConfig)
+		 * a lookup map is built.
+		 * <p>
+		 * When there are name collisions, e.g. a property is specified in both CIAOConfig and the parsed document properties or
+		 * a name is defined in multiple cases, the previous property value is overwritten.
+		 */
+		private final Map<String, String> valuesByName;
 		
-		@JsonProperty
-		private OriginalDocumentView originalDocument = new OriginalDocumentView();
-		
-		// For jackson
-		void setProperties(final PropertiesView properties) {
-			this.properties = checkNotNull(properties);
+		public ValueFinder(final CIAOConfig config, final ParsedDocument parsedDocument) throws CIAOConfigurationException {
+			valuesByName = Maps.newHashMap();
+			
+			// Add defaults (from CIAOConfig)
+			for (final String key: config.getConfigKeys()) {
+				addValue(key, config.getConfigValue(key));
+			}
+			
+			// Overwrite with properties from the incoming document
+			for (final Entry<String, Object> entry: parsedDocument.getProperties().entrySet()) {
+				if (entry.getValue() instanceof String) {
+					addValue(entry.getKey(), (String)entry.getValue());
+				}
+			}
 		}
 		
-		// For jackson
-		void setOriginalDocument(final OriginalDocumentView originalDocument) {
-			this.originalDocument = checkNotNull(originalDocument);
+		private void addValue(final String name, final String value) {
+			if (!Strings.isNullOrEmpty(value)) {
+				valuesByName.put(name.toLowerCase(), value);
+			}
 		}
 		
-		public Builder setMimeBoundary(final String mimeBoundary) {
-			properties.mimeBoundary = mimeBoundary;
-			return this;
+		public String requiredValue(final String name) {
+			return checkNotNull(value(name));
 		}
 		
-		public Builder setEbxmlContentId(final String ebxmlContentId) {
-			properties.ebxmlContentId = ebxmlContentId;
-			return this;
+		public String value(final String name) {
+			return valuesByName.get(name.toLowerCase());
 		}
 		
-		public Builder setEbxmlCorrelationId(final String ebxmlCorrelationId) {
-			properties.ebxmlCorrelationId = ebxmlCorrelationId;
-			return this;
+		public String valueOrDefault(final String name, final String defaultValue) {
+			final String value = value(name);
+			return Strings.isNullOrEmpty(value) ? defaultValue : value;
 		}
 		
-		public Builder setCreationTime(final Date creationTime) {
-			properties.creationTime = creationTime;
-			return this;
+		public String valueOrUUID(final String name) {
+			final String value = value(name);
+			return Strings.isNullOrEmpty(value) ? UUID.randomUUID().toString() : value;
 		}
 		
-		public Builder setHl7ContentId(final String hl7ContentId) {
-			properties.hl7ContentId = hl7ContentId;
-			return this;
+		public Date valueOrNow(final String name) {
+			// TODO: Work out date formats
+//			final String value = value(name);
+//			return value == null ? new Date() : value;
+			return new Date();
 		}
-		
-		public Builder setHl7RootId(final String hl7RootId) {
-			properties.hl7RootId = hl7RootId;
-			return this;
-		}
-		
-		public Builder setItkContentId(final String itkContentId) {
-			properties.itkContentId = itkContentId;
-			return this;
-		}
-		
-		public Builder setItkCorrelationId(final String itkCorrelationId) {
-			properties.itkCorrelationId = itkCorrelationId;
-			return this;
-		}
-		
-		public Builder setItkDocumentId(final String itkDocumentId) {
-			properties.itkDocumentId = itkDocumentId;
-			return this;
-		}
-		
-		public Builder setItkDocumentBody(final byte[] itkDocumentBody) {
-			originalDocument.itkDocumentBody = itkDocumentBody;
-			return this;
-		}
-		
-		public Builder setSenderPartyId(final String senderPartyId) {
-			properties.senderPartyId = senderPartyId;
-			return this;
-		}
-		
-		public Builder setSenderAsid(final String senderAsid) {
-			properties.senderAsid = senderAsid;
-			return this;
-		}
-		
-		public Builder setSenderODSCode(final String senderODSCode) {
-			properties.senderODSCode = senderODSCode;
-			return this;
-		}
-		
-		public Builder setReceiverPartyId(final String receiverPartyId) {
-			properties.receiverPartyId = receiverPartyId;
-			return this;
-		}
-		
-		public Builder setReceiverAsid(final String receiverAsid) {
-			properties.receiverAsid = receiverAsid;
-			return this;
-		}
-		
-		public Builder setReceiverODSCode(final String receiverODSCode) {
-			properties.receiverODSCode = receiverODSCode;
-			return this;
-		}
-		
-		public Builder setReceiverCPAId(final String receiverCPAId) {
-			properties.receiverCPAId = receiverCPAId;
-			return this;
-		}
-		
-		public Builder setAuditODSCode(final String auditODSCode) {
-			properties.auditODSCode = auditODSCode;
-			return this;
-		}
-		
-		public Builder setInteractionId(final String interactionId) {
-			properties.interactionId = interactionId;
-			return this;
-		}
-		
-		public Builder setItkProfileId(final String itkProfileId) {
-			properties.itkProfileId = itkProfileId;
-			return this;
-		}
-		
-		public Builder setItkHandlingSpec(final String itkHandlingSpec) {
-			properties.itkHandlingSpec = itkHandlingSpec;
-			return this;
-		}
-		
-		public TrunkRequestProperties build() {
-			return new TrunkRequestProperties(this);
-		}
-	}
-	
-	// The rather 'odd' class structure is to coerce the JSON hierarchy
-	// of ParsedDocument into the flat view used by freemarker
-	// Jackson can't yet handle this via annotations
-	// see https://github.com/FasterXML/jackson-annotations/issues/42
-	
-	@JsonIgnoreProperties(ignoreUnknown=true)
-	static class PropertiesView {
-		@JsonProperty
-		private String mimeBoundary;
-		@JsonProperty
-		private String ebxmlContentId;
-		@JsonProperty
-		private String ebxmlCorrelationId;
-		@JsonProperty
-		private Date creationTime;
-		@JsonProperty
-		private String hl7ContentId;
-		@JsonProperty
-		private String hl7RootId;
-		@JsonProperty
-		private String itkContentId;
-		@JsonProperty
-		private String itkCorrelationId;
-		@JsonProperty
-		private String itkDocumentId;
-		
-		@JsonProperty
-		private String senderPartyId;
-		@JsonProperty
-		private String senderAsid;
-		@JsonProperty
-		private String senderODSCode;
-		
-		@JsonProperty
-		private String receiverPartyId;
-		@JsonProperty
-		private String receiverAsid;
-		@JsonProperty
-		private String receiverODSCode;
-		@JsonProperty
-		private String receiverCPAId;
-		
-		@JsonProperty
-		private String auditODSCode;
-		
-		@JsonProperty
-		private String interactionId;
-		@JsonProperty
-		private String itkProfileId;
-		@JsonProperty
-		private String itkHandlingSpec;
-	}
-	
-	@JsonIgnoreProperties(ignoreUnknown=true)
-	static class OriginalDocumentView {
-		@JsonProperty(value="content")
-		private byte[] itkDocumentBody;
-	}
-	
-	private static String valueOrDefault(final String value, final String defaultValue) {
-		return Strings.isNullOrEmpty(value) ? defaultValue : value;
-	}
-	
-	private static String valueOrUUID(final String value) {
-		return Strings.isNullOrEmpty(value) ? UUID.randomUUID().toString() : value;
-	}
-	
-	private static Date valueOrNow(final Date value) {
-		return value == null ? new Date() : value;
 	}
 }
