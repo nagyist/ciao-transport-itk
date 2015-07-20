@@ -98,7 +98,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 		
 		from("{{spine.fromUri}}")
 			.choice()
-				.when(header("SOAPAction").isEqualTo("urn:urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
+				.when(header("SOAPAction").isEqualTo("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
 					.setHeader("JMSCorrelationID",
 						ns.xpath("/soap:Envelope/soap:Header/eb:Acknowledgment/eb:RefToMessageId", String.class))
 					.setHeader(Exchange.CORRELATION_ID).simple("${header.JMSCorrelationID}")
