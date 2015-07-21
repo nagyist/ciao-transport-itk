@@ -19,21 +19,7 @@ public class EbxmlAcknowledgementProcessor implements Processor {
 		final Document document = exchange.getIn().getBody(Document.class);
 		
 		final AcknowledgementType ackType = getAcknowledgementType(document);
-		switch (ackType) {
-		case SUCCESS:
-			LOGGER.info("ebXml ack received - id: " + id);
-			break;
-		case FAILURE:
-			LOGGER.info("ebXml nack (failure) received - id: " + id + " - will not retry");
-			exchange.getIn().setFault(true); // Fault messages are not retried!
-			break;
-		case RETRY:
-			final String message = "ebXml nack (retry) received - id: " + id + " - will retry";
-			LOGGER.info(message);
-			
-			// Exceptions are caught by camel and retried!
-			throw new Exception(message);
-		}
+		ackType.process(id, exchange);
 	}
 	
 	public AcknowledgementType getAcknowledgementType(final Document document) {
@@ -48,19 +34,41 @@ public class EbxmlAcknowledgementProcessor implements Processor {
 		/**
 		 * Message has been successfully acknowledged
 		 */
-		SUCCESS,
+		SUCCESS {
+			@Override
+			public void process(final String id, final Exchange exchange) {
+				LOGGER.info("ebXml ack received - id: " + id);
+			}
+		},
 		
 		/**
 		 * An error has been reported for the message being acknowledged but
 		 * further attempts to re-send the message may be possible
 		 */
-		RETRY,
+		RETRY {
+			@Override
+			public void process(final String id, final Exchange exchange) {
+				LOGGER.info("ebXml nack (failure) received - id: " + id + " - will not retry");
+				exchange.getIn().setFault(true); // Fault messages are not retried!
+			}
+		},
 		
 		/**
 		 * A failure error has been reported for the message being acknowledged and
 		 * no further attempts to re-send the message shoulld be tried
 		 */
-		FAILURE;
+		FAILURE {
+			@Override
+			public void process(final String id, final Exchange exchange) throws Exception {
+				final String message = "ebXml nack (retry) received - id: " + id + " - will retry";
+				LOGGER.info(message);
+				
+				// Exceptions are caught by camel and retried!
+				throw new Exception(message);
+			}
+		};
+		
+		public abstract void process(final String id, final Exchange exchange) throws Exception;
 	}
 
 // Notes about ebXml acknowledgements:

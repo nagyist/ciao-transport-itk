@@ -29,6 +29,7 @@ public class TrunkRequestProperties {
 	 * This is expressed in the UTC time-zone
 	 */
 	private static final ThreadLocal<DateFormat> EBXML_TIMESTAMP_FORMAT = new ThreadLocal<DateFormat>() {
+		@Override
 		protected DateFormat initialValue() {
 			final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 			dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -42,6 +43,7 @@ public class TrunkRequestProperties {
 	 * This is expressed in the local time-zone
 	 */
 	private static final ThreadLocal<DateFormat> HL7_DATE_FORMAT = new ThreadLocal<DateFormat>() {
+		@Override
 		protected DateFormat initialValue() {
 			return new SimpleDateFormat("yyyyMMddHHmmss");
 		};
