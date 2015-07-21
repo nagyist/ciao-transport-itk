@@ -37,7 +37,9 @@ public final class ForwardExpressSenderRoutes {
 		private String toUri;
 		
 		public ForwardExpressSender(final ModelCamelContext context, final ProcessorDefinition<?> from) {
-			this.support = new BuilderSupport(context) {};
+			this.support = new BuilderSupport(context) {
+				// Not having FowardExpressSender extend to prevent additional methods leaking into the public scope
+			};
 			this.from = from;
 		}
 		

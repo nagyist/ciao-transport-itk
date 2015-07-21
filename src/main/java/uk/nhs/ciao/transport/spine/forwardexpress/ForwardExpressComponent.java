@@ -21,7 +21,7 @@ import com.google.common.collect.Sets;
 
 public class ForwardExpressComponent extends DefaultComponent {
 	private final Set<String> routeIds = Sets.newConcurrentHashSet();
-	private final Processor processor;
+	private final CreateDynamicRoutesProcessor processor;
 	private volatile String name;
 	private volatile String requestUri;	
 	private volatile String toUri;
@@ -38,17 +38,7 @@ public class ForwardExpressComponent extends DefaultComponent {
 	public ForwardExpressComponent(final CamelContext context) {
 		super(context);
 		
-		processor = new Processor() {
-			@Override
-			public void process(final Exchange exchange) throws Exception {
-				if (!createdDynamicRoutes) {
-					// Only create dynamic routes once
-					initDynamicRoutes();
-				}
-				
-				producerTemplate.send(requestUri, exchange);
-			}
-		};
+		processor = new CreateDynamicRoutesProcessor();
 	}
 	
 	public String getName() {
@@ -129,54 +119,72 @@ public class ForwardExpressComponent extends DefaultComponent {
 			producerTemplate.stop();
 		}
 		
-		synchronized (lock) {
-			// Try to remove any created routes
-			for (final Iterator<String> iterator = routeIds.iterator(); iterator.hasNext(); ) {
-				final String routeId = iterator.next();
-				getCamelContext().stopRoute(routeId);
-				getCamelContext().removeRoute(routeId);
-				iterator.remove();
+		processor.stop();
+	}	
+	
+	private class CreateDynamicRoutesProcessor implements Processor {
+		private volatile boolean createdDynamicRoutes = false;
+		private final Object lock = new Object();
+		
+		@Override
+		public void process(final Exchange exchange) throws Exception {
+			if (!createdDynamicRoutes) {
+				// Only create dynamic routes once
+				initDynamicRoutes();
 			}
-			createdDynamicRoutes = false;
+			
+			producerTemplate.send(requestUri, exchange);
+		}
+		
+		public void stop() throws Exception {
+			synchronized (lock) {
+				// Try to remove any created routes
+				for (final Iterator<String> iterator = routeIds.iterator(); iterator.hasNext(); ) {
+					final String routeId = iterator.next();
+					getCamelContext().stopRoute(routeId);
+					getCamelContext().removeRoute(routeId);
+					iterator.remove();
+				}
+				createdDynamicRoutes = false;
+			}
+		}
+		
+		/**
+		 * Creation of dynamic routes can't happen when the component is started otherwise
+		 * a concurrent modification exception is thrown
+		 */
+		private void initDynamicRoutes() throws Exception {
+			synchronized (lock) {
+				if (createdDynamicRoutes) {
+					return;
+				}
+				
+				getCamelContext().addRoutes(new DelayedRoutesBuilder());
+				
+				createdDynamicRoutes = true;
+			}
 		}
 	}
 	
-	private volatile boolean createdDynamicRoutes = false;
-	private final Object lock = new Object();
-	
-	/**
-	 * Creation of dynamic routes can't happen when the component is started otherwise
-	 * a concurrent modification exception is thrown
-	 */
-	private void initDynamicRoutes() throws Exception {
-		synchronized (lock) {
-			if (createdDynamicRoutes) {
-				return;
-			}
+	private class DelayedRoutesBuilder extends RouteBuilder {
+		@Override
+		public void configure() throws Exception {
+			final String requestRouteId = name + "-request";
+			final String ackRouteId = name + "-ack";
+			final String aggregateRouteId = name + "-aggregate";
 			
-			getCamelContext().addRoutes(new RouteBuilder() {
-				@Override
-				public void configure() throws Exception {
-					final String requestRouteId = name + "-request";
-					final String ackRouteId = name + "-ack";
-					final String aggregateRouteId = name + "-aggregate";
-					
-					routeIds.add(requestRouteId);
-					routeIds.add(ackRouteId);
-					routeIds.add(aggregateRouteId);
-					
-					requestUri = "direct:" + requestRouteId;
-					
-					forwardExpressSender(getContext(),
-						from(requestUri).routeId(requestRouteId))
-						.to(toUri)
-						.waitForResponse(
-							forwardExpressAckReceiver(ackRouteId, replyUri, ackMessageIdHeader, ackCorrelationIdHeader),
-							forwardExpressMessageAggregator(aggregateRouteId, "direct:" + aggregateRouteId, timeout));
-				}
-			});
+			routeIds.add(requestRouteId);
+			routeIds.add(ackRouteId);
+			routeIds.add(aggregateRouteId);
 			
-			createdDynamicRoutes = true;
+			requestUri = "direct:" + requestRouteId;
+			
+			forwardExpressSender(getContext(),
+				from(requestUri).routeId(requestRouteId))
+				.to(toUri)
+				.waitForResponse(
+					forwardExpressAckReceiver(ackRouteId, replyUri, ackMessageIdHeader, ackCorrelationIdHeader),
+					forwardExpressMessageAggregator(aggregateRouteId, "direct:" + aggregateRouteId, timeout));
 		}
 	}
 }

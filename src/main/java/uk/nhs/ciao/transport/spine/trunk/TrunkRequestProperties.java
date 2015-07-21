@@ -34,7 +34,7 @@ public class TrunkRequestProperties {
 			final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 			dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 			return dateFormat;
-		};
+		}
 	};
 	
 	/**
@@ -46,7 +46,7 @@ public class TrunkRequestProperties {
 		@Override
 		protected DateFormat initialValue() {
 			return new SimpleDateFormat("yyyyMMddHHmmss");
-		};
+		}
 	};
 
 	
