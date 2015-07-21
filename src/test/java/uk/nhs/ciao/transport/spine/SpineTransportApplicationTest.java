@@ -20,6 +20,7 @@ import org.apache.camel.ProducerTemplate;
 import org.apache.camel.Route;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.impl.DefaultMessage;
 import org.apache.camel.impl.DefaultProducerTemplate;
 import org.junit.After;
 import org.junit.Assert;
@@ -38,6 +39,7 @@ import uk.nhs.ciao.camel.CamelApplicationRunner.AsyncExecution;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.configuration.impl.MemoryCipProperties;
 import uk.nhs.ciao.docs.parser.Document;
+import uk.nhs.ciao.docs.parser.HeaderNames;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -168,7 +170,7 @@ public class SpineTransportApplicationTest {
 		final CountDownLatch latch = new CountDownLatch(1);
 		
 		final CamelContext camelContext = getCamelContext();
-		sendRouteTo("trunk-requests", "direct:trunk-responses");
+		sendRouteTo("trunk-request-sender", "direct:trunk-responses");
 		
 		camelContext.addRoutes(new RouteBuilder() {			
 			@Override
@@ -178,7 +180,7 @@ public class SpineTransportApplicationTest {
 				.to("language:constant:resource:classpath:/example-ack.xml")
 				.setHeader("JMSCorrelationID", constant("89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95"))
 				.setHeader(Exchange.CORRELATION_ID, constant("89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95"))
-				.setHeader("SOAPAction", constant("urn:urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
+				.setHeader("SOAPAction", constant("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
 				.to("direct:trunk-reply");
 				
 				// Monitor the responses and unlock the latch
@@ -194,7 +196,7 @@ public class SpineTransportApplicationTest {
 		});
 		
 		// Send the initial document to JMS (returns before main processing begins)
-		sendMessage("jms:queue:documents", getExampleJson());
+		sendMessage("jms:queue:cda-documents", getExampleJson());
 		
 		// Wait for ACK response to be processed by the main route
 		Assert.assertTrue("Expected one response message", latch.await(10, TimeUnit.SECONDS));
@@ -221,15 +223,14 @@ public class SpineTransportApplicationTest {
 		camelContext.startRoute(routeId);
 	}
 
-	private Exchange sendMessage(final String uri, final Object body) throws Exception {
+	private Exchange sendMessage(final String uri, final Message message) throws Exception {
 		final Exchange exchange = getCamelContext().getEndpoint(uri).createExchange();
-		final Message message = exchange.getIn();
-		message.setBody(body);
+		exchange.getIn().copyFrom(message);
 		
 		return getProducerTemplate().send(uri, exchange);
 	}
 	
-	private String getExampleJson() throws IOException {
+	private Message getExampleJson() throws IOException {
 		final Map<String, Object> properties = Maps.newLinkedHashMap();
 		properties.put("somekey", "somevalue");
 		properties.put("itkCorrelationId", "12345");
@@ -244,6 +245,11 @@ public class SpineTransportApplicationTest {
 		
 		final Document originalDocument = new Document("myfile.xml", "<root>content</root>".getBytes(), "text/xml");
 		final ParsedDocument parsedDocument = new ParsedDocument(originalDocument, properties);
-		return objectMapper.writeValueAsString(parsedDocument);
+		
+		final Message message = new DefaultMessage();
+		message.setBody(objectMapper.writeValueAsString(parsedDocument));
+		message.setHeader(HeaderNames.IN_PROGRESS_FOLDER, "./target/in-progress/12345");
+		
+		return message;
 	}
 }
