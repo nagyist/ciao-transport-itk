@@ -56,6 +56,7 @@ public final class ForwardExpressSenderRoutes {
 			
 			return from.doTry()
 				.setHeader(ForwardExpressMessageExchange.MESSAGE_TYPE, support.constant(ForwardExpressMessageExchange.REQUEST_MESSAGE))
+				.setHeader(Exchange.HTTP_METHOD, support.constant(org.apache.camel.component.http4.HttpMethods.POST))
 				.multicast()
 					.bean(inprogressIds, "add(${header.CamelCorrelationId})")
 					.to(toUri)

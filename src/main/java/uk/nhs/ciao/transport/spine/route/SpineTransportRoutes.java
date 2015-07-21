@@ -1,5 +1,7 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import static uk.nhs.ciao.docs.parser.HeaderNames.*;
+
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
@@ -22,11 +24,13 @@ import uk.nhs.ciao.transport.spine.trunk.TrunkRequestPropertiesFactory;
  */
 public class SpineTransportRoutes extends CIPRoutes {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SpineTransportRoutes.class);
+	private static final String EBXML_ACK_RECEIVER_URL = "direct:asyncEbxmlAcks";
+	private final Namespaces namespaces;
 	
-	/**
-	 * The root property 
-	 */
-	public static final String ROOT_PROPERTY = "spineTransportRoutes";
+	public SpineTransportRoutes() {
+		namespaces = new Namespaces("soap", "http://schemas.xmlsoap.org/soap/envelope/");
+		namespaces.add("eb", "http://www.oasis-open.org/committees/ebxml-msg/schema/msg-header-2_0.xsd");
+	}
 	
 	/**
 	 * Creates multiple document parser routes
@@ -36,13 +40,24 @@ public class SpineTransportRoutes extends CIPRoutes {
 	@Override
 	public void configure() {
 		super.configure();
-		
-		final CIAOConfig config = CamelApplication.getConfig(getContext());
 
-		// Document input route
-		// * transforms the ParsedDocument json into a multi-part trunk request message
-		// * Adds the trunk request message onto a JMS queue for later processing (by any running process)
-		from("jms:queue:documents?destination.consumer.prefetchSize=0")
+		configureTrunkRequestBuilder();
+		configureTrunkRequestSender();
+		configureHttpServer();
+		configureEbxmlAckReceiver();
+	}
+	
+	/**
+	 * Document input route (creates a multipart request wrapper for the incoming document)
+	 * <ul>
+	 * <li>Transforms the ParsedDocument json into a multi-part trunk request message
+	 * <li>Adds the trunk request message onto a JMS queue for later processing (by any running process)
+	 */
+	private void configureTrunkRequestBuilder() {
+		final CIAOConfig config = CamelApplication.getConfig(getContext());
+		
+		from("jms:queue:{{documentQueue}}?destination.consumer.prefetchSize=0")
+		.id("trunk-request-builder")
 		.errorHandler(new TransactionErrorHandlerBuilder()
 			.asyncDelayedRedelivery()
 			.maximumRedeliveries(2)
@@ -58,15 +73,20 @@ public class SpineTransportRoutes extends CIPRoutes {
 		.setHeader(Exchange.CONTENT_TYPE).simple("multipart/related; boundary=\"${body.mimeBoundary}\"; type=\"text/xml\"; start=\"<${body.ebxmlContentId}>\"")
 		.setHeader(Exchange.CORRELATION_ID).simple("${body.ebxmlCorrelationId}")
 		.to("freemarker:uk/nhs/ciao/transport/spine/trunk/TrunkRequest.ftl")
-		.to("jms:queue:trunk-requests");
-		
-		
-		 // Outgoing trunk message queue
-		 // * sends a multi-part trunk request message over the spine
-		 // * blocks until an async ebXml ack is received off a configured JMS topic or a timeout occurs
-		 // * marks message as success, retry or failure based on the ACK content
-		from("jms:queue:trunk-requests?destination.consumer.prefetchSize=0")
-		.id("trunk-requests")
+		.to("jms:queue:{{trunkRequestQueue}}");
+	}
+	
+	/**
+	 * Outgoing trunk request message queue
+	 * <ul>
+	 * <li>Stores a copy of the outgoing request message in the document's in-progress folder
+	 * <li>Sends a multi-part trunk request message over the spine
+	 * <li>Blocks until an async ebXml ack is received off a configured JMS topic or a timeout occurs
+	 * <li>Marks message as success, retry or failure based on the ACK content
+	 */
+	private void configureTrunkRequestSender() {
+		from("jms:queue:{{trunkRequestQueue}}?destination.consumer.prefetchSize=0")
+		.id("trunk-request-sender")
 		.errorHandler(new TransactionErrorHandlerBuilder()
 			.asyncDelayedRedelivery()
 			.maximumRedeliveries(2)
@@ -77,10 +97,10 @@ public class SpineTransportRoutes extends CIPRoutes {
 		)
 		.transacted("PROPAGATION_NOT_SUPPORTED")
 		
-		.setHeader(Exchange.FILE_NAME, simple("${header.CamelCorrelationId}/message"))
-		.setHeader(Exchange.HTTP_METHOD, constant(org.apache.camel.component.http4.HttpMethods.POST))
+		// Store a copy of the outgoing request into the documents in-progress folder
+		.setHeader(Exchange.FILE_NAME, simple("${header." + IN_PROGRESS_FOLDER + "}/trunk-request"))
+		.to("file://.") // full location is determined by Exchange.FILE_NAME header
 		
-		.to("file://./target/docs")				
 //		.doTry()
 			.to("spine:trunk")
 			.process(new EbxmlAcknowledgementProcessor())
@@ -88,24 +108,39 @@ public class SpineTransportRoutes extends CIPRoutes {
 //		.doCatch(HttpOperationFailedException.class)
 //			.process(new HttpErrorHandler())
 		;
-		
-		// Incoming ebXml ACK receiver route
-		// * Receives ebXml acks (over HTTP)
-		// * Extracts the related original message id (for correlation)
-		// * Adds the ebXml ack to a JMS topic for later processing (by the process holding the associated transaction open)
-		final Namespaces ns = new Namespaces("soap", "http://schemas.xmlsoap.org/soap/envelope/");
-		ns.add("eb", "http://www.oasis-open.org/committees/ebxml-msg/schema/msg-header-2_0.xsd");
-		
+	}
+	
+	/**
+	 * HTTP server for incoming messages (async ebXml acks as well as higher level ITK ack messages)
+	 * <ul>
+	 * <li>Determines the type of incoming message from the declared SOAPAction
+	 * <li>Routes the handling to a suitable direct route based on the type
+	 */
+	private void configureHttpServer() {
 		from("{{spine.fromUri}}")
-			.choice()
-				.when(header("SOAPAction").isEqualTo("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
-					.setHeader("JMSCorrelationID",
-						ns.xpath("/soap:Envelope/soap:Header/eb:Acknowledgment/eb:RefToMessageId", String.class))
-					.setHeader(Exchange.CORRELATION_ID).simple("${header.JMSCorrelationID}")
-					.setExchangePattern(ExchangePattern.InOnly)
-					.to("{{spine.replyUri}}")
-					.endChoice()
-				.otherwise()
-					.log(LoggingLevel.WARN, LOGGER, "Unsupported SOAPAction receieved: ${header.SOAPAction}");		
+		.id("http-server")
+		.choice()
+		.when(header("SOAPAction").isEqualTo("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
+			.to(EBXML_ACK_RECEIVER_URL)
+		.endChoice()
+		.otherwise()
+			.log(LoggingLevel.WARN, LOGGER, "Unsupported SOAPAction receieved: ${header.SOAPAction}");
+	}
+	
+	/**
+	 * Incoming ebXml ACK receiver route
+	 * <ul>
+	 * <li>Receives ebXml acks from a direct route (but ultimately from an HTTP request)
+	 * <li>Extracts the related original message id (for correlation)
+	 * <li>Adds the ebXml ack to a JMS topic for later processing (by the process holding the associated transaction open)
+	 */
+	private void configureEbxmlAckReceiver() {
+		from(EBXML_ACK_RECEIVER_URL)
+		.id("ebxml-ack-receiver")
+		.setHeader("JMSCorrelationID",
+			namespaces.xpath("/soap:Envelope/soap:Header/eb:Acknowledgment/eb:RefToMessageId", String.class))
+		.setHeader(Exchange.CORRELATION_ID).simple("${header.JMSCorrelationID}")
+		.setExchangePattern(ExchangePattern.InOnly)
+		.to("{{spine.replyUri}}");
 	}
 }
