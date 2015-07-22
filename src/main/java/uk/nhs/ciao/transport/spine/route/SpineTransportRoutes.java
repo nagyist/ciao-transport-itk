@@ -25,6 +25,7 @@ import uk.nhs.ciao.transport.spine.trunk.TrunkRequestPropertiesFactory;
 public class SpineTransportRoutes extends CIPRoutes {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SpineTransportRoutes.class);
 	private static final String EBXML_ACK_RECEIVER_URL = "direct:asyncEbxmlAcks";
+	private static final String ITK_ACK_RECEIVER_URL = "direct:asyncItkAcks";
 	private final Namespaces namespaces;
 	
 	public SpineTransportRoutes() {
@@ -45,6 +46,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 		configureTrunkRequestSender();
 		configureHttpServer();
 		configureEbxmlAckReceiver();
+		configureItkAckReceiver();
 	}
 	
 	/**
@@ -69,7 +71,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 		.transacted("PROPAGATION_NOT_SUPPORTED")
 		.unmarshal().json(JsonLibrary.Jackson, ParsedDocument.class)
 		.bean(new TrunkRequestPropertiesFactory(config), "newTrunkRequestProperties")
-		.setHeader("SOAPAction").simple("urn:nhs:names:services:itk/${body.interactionId}")
+		.setHeader("SOAPAction").simple("urn:nhs:names:services:itk/{{interactionId}}")
 		.setHeader(Exchange.CONTENT_TYPE).simple("multipart/related; boundary=\"${body.mimeBoundary}\"; type=\"text/xml\"; start=\"<${body.ebxmlContentId}>\"")
 		.setHeader(Exchange.CORRELATION_ID).simple("${body.ebxmlCorrelationId}")
 		.to("freemarker:uk/nhs/ciao/transport/spine/trunk/TrunkRequest.ftl")
@@ -123,6 +125,9 @@ public class SpineTransportRoutes extends CIPRoutes {
 		.when(header("SOAPAction").isEqualTo("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
 			.to(EBXML_ACK_RECEIVER_URL)
 		.endChoice()
+		.when(header("SOAPAction").isEqualTo(simple("urn:nhs:names:services:itk/{{interactionId}}")))
+			.to(ITK_ACK_RECEIVER_URL)
+		.endChoice()
 		.otherwise()
 			.log(LoggingLevel.WARN, LOGGER, "Unsupported SOAPAction receieved: ${header.SOAPAction}");
 	}
@@ -142,5 +147,17 @@ public class SpineTransportRoutes extends CIPRoutes {
 		.setHeader(Exchange.CORRELATION_ID).simple("${header.JMSCorrelationID}")
 		.setExchangePattern(ExchangePattern.InOnly)
 		.to("{{spine.replyUri}}");
+	}
+	
+	/**
+	 * Incoming ITK trunk ACK receiver route
+	 * <ul>
+	 * <li>Receives ebXml acks from a direct route (but ultimately from an HTTP request)
+	 * <li>TODO:
+	 */
+	private void configureItkAckReceiver() {
+		from(ITK_ACK_RECEIVER_URL)
+		.id("itk-ack-receiver")
+		.log("ITK trunk ACK receieved: handling is not yet completed");
 	}
 }
