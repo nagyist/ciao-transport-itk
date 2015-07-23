@@ -1,7 +1,10 @@
 package uk.nhs.ciao.transport.spine.multipart;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.camel.Message;
 
@@ -121,9 +124,40 @@ public class MultipartBody {
 		return UUID.randomUUID().toString();
 	}
 	
-	public static MultipartBody parse(final Message message) {
-		/// TODO: When parsing a MIME body - the headers can be folded!
+	public static MultipartBody parse(final Message message) throws IOException {
+		final MultipartBody result = new MultipartBody();
+
+		final ContentType contentType = ContentType.valueOf(message.getHeader(CONTENT_TYPE, String.class));
+		final String boundary = contentType.getBoundary();
+		result.setBoundary(boundary);
 		
-		throw new UnsupportedOperationException();
+		final String body = message.getBody(String.class);
+		
+		final Matcher delimiter = Pattern.compile("(?:\\A|\r\n?|\n)--" + Pattern.quote(boundary) + "(?:\r\n?|\n)").matcher(body);
+		final Matcher closeDelimiter = Pattern.compile("(?:\r\n?|\n)--" + Pattern.quote(boundary) + "--").matcher(body);
+		
+		if (!delimiter.find()) {
+			throw new IOException("Malformed multipart body: no initial delimiter");
+		}
+		result.setPreamble(body.substring(0, delimiter.start()));
+
+		int index = delimiter.end();
+		while (delimiter.find()) {
+			final Part part = Part.parse(body.substring(index, delimiter.start()));
+			result.addPart(part);
+			
+			index = delimiter.end();
+		}
+		
+		if (!closeDelimiter.find()) {
+			throw new IOException("Malformed multipart body: no closing delimiter");
+		}
+		
+		final Part part = Part.parse(body.substring(index, closeDelimiter.start()));
+		result.addPart(part);
+		
+		result.setEpilogue(body.substring(closeDelimiter.end()));
+		
+		return result;
 	}
 }

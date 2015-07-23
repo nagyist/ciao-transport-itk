@@ -122,4 +122,13 @@ public class Part {
 			builder.append(body);
 		}
 	}
+	
+	public static Part parse(final String entity) {
+		System.out.println("****");
+		System.out.println(entity);
+		System.out.println("****");
+		return new Part();
+		// Headers could be folded - does this need to be handled?
+//		throw new UnsupportedOperationException();
+	}
 }
