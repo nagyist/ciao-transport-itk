@@ -1,27 +1,8 @@
 package uk.nhs.ciao.transport.spine.multipart;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.james.mime4j.MimeException;
-import org.apache.james.mime4j.codec.DecodeMonitor;
-import org.apache.james.mime4j.dom.Header;
-import org.apache.james.mime4j.field.LenientFieldParser;
-import org.apache.james.mime4j.message.SimpleContentHandler;
-import org.apache.james.mime4j.parser.MimeStreamParser;
-import org.apache.james.mime4j.stream.BodyDescriptor;
-import org.apache.james.mime4j.stream.Field;
-import org.apache.james.mime4j.stream.MimeConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Throwables;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.Closeables;
 
 /**
  * Represents a part/entity contained within a multipart body
@@ -32,8 +13,7 @@ public class Part {
 	public static final String CONTENT_ID = "Content-Id";
 	public static final String CONTENT_TYPE = "Content-Type";
 	public static final String CONTENT_TRANSFER_ENCODING = "Content-Transfer-Encoding";
-	
-	private static final Logger LOGGER = LoggerFactory.getLogger(Part.class);
+
 	private static final String CRLF = "\r\n";
 	private static final String HEADER_SEPARATOR = ": ";
 	private static final Pattern RAW_CONTENT_ID_PATTERN = Pattern.compile("\\A\\s*<(.*)>\\s*\\Z");
@@ -141,44 +121,5 @@ public class Part {
 		if (body != null) {
 			builder.append(body);
 		}
-	}
-	
-	public static Part parse(final String entity) {
-		final Part part = new Part();
-		
-		ByteArrayInputStream in = null;
-		try {
-			in = new ByteArrayInputStream(entity.getBytes());
-			
-			final MimeConfig config = new MimeConfig();
-			final LenientFieldParser fieldParser = new LenientFieldParser();
-			final MimeStreamParser parser = new MimeStreamParser(config);
-			
-			final SimpleContentHandler contentHandler = new SimpleContentHandler(fieldParser, DecodeMonitor.SILENT) {				
-				@Override
-				public void headers(final Header header) {
-					for (final Field field: header.getFields()) {
-						part.getHeaders().add(field.getName(), field.getBody());
-					}
-				}
-				
-				@Override
-				public void body(BodyDescriptor bd, InputStream is)
-						throws MimeException, IOException {
-					System.out.println(bd.getMimeType());
-					final byte[] bytes = ByteStreams.toByteArray(is);
-					part.setBody(new String(bytes));
-				}
-			};
-			parser.setContentHandler(contentHandler);
-			parser.parse(in);
-		} catch (Exception e) {
-			LOGGER.debug("Unable to parse MIME headers on multipart Part", e);
-			throw Throwables.propagate(e);
-		} finally {
-			Closeables.closeQuietly(in);
-		}
-		
-		return part;
 	}
 }
