@@ -26,9 +26,15 @@ public class MultipartParser {
 	}
 	
 	public MultipartBody parse(final String contentType, final InputStream in) throws IOException {
+		final Exchange exchange = null;
+		return parse(contentType, exchange, in);
+	}
+	
+	public MultipartBody parse(final String contentType, final Exchange exchange,
+			final InputStream in) throws IOException {
 		tokens.parseHeadless(in, contentType);
 		try {
-			return toMultipartBody();
+			return toMultipartBody(exchange);
 		} catch (MimeException e) {
 			throw new IOException("Unable to parse content as MIME stream", e);
 		}
@@ -38,14 +44,14 @@ public class MultipartParser {
 		final String contentType = in.getHeader(Exchange.CONTENT_TYPE, String.class);
 		final InputStream inputStream = in.getBody(InputStream.class);
 		try {
-			final MultipartBody body = parse(contentType, inputStream);
+			final MultipartBody body = parse(contentType, out.getExchange(), inputStream);
 			out.setBody(body);
 		} finally {
 			Closeables.closeQuietly(inputStream);
 		}
 	}
 	
-	private MultipartBody toMultipartBody() throws IOException, MimeException {
+	private MultipartBody toMultipartBody(final Exchange exchange) throws IOException, MimeException {
 		final MultipartBody body = new MultipartBody();
 		
 		Part part = null;
@@ -63,11 +69,12 @@ public class MultipartParser {
 				
 			case T_START_BODYPART:
 				part = new Part();
+				part.setExchange(exchange);
 				
 				break;
 			case T_FIELD:
 				final Field field = tokens.getField();
-				part.getHeaders().add(field.getName(), field.getBody());
+				part.addHeader(field.getName(), field.getBody());
 				break;
 				
 			case T_BODY:
@@ -91,7 +98,7 @@ public class MultipartParser {
 		return body;
 	}
 	
-	public String readDecodedContent() throws IOException {
+	private String readDecodedContent() throws IOException {
 		final InputStream in = tokens.getDecodedInputStream();
 		try {
 			final byte[] bytes = ByteStreams.toByteArray(in);

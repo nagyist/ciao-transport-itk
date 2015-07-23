@@ -1,7 +1,11 @@
 package uk.nhs.ciao.transport.spine.multipart;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.UUID;
+
+import org.apache.camel.Message;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -33,17 +37,6 @@ public class MultipartBody {
 		epilogue = "";
 	}
 	
-	public MultipartBody(final MultipartBody copy) {
-		boundary = copy.boundary;
-		preamble = copy.preamble;
-		parts = Lists.newArrayList();
-		epilogue = copy.epilogue;
-		
-		for (final Part part: copy.parts) {
-			addPart(part);
-		}
-	}
-	
 	public String getBoundary() {
 		return boundary;
 	}
@@ -70,7 +63,7 @@ public class MultipartBody {
 		}
 	}
 	
-	public Part addPart(final String contentType, final Object body) {
+	public Message addPart(final String contentType, final Object body) {
 		if (body == null) {
 			return null;
 		}
@@ -92,27 +85,57 @@ public class MultipartBody {
 		this.epilogue = Strings.nullToEmpty(epilogue);
 	}
 	
-	@Override
-	public String toString() {
-		final StringBuilder builder = new StringBuilder();		
-		toString(builder);		
-		return builder.toString();
-	}
+//	@Override
+//	public String toString() {
+//		final StringBuilder builder = new StringBuilder();		
+//		toString(builder);		
+//		return builder.toString();
+//	}
 	
-	public void toString(final StringBuilder builder) {
-		builder.append(preamble);
+//	public void toString(final StringBuilder builder) {
+//		builder.append(preamble);
+//		
+//		for (final Message part: parts) {
+//			// delimiter
+//			builder.append(CRLF).append("--").append(boundary).append(CRLF);
+//			
+//			part.toString(builder);
+//		}
+//		
+//		// close-delimiter
+//		builder.append(CRLF).append("--").append(boundary).append("--");
+//		
+//		builder.append(epilogue);
+//	}
+	
+	public void write(final OutputStream out) throws IOException {
+		out.write(preamble.getBytes());
 		
+		boolean writeCrlfBeforeDelimiter = !preamble.isEmpty();
 		for (final Part part: parts) {
-			// delimiter
-			builder.append(CRLF).append("--").append(boundary).append(CRLF);
+			if (writeCrlfBeforeDelimiter) {
+				out.write(CRLF.getBytes());
+			}
+
+			out.write("--".getBytes());
+			out.write(boundary.getBytes());
+			out.write(CRLF.getBytes());
 			
-			part.toString(builder);
+			part.write(out);
+			
+			// Only the initial part needs special handling
+			// All other parts need CRLF
+			writeCrlfBeforeDelimiter = true;
 		}
 		
-		// close-delimiter
-		builder.append(CRLF).append("--").append(boundary).append("--");
+		out.write(CRLF.getBytes());
+		out.write("--".getBytes());
+		out.write(boundary.getBytes());
+		out.write("--".getBytes());
+		out.write(CRLF.getBytes());
 		
-		builder.append(epilogue);
+		out.write(epilogue.getBytes());
+		out.flush();
 	}
 	
 	protected String generateContentId() {

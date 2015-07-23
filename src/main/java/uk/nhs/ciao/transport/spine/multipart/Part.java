@@ -1,15 +1,27 @@
 package uk.nhs.ciao.transport.spine.multipart;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.apache.camel.impl.DefaultMessage;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.Closeables;
 
 /**
  * Represents a part/entity contained within a multipart body
  * <p>
  * The entity is made up of a series of name/value headers and a body.
  */
-public class Part {
+public class Part extends DefaultMessage {
 	public static final String CONTENT_ID = "Content-Id";
 	public static final String CONTENT_TYPE = "Content-Type";
 	public static final String CONTENT_TRANSFER_ENCODING = "Content-Transfer-Encoding";
@@ -19,41 +31,25 @@ public class Part {
 	private static final Pattern RAW_CONTENT_ID_PATTERN = Pattern.compile("\\A\\s*<(.*)>\\s*\\Z");
 	
 	/**
+	 * {@inheritDoc}
+	 * <p>
 	 * Represents the name/value headers of a part.
 	 * <p>
 	 * Multiple values for the same name are allowed and names are case-insensitive (RFC 5234, 2045, 822).
 	 */
-	private final EntrySeries headers;
-	
-	/**
-	 * The body / main content of the part.
-	 * <p>
-	 * Typically a string or character stream. When serialising the body,
-	 * the object toString() is used.
-	 */
-	private Object body;
-	
-	public Part() {
-		headers = new EntrySeries();
-	}
-	
-	public Part(final Part part) {
-		headers = new EntrySeries(part.headers);
-		body = part.body;
-	}
-	
-	public EntrySeries getHeaders() {
-		return headers;
+	@Override
+	public Map<String, Object> getHeaders() {
+		return super.getHeaders();
 	}
 	
 	public String getRawContentId() {
-		return headers.getFirstValue(CONTENT_ID);
+		return getFirstHeader(CONTENT_ID);
 	}
 	
 	public void setRawContentId(final String rawContentId) {
-		headers.setOrRemove(CONTENT_ID, rawContentId);
+		setOrRemoveHeader(CONTENT_ID, rawContentId);
 	}
-	
+
 	public String getContentId() {
 		String rawContentId = getRawContentId();
 		if (rawContentId == null) {
@@ -79,47 +75,128 @@ public class Part {
 	}
 	
 	public String getContentType() {
-		return headers.getFirstValue(CONTENT_TYPE);
+		return getFirstHeader(CONTENT_TYPE);
 	}
 	
 	public void setContentType(final String contentType) {
-		headers.setOrRemove(CONTENT_TYPE, contentType);
+		setOrRemoveHeader(CONTENT_TYPE, contentType);
 	}
 	
 	public String getContentTransferEncoding() {
-		return headers.getFirstValue(CONTENT_TRANSFER_ENCODING);
+		return getFirstHeader(CONTENT_TRANSFER_ENCODING);
 	}
 	
 	public void setContentTransferEncoding(final String contentTransferEncoding) {
-		headers.setOrRemove(CONTENT_TRANSFER_ENCODING, contentTransferEncoding);
+		setOrRemoveHeader(CONTENT_TRANSFER_ENCODING, contentTransferEncoding);
 	}
 	
-	public Object getBody() {
-		return body;
+	public String getFirstHeader(final String name) {
+		final String defaultValue = null;
+		return getFirstHeader(name, defaultValue);
 	}
 	
-	public void setBody(final Object body) {
-		this.body = body;
-	}
-	
-	@Override
-	public String toString() {
-		final StringBuilder builder = new StringBuilder();		
-		toString(builder);		
-		return builder.toString();
-	}
-	
-	public void toString(final StringBuilder builder) {
-		for (final Entry<String, String> entry: headers) {
-			builder.append(entry.getKey())
-				.append(HEADER_SEPARATOR)
-				.append(entry.getValue())
-				.append(CRLF);
+	public String getFirstHeader(final String name, final String defaultValue) {
+		Object value = getHeader(name);
+		if (value instanceof List<?>) {
+			final List<?> values = (List<?>)value;
+			value = values.isEmpty() ? null : values.get(0);
 		}
-		builder.append(CRLF);
 		
-		if (body != null) {
-			builder.append(body);
+		return value == null ? defaultValue : value.toString();
+	}
+	
+	public void addHeader(final String name, final String value) {
+		Preconditions.checkNotNull(name, "name");
+		Preconditions.checkNotNull(value, "value");
+		
+		Object previousValue = getHeader(name);
+		if (previousValue == null) {
+			// first value - store string directly
+			setHeader(name, value);
+		} else if (previousValue instanceof List<?>) {
+			// multiple existing values - add to end of list
+			@SuppressWarnings("unchecked")
+			final List<? super String> values = (List<? super String>)previousValue;
+			values.add(value);
+		} else {
+			// second value - move values into list form
+			final List<Object> values = Lists.newArrayList();
+			values.add(previousValue);
+			values.add(value);
+			setHeader(name, values);
 		}
+	}
+	
+	public void setOrRemoveHeader(final String name, final String value) {
+		if (value == null) {
+			removeHeader(name);
+		} else {
+			getHeaders().put(name, value);
+		}
+	}
+	
+	public void write(final OutputStream out) throws IOException {
+		writeHeaders(out);
+		writeBody(out);
+	}
+	
+	private void writeHeaders(final OutputStream out) throws IOException {
+		for (final Entry<String, Object> entry: getHeaders().entrySet()) {
+			writeHeader(out, entry.getKey(), entry.getValue());
+		}
+		out.write(CRLF.getBytes());
+	}
+	
+	private void writeHeader(final OutputStream out, final String name, final Object value) throws IOException {
+		if (value instanceof List<?>) {
+			for (final Object nestedValue: (List<?>)value) {
+				writeHeader(out, name, nestedValue);
+			}
+		} else if (value != null) {
+			out.write(name.getBytes());
+			out.write(HEADER_SEPARATOR.getBytes());
+			out.write(value.toString().getBytes());
+			out.write(CRLF.getBytes());
+		}
+	}
+	
+	private void writeBody(final OutputStream out) throws IOException {
+		if (getBody() == null) {
+			// Nothing to do
+			return;
+		}
+		
+		// Try to write the body from a couple of standard types
+		// If the exchange has been set, camel's type converter should
+		// be able to convert the body
+		// try a stream first, falling back to a string is that fails
+		if (!writeBodyAsStream(out) && !writeBodyAsString(out)) {
+			throw new IOException("Unable to write body of Part: " + getBody());
+		}
+	}
+	
+	private boolean writeBodyAsStream(final OutputStream out) throws IOException {
+		InputStream body = getBody(InputStream.class);
+		if (body == null) {
+			return false;
+		}
+		
+		try {
+			ByteStreams.copy(body, out);
+		} finally {
+			Closeables.closeQuietly(body);
+		}
+		
+		return true;
+	}
+	
+	private boolean writeBodyAsString(final OutputStream out) throws IOException {
+		String body = getBody(String.class);
+		if (body == null) {
+			return false;
+		}
+		
+		out.write(body.getBytes());
+		return true;
 	}
 }
