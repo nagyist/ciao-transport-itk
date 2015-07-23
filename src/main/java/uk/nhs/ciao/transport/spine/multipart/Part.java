@@ -1,8 +1,20 @@
 package uk.nhs.ciao.transport.spine.multipart;
 
+import java.io.ByteArrayInputStream;
+import java.util.Enumeration;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.www.mime.MimeHeaders;
+import org.w3c.www.mime.MimeHeadersFactory;
+import org.w3c.www.mime.MimeParser;
+
+import com.google.common.base.Throwables;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.Closeables;
 
 /**
  * Represents a part/entity contained within a multipart body
@@ -14,6 +26,8 @@ public class Part {
 	public static final String CONTENT_TYPE = "Content-Type";
 	public static final String CONTENT_TRANSFER_ENCODING = "Content-Transfer-Encoding";
 	
+	private static final Logger LOGGER = LoggerFactory.getLogger(Part.class);
+	private static final MimeHeadersFactory MIME_HEADERS_FACTORY = new MimeHeadersFactory();
 	private static final String CRLF = "\r\n";
 	private static final String HEADER_SEPARATOR = ": ";
 	private static final Pattern RAW_CONTENT_ID_PATTERN = Pattern.compile("\\A\\s*<(.*)>\\s*\\Z");
@@ -124,11 +138,32 @@ public class Part {
 	}
 	
 	public static Part parse(final String entity) {
-		System.out.println("****");
-		System.out.println(entity);
-		System.out.println("****");
-		return new Part();
-		// Headers could be folded - does this need to be handled?
-//		throw new UnsupportedOperationException();
+		final Part part = new Part();
+		
+		ByteArrayInputStream in = null;
+		try {
+			in = new ByteArrayInputStream(entity.getBytes());
+			final MimeParser parser = new MimeParser(in, MIME_HEADERS_FACTORY);
+			final MimeHeaders mimeHeaders = (MimeHeaders)parser.parse(); // cast is safe
+			
+			@SuppressWarnings("unchecked")
+			final Enumeration<String> enumeration = mimeHeaders.enumerateHeaders();
+			if (enumeration != null) {
+				while (enumeration.hasMoreElements()) {
+					final String name = enumeration.nextElement();
+					part.getHeaders().add(name, mimeHeaders.getValue(name));
+				}
+			}
+			
+			final byte[] bytes = ByteStreams.toByteArray(in);
+			part.setBody(new String(bytes));
+		} catch (Exception e) {
+			LOGGER.debug("Unable to parse MIME headers on multipart Part", e);
+			throw Throwables.propagate(e);
+		} finally {
+			Closeables.closeQuietly(in);
+		}
+		
+		return part;
 	}
 }

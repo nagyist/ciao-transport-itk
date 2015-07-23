@@ -29,6 +29,8 @@ public class Example {
 		final InputStreamReader reader = new InputStreamReader(Example.class.getResourceAsStream("/test.txt"));
 		message.setBody(CharStreams.toString(reader));
 		
-		MultipartBody.parse(message);
+		final MultipartBody body = MultipartBody.parse(message);
+		
+		System.out.println(body.toString());
 	}
 }
