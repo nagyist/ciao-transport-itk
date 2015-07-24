@@ -22,7 +22,7 @@ public class Example {
 					.split(simple("${body.parts}"))
 						.log("Got part: ${header.Content-Type}")
 					.end()
-					.convertBodyTo(byte[].class)
+					.convertBodyTo(String.class)
 					.log("${body}");
 			}
 		});
