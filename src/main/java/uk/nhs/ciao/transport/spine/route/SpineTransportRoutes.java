@@ -135,7 +135,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 	/**
 	 * Incoming ebXml ACK receiver route
 	 * <ul>
-	 * <li>Receives ebXml acks from a direct route (but ultimately from an HTTP request)
+	 * <li>Receives ebXml acks from a direct route (but originally from an HTTP request) [sync]
 	 * <li>Extracts the related original message id (for correlation)
 	 * <li>Adds the ebXml ack to a JMS topic for later processing (by the process holding the associated transaction open)
 	 */
@@ -152,12 +152,22 @@ public class SpineTransportRoutes extends CIPRoutes {
 	/**
 	 * Incoming ITK trunk ACK receiver route
 	 * <ul>
-	 * <li>Receives ebXml acks from a direct route (but ultimately from an HTTP request)
+	 * <li>Receives ebXml acks from a direct route (but originally from an HTTP request) [sync]
 	 * <li>TODO:
 	 */
 	private void configureItkAckReceiver() {
 		from(ITK_ACK_RECEIVER_URL)
 		.id("itk-ack-receiver")
 		.log("ITK trunk ACK receieved: handling is not yet completed");
+		
+		// First - need to check the ebxml part (part 1)
+		// if there is an error - what should the HTTP response be? 400 (BAD_REQUEST)?
+		// .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("202"))
+		// if there is no error respond with 202 (ACCEPTED)
+		// .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("202"))
+		
+		// then via a seda / asyn route (to let the original request complete!)
+		// respond to the ebxml part with an ebxml ack or nack
+		// if ebxml ack -> handle ITK message
 	}
 }
