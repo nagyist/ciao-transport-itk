@@ -16,6 +16,7 @@ import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
 import uk.nhs.ciao.transport.spine.forwardexpress.EbxmlAcknowledgementProcessor;
+import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.trunk.TrunkRequestPropertiesFactory;
 
 /**
@@ -156,8 +157,32 @@ public class SpineTransportRoutes extends CIPRoutes {
 	 * <li>TODO:
 	 */
 	private void configureItkAckReceiver() {
+		
+		/*
+		 * Notes about SOAP + HTTP error codes:
+		 * http://www.ws-i.org/Profiles/BasicProfile-1.0-2004-04-16.html#refinement16488480
+		 * 
+		 * Use 4** series for client errors (e.g. invalid media type, invalid method, unparsable content
+		 * (not multipart / not xml part, etc)
+		 * 
+		 * Use 5** series for server errors. In particular:
+		 * R1126 An INSTANCE MUST use a "500 Internal Server Error" HTTP status code if the response message is a SOAP Fault.
+		 * 
+		 * This seems to imply that:
+		 *   if the request fails to parse into at least multipart with first part == soap/ebXml
+		 *   -> respond with suitable 4** series error - type of body is not explicitly specified (it could just be a text version of the error code)
+		 *   
+		 *   if as a minimum the ebXml can be parsed and there is some other problem
+		 *   -> respond with 500 error and use a SOAPFault style message
+		 *   
+		 *   otherwise
+		 *   -> respond with 202 (Accepted) + empty body
+		 *   -> then send async ebXml ack/nack
+		 */
+		
 		from(ITK_ACK_RECEIVER_URL)
 		.id("itk-ack-receiver")
+		.convertBodyTo(MultipartBody.class)
 		.log("ITK trunk ACK receieved: handling is not yet completed");
 		
 		// First - need to check the ebxml part (part 1)
