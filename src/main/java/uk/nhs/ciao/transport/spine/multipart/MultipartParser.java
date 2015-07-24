@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.camel.Exchange;
-import org.apache.camel.Message;
 import org.apache.james.mime4j.MimeException;
 import org.apache.james.mime4j.stream.EntityState;
 import org.apache.james.mime4j.stream.Field;
@@ -15,43 +14,54 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
 
 /**
- * Instances of this class are NOT thread-safe
+ * Parses a stream of bytes into a {@link MultipartBody}.
+ * <p>
+ * <strong>Instances of this class are NOT thread-safe</strong>
  */
 public class MultipartParser {
 	private final MimeTokenStream tokens;
 	
+	/**
+	 * Constructs a new parser instance
+	 */
 	public MultipartParser() {
 		this.tokens = new MimeTokenStream();
 		this.tokens.setRecursionMode(RecursionMode.M_NO_RECURSE);
 	}
 	
+	/**
+	 * Parses the specified stream into a {@link MultipartBody}
+	 * <p>
+	 * Any nested multipart bodies are left as-is: i.e. a recursive parse is not
+	 * performed and the body is stored in the same way as any other {@link Part}.
+	 */
 	public MultipartBody parse(final String contentType, final InputStream in) throws IOException {
 		final Exchange exchange = null;
 		return parse(contentType, exchange, in);
 	}
 	
+	/**
+	 * Parses the specified stream into a {@link MultipartBody}
+	 * <p>
+	 * Any nested multipart bodies are left as-is: i.e. a recursive parse is not
+	 * performed and the body is stored in the same way as any other part.
+	 * <p>
+	 * If an exchange is specified, it is set as the exchange property on any created {@link Part}s.
+	 */
 	public MultipartBody parse(final String contentType, final Exchange exchange,
 			final InputStream in) throws IOException {
 		tokens.parseHeadless(in, contentType);
 		try {
-			return toMultipartBody(exchange);
+			return convertTokensToMultipartBody(exchange);
 		} catch (MimeException e) {
 			throw new IOException("Unable to parse content as MIME stream", e);
 		}
 	}
 	
-	public void parse(final Message in, final Message out) throws IOException {
-		final String contentType = in.getHeader(Exchange.CONTENT_TYPE, String.class);
-		final InputStream inputStream = in.getBody(InputStream.class);
-		try {
-			final MultipartBody body = parse(contentType, out.getExchange(), inputStream);
-			out.setBody(body);
-		} finally {
-			Closeables.closeQuietly(inputStream);
-		}
-	}
-	
-	private MultipartBody toMultipartBody(final Exchange exchange) throws IOException, MimeException {
+	/**
+	 * Interprets the tokens until end of stream.
+	 */
+	private MultipartBody convertTokensToMultipartBody(final Exchange exchange) throws IOException, MimeException {
 		final MultipartBody body = new MultipartBody();
 		
 		Part part = null;

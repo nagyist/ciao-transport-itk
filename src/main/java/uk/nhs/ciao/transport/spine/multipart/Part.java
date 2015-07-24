@@ -6,8 +6,6 @@ import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.camel.impl.DefaultMessage;
 
@@ -22,13 +20,10 @@ import com.google.common.io.Closeables;
  * The entity is made up of a series of name/value headers and a body.
  */
 public class Part extends DefaultMessage {
-	public static final String CONTENT_ID = "Content-Id";
-	public static final String CONTENT_TYPE = "Content-Type";
 	public static final String CONTENT_TRANSFER_ENCODING = "Content-Transfer-Encoding";
 
 	private static final String CRLF = "\r\n";
 	private static final String HEADER_SEPARATOR = ": ";
-	private static final Pattern RAW_CONTENT_ID_PATTERN = Pattern.compile("\\A\\s*<(.*)>\\s*\\Z");
 	
 	/**
 	 * {@inheritDoc}
@@ -43,43 +38,29 @@ public class Part extends DefaultMessage {
 	}
 	
 	public String getRawContentId() {
-		return getFirstHeader(CONTENT_ID);
+		return getFirstHeader(ContentId.HEADER_NAME);
 	}
 	
 	public void setRawContentId(final String rawContentId) {
-		setOrRemoveHeader(CONTENT_ID, rawContentId);
+		setOrRemoveHeader(ContentId.HEADER_NAME, rawContentId);
 	}
 
 	public String getContentId() {
-		String rawContentId = getRawContentId();
-		if (rawContentId == null) {
-			return null;
-		}
-		
-		final Matcher matcher = RAW_CONTENT_ID_PATTERN.matcher(rawContentId);
-		return matcher.matches() ? matcher.group(1) : rawContentId;
+		final String rawContentId = getRawContentId();
+		return ContentId.decodeRawValue(rawContentId);
 	}
 	
 	public void setContentId(final String contentId) {
-		final String rawContentId;
-		
-		if (contentId == null) {
-			rawContentId = null;
-		} else if (RAW_CONTENT_ID_PATTERN.matcher(contentId).matches()) {
-			rawContentId = contentId;
-		} else {
-			rawContentId = "<" + contentId + ">";
-		}
-		
+		final String rawContentId = ContentId.encodeRawValue(contentId);
 		setRawContentId(rawContentId);
 	}
 	
 	public String getContentType() {
-		return getFirstHeader(CONTENT_TYPE);
+		return getFirstHeader(ContentType.HEADER_NAME);
 	}
 	
 	public void setContentType(final String contentType) {
-		setOrRemoveHeader(CONTENT_TYPE, contentType);
+		setOrRemoveHeader(ContentType.HEADER_NAME, contentType);
 	}
 	
 	public String getContentTransferEncoding() {

@@ -84,29 +84,7 @@ public class MultipartBody {
 	public void setEpilogue(final String epilogue) {
 		this.epilogue = Strings.nullToEmpty(epilogue);
 	}
-	
-//	@Override
-//	public String toString() {
-//		final StringBuilder builder = new StringBuilder();		
-//		toString(builder);		
-//		return builder.toString();
-//	}
-	
-//	public void toString(final StringBuilder builder) {
-//		builder.append(preamble);
-//		
-//		for (final Message part: parts) {
-//			// delimiter
-//			builder.append(CRLF).append("--").append(boundary).append(CRLF);
-//			
-//			part.toString(builder);
-//		}
-//		
-//		// close-delimiter
-//		builder.append(CRLF).append("--").append(boundary).append("--");
-//		
-//		builder.append(epilogue);
-//	}
+
 	
 	public void write(final OutputStream out) throws IOException {
 		out.write(preamble.getBytes());

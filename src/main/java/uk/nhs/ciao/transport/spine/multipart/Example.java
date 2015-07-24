@@ -18,6 +18,7 @@ public class Example {
 			@Override
 			public void configure() throws Exception {
 				from("direct:input")
+					.convertBodyTo(byte[].class)
 					.convertBodyTo(MultipartBody.class)
 					.split(simple("${body.parts}"))
 						.log("Got part: ${header.Content-Type}")
