@@ -161,10 +161,10 @@ public class EbxmlEnvelope {
 		final EbxmlEnvelope fault = generateBaseReply();
 		fault.action = "MessageError";
 		
-		final ErrorDetail error = fault.addError();
-		error.codeContext = codeContext;
-		error.code = code;
-		error.description = description;
+		fault.addError();
+		fault.error.codeContext = codeContext;
+		fault.error.code = code;
+		fault.error.description = description;
 		
 		fault.applyDefaults();
 		
