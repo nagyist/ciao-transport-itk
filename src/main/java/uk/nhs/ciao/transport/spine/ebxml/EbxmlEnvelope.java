@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
@@ -130,6 +131,66 @@ public class EbxmlEnvelope {
 		}
 	}
 	
+	/**
+	 * Creates a new envelope representing an acknowledgment associated with this message.
+	 * <p>
+	 * Standard reply message fields are populated from this envelope and required fields (e.g. messageId)
+	 * are generated.
+	 *
+	 * @return A new acknowledgment instance
+	 */
+	public EbxmlEnvelope generateAcknowledgment() {
+		final EbxmlEnvelope ack = generateBaseReply();		
+		ack.action = "Acknowledgment";
+		ack.acknowledgment = true;
+		
+		ack.applyDefaults();
+		
+		return ack;
+	}
+	
+	/**
+	 * Creates a new envelope representing a SOAPFault associated with this message.
+	 * <p>
+	 * Standard reply message fields are populated from this envelope and required fields (e.g. messageId)
+	 * are generated.
+	 *
+	 * @return A new SOAPFault instance
+	 */
+	public EbxmlEnvelope generateSOAPFault(final String codeContext, final String code, final String description) {
+		final EbxmlEnvelope fault = generateBaseReply();
+		fault.action = "MessageError";
+		
+		final Error error = fault.addError();
+		error.codeContext = codeContext;
+		error.code = code;
+		error.description = description;
+		
+		fault.applyDefaults();
+		
+		return fault;
+	}
+	
+	/**
+	 * Creates a new envelope instance and copies standard 'reply' fields into it
+	 * <p>
+	 * Note to and from are inverted (since it is a reply)
+	 * 
+	 * @return The reply instance
+	 */
+	private EbxmlEnvelope generateBaseReply() {
+		final EbxmlEnvelope reply = new EbxmlEnvelope();
+		
+		reply.fromParty = toParty;
+		reply.toParty = fromParty;
+		reply.cpaId = cpaId;
+		reply.conversationId = conversationId;
+		reply.service = "urn:oasis:names:tc:ebxml-msg:service";
+		reply.messageData.refToMessageId = messageData.messageId;
+		
+		return reply;
+	}
+	
 	@Override
 	public String toString() {
 		return MoreObjects.toStringHelper(this)
@@ -146,6 +207,31 @@ public class EbxmlEnvelope {
 			.toString();
 	}
 	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int hashCode() {
+		return messageData.messageId.hashCode();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * <p>
+	 * Envelopes are considered equal if they have the same messageId
+	 */
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj) {
+			return true;
+		} else if (obj == null || getClass() != obj.getClass()) {
+			return false;
+		}
+		
+		final EbxmlEnvelope other = (EbxmlEnvelope) obj;
+		return Objects.equal(messageData.messageId, other.messageData.messageId);
+	}
+
 	protected String generateId() {
 		return UUID.randomUUID().toString();
 	}
