@@ -76,10 +76,13 @@
 		
 		<dependency>
 			<groupId>org.apache.james</groupId>
-			<artifactId>apache-mime4j-dom</artifactId>
-			<version>0.7.2</version>
+			<artifactId>apache-mime4j-core</artifactId>
 		</dependency>
-				
+		
+		<dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-digester3</artifactId>
+		</dependency>
 
 		<!-- logging -->
 		<dependency>
@@ -101,6 +104,12 @@
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
+			<scope>test</scope>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.unitils</groupId>
+			<artifactId>unitils-core</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

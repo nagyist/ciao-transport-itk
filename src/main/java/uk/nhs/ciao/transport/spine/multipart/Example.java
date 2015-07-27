@@ -8,6 +8,8 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultProducerTemplate;
 
+import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
+
 import com.google.common.collect.Maps;
 
 public class Example {
@@ -20,10 +22,15 @@ public class Example {
 				from("direct:input")
 					.convertBodyTo(byte[].class)
 					.convertBodyTo(MultipartBody.class)
-					.split(simple("${body.parts}"))
+					.split(simple("${body.parts.get(0)}"))
 						.log("Got part: ${header.Content-Type}")
-					.end()
-					.convertBodyTo(String.class)
+						.to("direct:eback")
+					.end();
+//					.convertBodyTo(String.class)
+//					.log("${body}");
+				
+				from("direct:eback")
+					.convertBodyTo(EbxmlEnvelope.class)
 					.log("${body}");
 			}
 		});

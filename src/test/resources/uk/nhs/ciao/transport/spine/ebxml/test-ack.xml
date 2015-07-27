@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+	xmlns:eb="http://www.oasis-open.org/committees/ebxml-msg/schema/msg-header-2_0.xsd"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<soap:Header>
+		<eb:MessageHeader eb:version="2.0" soap:mustUnderstand="1">
+			<eb:From>
+				<eb:PartyId eb:type="urn:nhs:names:partyType:ocs+serviceInstance">BBB-654321</eb:PartyId>
+			</eb:From>
+			<eb:To>
+				<eb:PartyId eb:type="urn:nhs:names:partyType:ocs+serviceInstance">AAA-123456</eb:PartyId>
+			</eb:To>
+			<eb:CPAId>S3024519A3110234</eb:CPAId>
+			<eb:ConversationId>5F21C7C0-6CD2-4A50-A879-F3241BA7BE29</eb:ConversationId>
+			<eb:Service>urn:oasis:names:tc:ebxml-msg:service</eb:Service>
+			<eb:Action>Acknowledgment</eb:Action>
+			<eb:MessageData>
+				<eb:MessageId>F5FECB6E-E891-4381-94AA-E5106A990B04</eb:MessageId>
+				<eb:Timestamp>2015-06-03T08:27:36</eb:Timestamp>
+				<eb:RefToMessageId>5F21C7C0-6CD2-4A50-A879-F3241BA7BE29</eb:RefToMessageId>
+			</eb:MessageData>
+		</eb:MessageHeader>
+		
+		<eb:Acknowledgment eb:version="2.0" soap:mustUnderstand="1" soap:actor="urn:oasis:names:tc:ebxml-msg:actor:toPartyMSH">
+			<eb:Timestamp>2015-06-03T08:27:36</eb:Timestamp>
+			<eb:RefToMessageId>5F21C7C0-6CD2-4A50-A879-F3241BA7BE29</eb:RefToMessageId>
+			<eb:From>
+				<eb:PartyId eb:type="urn:nhs:names:partyType:ocs+serviceInstance">BBB-654321</eb:PartyId>
+			</eb:From>
+		</eb:Acknowledgment>
+
+	</soap:Header>
+	<soap:Body />
+</soap:Envelope>

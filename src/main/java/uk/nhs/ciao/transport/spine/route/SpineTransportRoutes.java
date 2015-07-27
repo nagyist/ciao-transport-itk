@@ -195,4 +195,6 @@ public class SpineTransportRoutes extends CIPRoutes {
 		// respond to the ebxml part with an ebxml ack or nack
 		// if ebxml ack -> handle ITK message
 	}
+	
+	// TODO: What if an incoming ITK business ack requests an INF ack?
 }
