@@ -23,7 +23,7 @@ public class EbxmlEnvelope {
 	private String action;
 	private final MessageData messageData = new MessageData(); // required
 	private boolean acknowledgment;
-	private Error error;
+	private ErrorDetail error;
 	private final List<ManifestReference> manifestReferences = Lists.newArrayList();
 	
 	public String getFromParty() {
@@ -82,12 +82,12 @@ public class EbxmlEnvelope {
 		this.acknowledgment = acknowledgment;
 	}
 
-	public Error getError() {
+	public ErrorDetail getError() {
 		return error;
 	}
 
-	public Error addError() {
-		this.error = new Error();
+	public ErrorDetail addError() {
+		this.error = new ErrorDetail();
 		return error;
 	}
 	
@@ -161,7 +161,7 @@ public class EbxmlEnvelope {
 		final EbxmlEnvelope fault = generateBaseReply();
 		fault.action = "MessageError";
 		
-		final Error error = fault.addError();
+		final ErrorDetail error = fault.addError();
 		error.codeContext = codeContext;
 		error.code = code;
 		error.description = description;
@@ -287,7 +287,7 @@ public class EbxmlEnvelope {
 		}
 	}
 	
-	public class Error {
+	public class ErrorDetail {
 		private String listId;
 		private String id;
 		private String code;

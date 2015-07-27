@@ -15,6 +15,7 @@ import org.apache.commons.digester3.RulesBase;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 
+import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ErrorDetail;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
 
 /**
@@ -168,7 +169,7 @@ public class EbxmlEnvelopeParser {
 		@Override
 		public void begin(String namespace, String name,
 				Attributes attributes) throws Exception {
-			final EbxmlEnvelope.Error error = getDigester().<EbxmlEnvelope>peek().addError();
+			final ErrorDetail error = getDigester().<EbxmlEnvelope>peek().addError();
 			getDigester().push(error);
 			
 			final String listId = attributes.getValue(EBXML_URI, "id");
@@ -190,7 +191,7 @@ public class EbxmlEnvelopeParser {
 		@Override
 		public void begin(final String namespace, final String name,
 				final Attributes attributes) throws Exception {
-			final EbxmlEnvelope.Error error = getDigester().<EbxmlEnvelope.Error>peek();
+			final ErrorDetail error = getDigester().<ErrorDetail>peek();
 
 			final String id = attributes.getValue(EBXML_URI, "id");
 			if (id != null) {
