@@ -60,5 +60,6 @@ public class EbxmlEnvelopeTest {
 		assertEquals("urn:oasis:names:tc:ebxml-msg:service", reply.getService());
 		assertEquals("123", reply.getMessageData().getRefToMessageId());
 		assertNotEquals("123", reply.getMessageData().getMessageId()); // ensure the original id was not copied!
+		assertNotNull(reply.getMessageData().getTimestamp());
 	}
 }

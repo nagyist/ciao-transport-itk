@@ -1,6 +1,10 @@
 package uk.nhs.ciao.transport.spine.ebxml;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import com.google.common.base.MoreObjects;
@@ -15,6 +19,20 @@ import com.google.common.collect.Lists;
  * structure (e.g. a single fromParty / toParty) etc..
  */
 public class EbxmlEnvelope {
+	/**
+	 * Date format used in ebXml time-stamps
+	 * <p>
+	 * This is expressed in the UTC time-zone
+	 */
+	private static final ThreadLocal<DateFormat> TIMESTAMP_FORMAT = new ThreadLocal<DateFormat>() {
+		@Override
+		protected DateFormat initialValue() {
+			final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+			dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+			return dateFormat;
+		}
+	};
+	
 	private String fromParty;
 	private String toParty;	
 	private String cpaId;
@@ -235,6 +253,10 @@ public class EbxmlEnvelope {
 	protected String generateId() {
 		return UUID.randomUUID().toString();
 	}
+	
+	protected String generateTimestamp() {
+		return TIMESTAMP_FORMAT.get().format(new Date());
+	}
 
 	public class MessageData {
 		private String messageId; // required
@@ -274,7 +296,9 @@ public class EbxmlEnvelope {
 				messageId = generateId();
 			}
 			
-			// TODO: timestamp
+			if (Strings.isNullOrEmpty(timestamp)) {
+				timestamp = generateTimestamp();
+			}
 		}
 		
 		@Override
