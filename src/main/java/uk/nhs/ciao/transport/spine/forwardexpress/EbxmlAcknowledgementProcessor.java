@@ -4,7 +4,8 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
+
+import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 
 /**
  * Processes incoming ebXml acknowledgements
@@ -16,13 +17,28 @@ public class EbxmlAcknowledgementProcessor implements Processor {
 	@Override
 	public void process(final Exchange exchange) throws Exception {
 		final String id = exchange.getIn().getHeader(Exchange.CORRELATION_ID, String.class);
-		final Document document = exchange.getIn().getBody(Document.class);
+		final EbxmlEnvelope acknowledgment = exchange.getIn().getBody(EbxmlEnvelope.class);
 		
-		final AcknowledgementType ackType = getAcknowledgementType(document);
+		final AcknowledgementType ackType = getAcknowledgementType(acknowledgment);
 		ackType.process(id, exchange);
 	}
-	
-	public AcknowledgementType getAcknowledgementType(final Document document) {
+
+	/**
+	 * <p>
+	 * From ebMS_v2_0.pdf
+	 * 
+	 * 6.5.7 Failed Message Delivery
+	 * If a message sent with an AckRequested element cannot be delivered, the MSH or process handling the
+	 * message (as in the case of a routing intermediary) SHALL send a delivery failure notification to the From
+	 * Party. The delivery failure notification message is an Error Message with <code>errorCode</code> of
+	 * <code>DeliveryFailure</code> and a <code>severity</code> of:
+	 * <ul>
+	 * <li><code>Error</code> if the party who detected the problem could not transmit the message (e.g. the communications
+	 * transport was not available)
+	 * <li><code>Warning</code> if the message was transmitted, but an Acknowledgment Message was not received. This means
+	 * the message probably was not delivered.
+	 */
+	public AcknowledgementType getAcknowledgementType(final EbxmlEnvelope acknowledgment) {
 		// TODO: check document content - for now return success ACK
 		return AcknowledgementType.SUCCESS;
 	}

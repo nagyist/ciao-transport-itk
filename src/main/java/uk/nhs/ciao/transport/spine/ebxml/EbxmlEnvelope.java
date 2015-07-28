@@ -19,6 +19,16 @@ import com.google.common.collect.Lists;
  * structure (e.g. a single fromParty / toParty) etc..
  */
 public class EbxmlEnvelope {
+	public static final String ACTION_ACKNOWLEDGMENT = "Acknowledgment";	
+	public static final String ACTION_MESSAGE_ERROR = "MessageError";
+	
+	public static final String SERVICE_EBXML_MSG = "urn:oasis:names:tc:ebxml-msg:service";
+	
+	public static final String ERROR_CODE_DELIVERY_FAILURE = "DeliveryFailure";
+	
+	public static final String ERROR_SEVERITY_ERROR = "Error";
+	public static final String ERROR_SEVERITY_WARNING = "Warning";
+	
 	/**
 	 * Date format used in ebXml time-stamps
 	 * <p>
@@ -111,10 +121,10 @@ public class EbxmlEnvelope {
 	
 	/**
 	 * Tests if this envelope represents a SOAP fault (i.e. contains
-	 * an error element)
+	 * an error element and is not an acknowledgment)
 	 */
 	public boolean isSOAPFault() {
-		return error != null;
+		return error != null && !acknowledgment;
 	}
 	
 	public List<ManifestReference> getManifestReferences() {
@@ -159,8 +169,32 @@ public class EbxmlEnvelope {
 	 */
 	public EbxmlEnvelope generateAcknowledgment() {
 		final EbxmlEnvelope ack = generateBaseReply();		
-		ack.action = "Acknowledgment";
+		ack.action = ACTION_ACKNOWLEDGMENT;
 		ack.acknowledgment = true;
+		
+		ack.applyDefaults();
+		
+		return ack;
+	}
+	
+	/**
+	 * Creates a new envelope representing an acknowledgment of delivery failure associated with this message.
+	 * <p>
+	 * Standard reply message fields are populated from this envelope and required fields (e.g. messageId)
+	 * are generated. In addition to the standard acknowledgment properties, error properties with
+	 * details of the delivery failure are included
+	 *
+	 * @return A new delivery failure notification instance
+	 */
+	public EbxmlEnvelope generateDeliveryFailureNotification(final String codeContext, final String description) {
+		final EbxmlEnvelope ack = generateBaseReply();		
+		ack.action = ACTION_ACKNOWLEDGMENT;
+		ack.acknowledgment = true;
+
+		ack.addError();
+		ack.error.setDeliveryFailure();
+		ack.error.codeContext = codeContext;
+		ack.error.description = description;
 		
 		ack.applyDefaults();
 		
@@ -177,7 +211,7 @@ public class EbxmlEnvelope {
 	 */
 	public EbxmlEnvelope generateSOAPFault(final String codeContext, final String code, final String description) {
 		final EbxmlEnvelope fault = generateBaseReply();
-		fault.action = "MessageError";
+		fault.action = ACTION_MESSAGE_ERROR;
 		
 		fault.addError();
 		fault.error.codeContext = codeContext;
@@ -203,7 +237,7 @@ public class EbxmlEnvelope {
 		reply.toParty = fromParty;
 		reply.cpaId = cpaId;
 		reply.conversationId = conversationId;
-		reply.service = "urn:oasis:names:tc:ebxml-msg:service";
+		reply.service = SERVICE_EBXML_MSG;
 		reply.messageData.refToMessageId = messageData.messageId;
 		
 		return reply;
@@ -315,6 +349,7 @@ public class EbxmlEnvelope {
 		private String listId;
 		private String id;
 		private String code;
+		private String severity;
 		private String codeContext;
 		private String description;
 		
@@ -329,6 +364,10 @@ public class EbxmlEnvelope {
 			
 			if (Strings.isNullOrEmpty(id)) {
 				id = generateId();
+			}
+			
+			if (Strings.isNullOrEmpty(severity)) {
+				setError();
 			}
 		}
 		
@@ -356,6 +395,38 @@ public class EbxmlEnvelope {
 			this.code = code;
 		}
 		
+		public String getSeverity() {
+			return severity;
+		}
+		
+		public void setSeverity(final String severity) {
+			this.severity = severity;
+		}
+		
+		public boolean isDeliveryFailure() {
+			return ERROR_CODE_DELIVERY_FAILURE.equalsIgnoreCase(code);
+		}
+		
+		public void setDeliveryFailure() {
+			setCode(ERROR_CODE_DELIVERY_FAILURE);
+		}
+		
+		public boolean isError() {
+			return ERROR_SEVERITY_ERROR.equalsIgnoreCase(severity);
+		}
+		
+		public void setError() {
+			setSeverity(ERROR_SEVERITY_ERROR);
+		}
+		
+		public boolean isWarning() {
+			return ERROR_SEVERITY_WARNING.equalsIgnoreCase(severity);
+		}
+		
+		public void setWarning() {
+			setSeverity(ERROR_SEVERITY_WARNING);
+		}
+		
 		public String getCodeContext() {
 			return codeContext;
 		}
@@ -378,6 +449,7 @@ public class EbxmlEnvelope {
 				.add("listId", listId)
 				.add("id", id)
 				.add("code", code)
+				.add("severity", severity)
 				.add("codeContext", codeContext)
 				.add("description", description)
 				.toString();

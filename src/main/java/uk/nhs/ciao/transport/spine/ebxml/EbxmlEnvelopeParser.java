@@ -203,6 +203,11 @@ public class EbxmlEnvelopeParser {
 				error.setCode(code);
 			}
 			
+			final String severity = attributes.getValue(EBXML_URI, "severity");
+			if (severity != null) {
+				error.setSeverity(severity);
+			}
+			
 			final String codeContext = attributes.getValue(EBXML_URI, "codeContext");
 			if (codeContext != null) {
 				error.setCodeContext(codeContext);

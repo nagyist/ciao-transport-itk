@@ -1,5 +1,7 @@
 package uk.nhs.ciao.transport.spine.ebxml;
 
+import static org.junit.Assert.*;
+
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -43,12 +45,34 @@ public class EbxmlEnvelopeParserTest {
 		expected.getError().setListId("1234");
 		expected.getError().setId("5678");
 		expected.getError().setCode("code");
+		expected.getError().setSeverity("Error");
 		expected.getError().setCodeContext("context");
 		expected.getError().setDescription("Details of the error");
 		
 		
 		final EbxmlEnvelope actual = parse("./test-error.xml");
 		ReflectionAssert.assertReflectionEquals(expected, actual);
+		assertTrue(expected.isSOAPFault());
+	}
+	
+	@Test
+	public void testParseDeliveryFailure() throws IOException {
+		final EbxmlEnvelope expected = getBaseEnvelope();
+		expected.setAction("Acknowledgment");
+		expected.setAcknowledgment(true);
+		expected.getMessageData().setRefToMessageId("5F21C7C0-6CD2-4A50-A879-F3241BA7BE29");
+		
+		expected.addError();
+		expected.getError().setDeliveryFailure();
+		expected.getError().setError();
+		expected.getError().setListId("1234");
+		expected.getError().setId("5678");
+		expected.getError().setCodeContext("context");
+		expected.getError().setDescription("Details of the error");
+		
+		final EbxmlEnvelope actual = parse("./test-delivery-failure.xml");
+		ReflectionAssert.assertReflectionEquals(expected, actual);
+		assertFalse(expected.isSOAPFault());
 	}
 	
 	@Test
