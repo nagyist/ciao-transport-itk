@@ -14,9 +14,5 @@
 		<property name="sslContextParameters" ref="spineSSLContextParameters"/>
 	</bean>
 	
-	<bean id="spine" class="uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressComponent">
-		<property name="name" value="trunk" />
-		<property name="toUri" value="${spine.toUri}" />
-		<property name="replyUri" value="${spine.replyUri}" />
-	</bean>
+	<bean id="spine" class="org.apache.camel.component.direct.DirectComponent" />
 </beans>

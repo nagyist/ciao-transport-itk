@@ -1,5 +1,7 @@
 package uk.nhs.ciao.transport.spine.forwardexpress;
 
+import static uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressSenderRoutes.*;
+
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.camel.component.ActiveMQComponent;
 import org.apache.camel.CamelContext;
@@ -7,6 +9,7 @@ import org.apache.camel.ConsumerTemplate;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.direct.DirectComponent;
 import org.apache.camel.component.http4.HttpOperationFailedException;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultConsumerTemplate;
@@ -68,13 +71,7 @@ public class ForwardExpressSenderApplication {
 		jms2Component.setConcurrentConsumers(2);
 		context.addComponent("jms2", jms2Component);
 		
-		final ForwardExpressComponent spineComponent = new ForwardExpressComponent();
-		spineComponent.setToUri("http4://localhost:8123/");
-		spineComponent.setName("trunk");
-		// Using a separate JMS component to ensure this route is not blocked
-		// if all other consumer queue threads (on jms:) are waiting for ACK responses
-		spineComponent.setReplyUri("jms2:topic:document-ebxml-acks");
-		context.addComponent("spine", spineComponent);
+		context.addComponent("spine", new DirectComponent());
 		
 		context.addRoutes(new Routes());		
 		context.start();
@@ -107,6 +104,25 @@ public class ForwardExpressSenderApplication {
 			.doCatch(HttpOperationFailedException.class)
 				.process(new HttpErrorHandler())
 			;
+			
+			configureSpineSender();
+		}
+		
+		private void configureSpineSender() throws Exception {
+			final String name = "trunk";
+			final String requestRouteId = name;
+			final String ackRouteId = name + "-ack";
+			final String aggregateRouteId = name + "-aggregate";
+			
+			// Using a separate JMS component to ensure this route is not blocked
+			// if all other consumer queue threads (on jms:) are waiting for ACK responses
+			
+			forwardExpressSender(getContext(),
+				from("spine:" + requestRouteId).routeId(requestRouteId))
+				.to("http4://localhost:8123/")
+				.waitForResponse(
+					forwardExpressAckReceiver(ackRouteId, "jms2:topic:document-ebxml-acks", "JMSMessageID", "JMSCorrelationId"),
+					forwardExpressMessageAggregator(aggregateRouteId, "direct:" + aggregateRouteId, 30000));
 		}
 	}
 	

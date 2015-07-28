@@ -4,17 +4,22 @@ import java.util.Collections;
 import java.util.Set;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.LoggingLevel;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.BuilderSupport;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.model.ModelCamelContext;
 import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.SettableFuture;
 
 public final class ForwardExpressSenderRoutes {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ForwardExpressSenderRoutes.class);
+	
 	private ForwardExpressSenderRoutes() {
 		// Suppress default constructor
 	}
@@ -66,6 +71,12 @@ public final class ForwardExpressSenderRoutes {
 				.process(new ForwardExpressMessageExchange.WaitForAck(aggregator.timeout + 1000)) // timeout is slightly higher than the corresponding value in the aggregate
 				.validate().simple("${body.isComplete()}")
 				.transform().simple("${body.getAckBody()}")
+				// If left as the final clause, transform appears to cause problems by
+				// for the next processor in the chain by nulling the exchange on one of the messages
+				// This *appears* to be a bug in how TransformProcessor uses ExchangeHelper.replaceMessage
+				// when making a message copy - the out message is copied but the exchange is nulled on the non-replaced message
+				// An addition processor (which does not need to use getIn().getExchange()) seems to resolve the problem
+				.log(LoggingLevel.DEBUG, LOGGER, "Extracted acknowledgment for ${header.CamelCorrelationId}")
 			.endDoTry()
 			.doFinally()
 				.process(new Processor() {
