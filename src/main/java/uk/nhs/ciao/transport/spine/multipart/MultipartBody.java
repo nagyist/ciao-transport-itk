@@ -63,7 +63,7 @@ public class MultipartBody {
 		}
 	}
 	
-	public Message addPart(final String contentType, final Object body) {
+	public Part addPart(final String contentType, final Object body) {
 		if (body == null) {
 			return null;
 		}
@@ -72,6 +72,7 @@ public class MultipartBody {
 		part.setContentId(generateContentId());
 		part.setContentType(contentType);
 		part.setContentTransferEncoding(DEFAULT_CONTENT_TRANSFER_ENCODING);		
+		part.setBody(body);
 		parts.add(part);
 		
 		return part;
