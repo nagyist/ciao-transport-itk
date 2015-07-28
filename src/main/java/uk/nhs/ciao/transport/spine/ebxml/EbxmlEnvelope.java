@@ -120,11 +120,25 @@ public class EbxmlEnvelope {
 	}
 	
 	/**
-	 * Tests if this envelope represents a SOAP fault (i.e. contains
-	 * an error element and is not an acknowledgment)
+	 * Tests if this envelope represents an 'Error Message'
+	 * (i.e. contains an error element)
+	 */
+	public boolean isErrorMessage() {
+		return error != null;
+	}
+	
+	/**
+	 * Tests if this envelope represents a SOAP fault
 	 */
 	public boolean isSOAPFault() {
-		return error != null && !acknowledgment;
+		return isErrorMessage() && !isDeliveryFailure();
+	}
+	
+	/**
+	 * Tests if this envelope represents a message delivery failure
+	 */
+	public boolean isDeliveryFailure() {
+		return isErrorMessage() && error.isDeliveryFailure();
 	}
 	
 	public List<ManifestReference> getManifestReferences() {

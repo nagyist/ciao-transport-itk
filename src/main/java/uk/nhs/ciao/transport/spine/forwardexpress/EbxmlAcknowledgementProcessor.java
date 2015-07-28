@@ -11,21 +11,14 @@ import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
  * Processes incoming ebXml acknowledgements
  */
 // TODO: Could this be included by default in the forward express component?
+// Perhaps this could be handled as part of a route using some combination of
+// convertBodyTo(), choose(), simple(), setFaultBody() and throwException()?
 public class EbxmlAcknowledgementProcessor implements Processor {
 	private static final Logger LOGGER = LoggerFactory.getLogger(EbxmlAcknowledgementProcessor.class);
 	
-	@Override
-	public void process(final Exchange exchange) throws Exception {
-		final String id = exchange.getIn().getHeader(Exchange.CORRELATION_ID, String.class);
-		final EbxmlEnvelope acknowledgment = exchange.getIn().getBody(EbxmlEnvelope.class);
-		
-		final AcknowledgementType ackType = getAcknowledgementType(acknowledgment);
-		ackType.process(id, exchange);
-	}
-
 	/**
 	 * <p>
-	 * From ebMS_v2_0.pdf
+	 * From ebMS_v2_0.pdf:
 	 * 
 	 * 6.5.7 Failed Message Delivery
 	 * If a message sent with an AckRequested element cannot be delivered, the MSH or process handling the
@@ -37,85 +30,57 @@ public class EbxmlAcknowledgementProcessor implements Processor {
 	 * transport was not available)
 	 * <li><code>Warning</code> if the message was transmitted, but an Acknowledgment Message was not received. This means
 	 * the message probably was not delivered.
+	 * 
+	 * <p>
+	 * From EIS11.6 (2.5.2):
+	 * <p>
+	 * Should an MHS receive an ebXML ErrorList with a highestSeverity of “Error” it MUST assume that the message in error can not
+	 * be re-presented.  That is, the problem MUST be handled by the sender of the message in error.
+	 * Should an MHS receive an ebXML ErrorList with a highestSeverity of “Warning” it MAY assume that the error is recoverable
+	 * and that the message in error can be re-presented.
 	 */
-	public AcknowledgementType getAcknowledgementType(final EbxmlEnvelope acknowledgment) {
-		// TODO: check document content - for now return success ACK
-		return AcknowledgementType.SUCCESS;
+	@Override
+	public void process(final Exchange exchange) throws Exception {
+		final EbxmlEnvelope acknowledgment = exchange.getIn().getBody(EbxmlEnvelope.class);
+		final String refToMessageId = acknowledgment.getMessageData().getRefToMessageId();
+		
+		if (acknowledgment.isErrorMessage()) {
+			if (acknowledgment.getError().isWarning()) {
+				onDeliveryFailureWarning(refToMessageId);
+			} else {
+				onDeliveryFailureError(refToMessageId, exchange);
+			}
+		} else {
+			onSuccess(refToMessageId);
+		}
 	}
 	
 	/**
-	 * Represents the type of acknowledgement received
+	 * Message has been successfully acknowledged
 	 */
-	private enum AcknowledgementType {
-		/**
-		 * Message has been successfully acknowledged
-		 */
-		SUCCESS {
-			@Override
-			public void process(final String id, final Exchange exchange) {
-				LOGGER.info("ebXml ack received - id: " + id);
-			}
-		},
-		
-		/**
-		 * An error has been reported for the message being acknowledged but
-		 * further attempts to re-send the message may be possible
-		 */
-		RETRY {
-			@Override
-			public void process(final String id, final Exchange exchange) {
-				LOGGER.info("ebXml nack (failure) received - id: " + id + " - will not retry");
-				exchange.getIn().setFault(true); // Fault messages are not retried!
-			}
-		},
-		
-		/**
-		 * A failure error has been reported for the message being acknowledged and
-		 * no further attempts to re-send the message shoulld be tried
-		 */
-		FAILURE {
-			@Override
-			public void process(final String id, final Exchange exchange) throws Exception {
-				final String message = "ebXml nack (retry) received - id: " + id + " - will retry";
-				LOGGER.info(message);
-				
-				// Exceptions are caught by camel and retried!
-				throw new Exception(message);
-			}
-		};
-		
-		public abstract void process(final String id, final Exchange exchange) throws Exception;
+	private void onSuccess(final String refToMessageId) {
+		LOGGER.info("ebXml ack received - refToMessageId: {}", refToMessageId);
 	}
 
-// Notes about ebXml acknowledgements:
-//	soap => http://schemas.xmlsoap.org/soap/envelope/
-//	eb => http://www.oasis-open.org/committees/ebxml-msg/schema/msg-header-2_0.xsd
-//
-//	For acknowledgement:
-//
-//		soap:Envelope
-//		soap:Header
-//		eb:Acknowledgment
-//		eb:RefToMessageId
-//
-//	probably also includes
-//
-//		soap:Envelope
-//		soap:Header
-//		eb:MessageHeader
-//		eb:RefToMessageId
-//
-//	For errors:
-//
-//		soap:Envelope
-//		soap:Header
-//		eb:ErrorList
-//		eb:Error
-//
-//	with id identified in 
-//
-//		soap:Envelope
-//		soap:Header
-//		eb:MessageHeader
-//		eb:RefToMessageId
+	/**
+	 * A delivery failure has been reported for the message being acknowledged but
+	 * further attempts to re-send the message may be possible
+	 */
+	private void onDeliveryFailureWarning(final String refToMessageId) throws Exception {
+		final String message = "ebXml delivery failure (warning) received - refToMessageId: " +
+				refToMessageId + " - will retry (if applicable)";
+		LOGGER.info(message);
+		
+		// Exceptions are caught by camel and retried!
+		throw new Exception(message);
+	}
+	
+	/**
+	 * A delivery failure has been reported for the message being acknowledged and
+	 * no further attempts to re-send the message should be tried
+	 */
+	private void onDeliveryFailureError(final String refToMessageId, final Exchange exchange) {
+		LOGGER.info("ebXml delivery failure (error) received - refToMessageId: {} - will not retry", refToMessageId);
+		exchange.getIn().setFault(true); // Fault messages are not retried!
+	}
 }
