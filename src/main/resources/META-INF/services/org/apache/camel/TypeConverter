@@ -1,1 +1,2 @@
 uk.nhs.ciao.transport.spine.multipart.MultipartTypeConverter
+uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelopeTypeConverter
