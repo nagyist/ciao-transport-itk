@@ -5,8 +5,6 @@ import java.io.OutputStream;
 import java.util.List;
 import java.util.UUID;
 
-import org.apache.camel.Message;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -55,6 +53,29 @@ public class MultipartBody {
 	
 	public List<Part> getParts() {
 		return parts;
+	}
+	
+	public Part findPartByContentId(final String contentId) {
+		if (contentId == null) {
+			return null;
+		}
+		
+		final String rawContentId = ContentId.encodeRawValue(contentId);
+		return findPartByRawContentId(rawContentId);
+	}
+	
+	public Part findPartByRawContentId(final String rawContentId) {
+		if (rawContentId == null) {
+			return null;
+		}
+		
+		for (final Part part: parts) {
+			if (rawContentId.equals(part.getRawContentId())) {
+				return part;
+			}
+		}
+		
+		return null;
 	}
 	
 	public void addPart(final Part part) {

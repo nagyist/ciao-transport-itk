@@ -5,8 +5,11 @@ import java.io.InputStream;
 
 import org.apache.camel.Converter;
 import org.apache.camel.Exchange;
+import org.apache.camel.ExchangePattern;
 import org.apache.camel.FallbackConverter;
+import org.apache.camel.ProducerTemplate;
 import org.apache.camel.TypeConverter;
+import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.spi.TypeConverterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +86,28 @@ public class EbxmlEnvelopeTypeConverter {
 				Closeables.closeQuietly(in);
 			}
 		}
+	}
+	
+	/**
+	 * Encodes the envelope as an XML string (via a freemarker template route)
+	 * 
+	 * @throws Exception If the envelope could not be encoded
+	 */
+	public static String toString(final ProducerTemplate producerTemplate, final EbxmlEnvelope envelope) throws Exception {
+		if (envelope == null) {
+			return null;
+		}
+		
+		final Exchange exchange = new DefaultExchange(producerTemplate.getCamelContext());
+		exchange.setPattern(ExchangePattern.InOut);
+		exchange.getIn().setBody(envelope);
+		producerTemplate.send("freemarker:uk/nhs/ciao/transport/spine/ebxml/ebxmlEnvelope.ftl", exchange);
+		
+		if (exchange.getException() != null) {
+			throw exchange.getException();
+		}
+		
+		return exchange.getOut().getMandatoryBody(String.class);
 	}
 	
 	/**

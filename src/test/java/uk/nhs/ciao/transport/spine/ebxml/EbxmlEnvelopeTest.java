@@ -35,7 +35,7 @@ public class EbxmlEnvelopeTest {
 	
 	@Test
 	public void testSOAPFaultGeneration() {
-		final EbxmlEnvelope fault = example.generateSOAPFault("context", "code", "some desc");
+		final EbxmlEnvelope fault = example.generateSOAPFault("code", "some desc");
 		assertReply(fault);
 		assertTrue(fault.isSOAPFault());
 		assertFalse(fault.isAcknowledgment());
@@ -44,7 +44,7 @@ public class EbxmlEnvelopeTest {
 		assertEquals("MessageError", fault.getAction());
 		
 		assertNotNull(fault.getError());
-		assertEquals("context", fault.getError().getCodeContext());
+		assertEquals("", fault.getError().getCodeContext());
 		assertEquals("code", fault.getError().getCode());
 		assertEquals("some desc", fault.getError().getDescription());
 	}

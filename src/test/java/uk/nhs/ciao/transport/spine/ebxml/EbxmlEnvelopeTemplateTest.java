@@ -1,16 +1,12 @@
 package uk.nhs.ciao.transport.spine.ebxml;
 
-import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.camel.CamelContext;
-import org.apache.camel.Exchange;
-import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
-import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.impl.DefaultProducerTemplate;
 import org.junit.After;
 import org.junit.Before;
@@ -72,21 +68,21 @@ public class EbxmlEnvelopeTemplateTest {
 	}
 	
 	@Test
-	public void testSerializeAck() throws IOException {
+	public void testSerializeAck() throws Exception {
 		assertRoundtrip("./test-ack.xml");
 	}
 	
 	@Test
-	public void testSerializeError() throws IOException {
+	public void testSerializeError() throws Exception {
 		assertRoundtrip("./test-error.xml");
 	}
 	
 	@Test
-	public void testSerializeManifest() throws IOException {
+	public void testSerializeManifest() throws Exception {
 		assertRoundtrip("./test-manifest.xml");
 	}
 	
-	private void assertRoundtrip(final String resourceName) throws IOException {
+	private void assertRoundtrip(final String resourceName) throws Exception {
 		// Parse the named example file
 		EbxmlEnvelope expected = null;
 		InputStream in = getClass().getResourceAsStream(resourceName);
@@ -96,16 +92,12 @@ public class EbxmlEnvelopeTemplateTest {
 			Closeables.closeQuietly(in);
 		}
 		
-		// Serialize the envelope back into XML (via the freemarker template)
-		final Exchange exchange = new DefaultExchange(context);
-		exchange.getIn().setBody(expected);
-		exchange.setPattern(ExchangePattern.InOut);
-		
-		producerTemplate.send("direct:serialize", exchange);
+		// Serialize the envelope back into XML (via the freemarker template)		
+		final String xml = EbxmlEnvelopeTypeConverter.toString(producerTemplate, expected);
 		
 		// Parse the generate XML back into a bean
 		EbxmlEnvelope actual = null;
-		in = exchange.getOut().getBody(InputStream.class);
+		in = context.getTypeConverter().convertTo(InputStream.class, xml);
 		try {
 			actual = parser.parse(in);
 		} finally {

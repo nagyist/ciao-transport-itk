@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.impl.DefaultExchange;
 import org.apache.james.mime4j.MimeException;
 import org.apache.james.mime4j.stream.EntityState;
 import org.apache.james.mime4j.stream.Field;
@@ -79,7 +80,9 @@ public class MultipartParser {
 				
 			case T_START_BODYPART:
 				part = new Part();
-				part.setExchange(exchange);
+				if (exchange != null) {
+					part.setExchange(new DefaultExchange(exchange));
+				}
 				
 				break;
 			case T_FIELD:

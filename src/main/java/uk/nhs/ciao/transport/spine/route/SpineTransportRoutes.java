@@ -18,6 +18,7 @@ import uk.nhs.ciao.CIPRoutes;
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
+import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.forwardexpress.EbxmlAcknowledgementProcessor;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.trunk.TrunkRequestPropertiesFactory;
@@ -215,6 +216,9 @@ public class SpineTransportRoutes extends CIPRoutes {
 		from(ITK_ACK_RECEIVER_URL)
 		.id("itk-ack-receiver")
 		.convertBodyTo(MultipartBody.class)
+		.split().simple("${body.parts[0]}")
+			.convertBodyTo(EbxmlEnvelope.class)
+		.end()
 		.log("ITK trunk ACK receieved: handling is not yet completed");
 		
 		// First - need to check the ebxml part (part 1)

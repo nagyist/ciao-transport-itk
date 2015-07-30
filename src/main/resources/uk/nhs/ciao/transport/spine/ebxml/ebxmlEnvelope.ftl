@@ -59,7 +59,7 @@
 			</#if>
 		</eb:Acknowledgment>
 		</#if>
-		<#if body.SOAPFault>
+		<#if body.errorMessage>
 		<eb:ErrorList <#if body.error.listId??>eb:id="${body.error.listId?xml}"</#if> eb:highestSeverity="Error" eb:version="2.0" soap:mustUnderstand="1">
 			<eb:Error <#if body.error.id??>eb:id="${body.error.id?xml}"</#if> <#if body.error.code??>eb:errorCode="${body.error.code?xml}"</#if> <#if body.error.severity??>eb:severity="${body.error.severity?xml}"</#if> <#if body.error.codeContext??>eb:codeContext="${body.error.codeContext?xml}"</#if>>
 				<#if body.error.description??>

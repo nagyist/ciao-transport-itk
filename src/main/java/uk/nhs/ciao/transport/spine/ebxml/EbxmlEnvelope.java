@@ -24,6 +24,7 @@ public class EbxmlEnvelope {
 	
 	public static final String SERVICE_EBXML_MSG = "urn:oasis:names:tc:ebxml-msg:service";
 	
+	public static final String ERROR_CODE_CLIENT = "Client";
 	public static final String ERROR_CODE_DELIVERY_FAILURE = "DeliveryFailure";
 	
 	public static final String ERROR_SEVERITY_ERROR = "Error";
@@ -192,27 +193,16 @@ public class EbxmlEnvelope {
 	}
 	
 	/**
-	 * Creates a new envelope representing an acknowledgment of delivery failure associated with this message.
+	 * Creates a new envelope representing delivery failure associated with this message.
 	 * <p>
 	 * Standard reply message fields are populated from this envelope and required fields (e.g. messageId)
-	 * are generated. In addition to the standard acknowledgment properties, error properties with
-	 * details of the delivery failure are included
+	 * are generated. Error properties with details of the delivery failure are included, however the failure
+	 * is not marked as an acknowledgement.
 	 *
 	 * @return A new delivery failure notification instance
 	 */
-	public EbxmlEnvelope generateDeliveryFailureNotification(final String codeContext, final String description) {
-		final EbxmlEnvelope ack = generateBaseReply();		
-		ack.action = ACTION_ACKNOWLEDGMENT;
-		ack.acknowledgment = true;
-
-		ack.addError();
-		ack.error.setDeliveryFailure();
-		ack.error.codeContext = codeContext;
-		ack.error.description = description;
-		
-		ack.applyDefaults();
-		
-		return ack;
+	public EbxmlEnvelope generateDeliveryFailureNotification(final String description) {
+		return generateSOAPFault(ERROR_CODE_DELIVERY_FAILURE, description);
 	}
 	
 	/**
@@ -223,12 +213,11 @@ public class EbxmlEnvelope {
 	 *
 	 * @return A new SOAPFault instance
 	 */
-	public EbxmlEnvelope generateSOAPFault(final String codeContext, final String code, final String description) {
+	public EbxmlEnvelope generateSOAPFault(final String code, final String description) {
 		final EbxmlEnvelope fault = generateBaseReply();
 		fault.action = ACTION_MESSAGE_ERROR;
 		
 		fault.addError();
-		fault.error.codeContext = codeContext;
 		fault.error.code = code;
 		fault.error.description = description;
 		
@@ -380,6 +369,10 @@ public class EbxmlEnvelope {
 				id = generateId();
 			}
 			
+			if (Strings.isNullOrEmpty(codeContext)) {
+				codeContext = "";
+			}
+			
 			if (Strings.isNullOrEmpty(severity)) {
 				setError();
 			}
@@ -423,6 +416,14 @@ public class EbxmlEnvelope {
 		
 		public void setDeliveryFailure() {
 			setCode(ERROR_CODE_DELIVERY_FAILURE);
+		}
+		
+		public boolean isClientError() {
+			return ERROR_CODE_CLIENT.equalsIgnoreCase(code);
+		}
+		
+		public void setClientError() {
+			setCode(ERROR_CODE_CLIENT);
 		}
 		
 		public boolean isError() {
