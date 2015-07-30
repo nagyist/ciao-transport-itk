@@ -33,23 +33,37 @@ public class MultipartMessageReceiverRoute extends RouteBuilder {
 	// TODO: does outgoing ack response need retry logic / error hander?
 	
 	@Override
-	public void configure() throws Exception {
+	public void configure() throws Exception {		
+		/*
+		 * Route to receive a multi-part message, process the manifest and send the sync response
+		 * (no content, or SOAPFault)
+		 * <p>
+		 * The payload is extracted and sent for publishing via a separate route
+		 */
 		from("direct:multipart-receiver")
+
+			// Start publishing the payload after the initial HTTP response has been sent
+			.onCompletion().onCompleteOnly()
+				.setExchangePattern(ExchangePattern.InOnly)
+				.setBody(property("multipart-payload"))
+				.to("seda:store-multipart-payload")
+			.end()
+			
 			.convertBodyTo(MultipartBody.class)
 			.log(LoggingLevel.DEBUG, LOGGER, "Converted to multipart body: ${body}")
 			.process(new EbxmlManifestVerifier(producerTemplate))
 
-			// TODO: does this need to be sent AFTER sending the HTTP response e.g. in an onCompletion() block?
-			.split(simple("${body.parts[2]}")) // Message payload
-				.setExchangePattern(ExchangePattern.InOnly)
-				.to("seda:store-multipart-payload")
-			.end()
+			// Store the payload in a property so it can be published after the main response is sent
+			.setProperty("multipart-payload").spel("#{body.getParts().get(2).getBody()}")
 			
 			// HTTP sync response
 			.setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"))
 			.setBody(constant(""))
 		.end();
-			
+		
+		/*
+		 * Route to publish the payload and send the corresponding async ebxml ack
+		 */
 		from("seda:store-multipart-payload")
 			// On failure - send ebxml delivery failure notification
 			.onCompletion().onFailureOnly()
