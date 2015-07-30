@@ -202,7 +202,9 @@ public class EbxmlEnvelope {
 	 * @return A new delivery failure notification instance
 	 */
 	public EbxmlEnvelope generateDeliveryFailureNotification(final String description) {
-		return generateSOAPFault(ERROR_CODE_DELIVERY_FAILURE, description);
+		final EbxmlEnvelope deliveryFailure = generateSOAPFault(ERROR_CODE_DELIVERY_FAILURE, description);
+		deliveryFailure.error.setWarning();
+		return deliveryFailure;
 	}
 	
 	/**

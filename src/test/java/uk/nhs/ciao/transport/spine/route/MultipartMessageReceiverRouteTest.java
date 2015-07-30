@@ -146,6 +146,7 @@ public class MultipartMessageReceiverRouteTest {
 		// Sync response should be a fault
 		Assert.assertNotNull("SOAPFault", syncResponse);
 		Assert.assertTrue("SOAPFault", syncResponse.isSOAPFault());
+		Assert.assertTrue("Error severity", syncResponse.getError().isError());
 	}
 	
 	@Test
@@ -172,6 +173,7 @@ public class MultipartMessageReceiverRouteTest {
 		// Check that the response was a nack
 		final EbxmlEnvelope nack = ackSenderEndpoint.getExchanges().get(0).getIn().getMandatoryBody(EbxmlEnvelope.class);
 		Assert.assertTrue("DeliveryFailure", nack.isDeliveryFailure());
+		Assert.assertTrue("Warning severity", nack.getError().isWarning());
 	}
 	
 	@Test
@@ -199,6 +201,7 @@ public class MultipartMessageReceiverRouteTest {
 		// Check that the response was a nack
 		final EbxmlEnvelope nack = ackSenderEndpoint.getExchanges().get(0).getIn().getMandatoryBody(EbxmlEnvelope.class);
 		Assert.assertTrue("DeliveryFailure", nack.isDeliveryFailure());
+		Assert.assertTrue("Warning severity", nack.getError().isWarning());
 	}
 	
 	private MultipartBody createExampleRequest() throws Exception {
