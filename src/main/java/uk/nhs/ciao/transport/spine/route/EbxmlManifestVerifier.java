@@ -9,7 +9,18 @@ import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.multipart.Part;
 
+/**
+ * Processor which verifies that a specified multipart body contains an ebxml manifest, and 
+ * that the manifest properly describes the remaining parts of the multipart body.
+ * <p>
+ * The extracted manifest is stored as a property on the exchange called {@link #MANIFEST_PROPERTY}.
+ */
 public class EbxmlManifestVerifier implements Processor {
+	/**
+	 * The property used to store the extracted manifest on the {@link Exchange}
+	 */
+	public static final String MANIFEST_PROPERTY = "multipart-manifest";
+	
 	@Override
 	public void process(final Exchange exchange) throws Exception {
 		final MultipartBody multipartBody = exchange.getIn().getMandatoryBody(MultipartBody.class);
@@ -29,16 +40,16 @@ public class EbxmlManifestVerifier implements Processor {
 		}
 	}
 	
-	public EbxmlEnvelope getManifest(final MultipartBody multipartBody) throws Exception {
+	private EbxmlEnvelope getManifest(final MultipartBody multipartBody) throws Exception {
 		final Part ebxmlPart = multipartBody.getParts().get(0);
 		return ebxmlPart.getMandatoryBody(EbxmlEnvelope.class);
 	}
 	
-	public void storeManifest(final Exchange exchange, final EbxmlEnvelope manifest) {
-		exchange.setProperty("ebxmlManifest", manifest);
+	private void storeManifest(final Exchange exchange, final EbxmlEnvelope manifest) {
+		exchange.setProperty(MANIFEST_PROPERTY, manifest);
 	}
 	
-	public EbxmlEnvelope verifyManifest(final EbxmlEnvelope manifest, final MultipartBody multipartBody) throws Exception {
+	private EbxmlEnvelope verifyManifest(final EbxmlEnvelope manifest, final MultipartBody multipartBody) throws Exception {
 		for (final ManifestReference reference: manifest.getManifestReferences()) {
 			final String href = reference.getHref();
 			if (!href.toLowerCase().startsWith("cid:")) {
