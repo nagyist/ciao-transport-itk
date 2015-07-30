@@ -3,16 +3,12 @@ package uk.nhs.ciao.transport.spine.route;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
-import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
-
-import com.google.common.base.Preconditions;
 
 /**
  * Temporary route while checking ITK ack behaviour
@@ -20,14 +16,6 @@ import com.google.common.base.Preconditions;
  */
 public class MultipartMessageReceiverRoute extends RouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MultipartMessageReceiverRoute.class);
-	
-	private final ProducerTemplate producerTemplate;
-	
-	@Autowired
-	public MultipartMessageReceiverRoute(final ProducerTemplate producerTemplate) {
-		this.producerTemplate = Preconditions.checkNotNull(producerTemplate);
-	}
-
 	
 	// TODO: Make in/out route URLs configurable
 	// TODO: does outgoing ack response need retry logic / error hander?
@@ -51,7 +39,7 @@ public class MultipartMessageReceiverRoute extends RouteBuilder {
 			
 			.convertBodyTo(MultipartBody.class)
 			.log(LoggingLevel.DEBUG, LOGGER, "Converted to multipart body: ${body}")
-			.process(new EbxmlManifestVerifier(producerTemplate))
+			.process(new EbxmlManifestVerifier())
 
 			// Store the payload in a property so it can be published after the main response is sent
 			.setProperty("multipart-payload").spel("#{body.getParts().get(2).getBody()}")
@@ -69,7 +57,7 @@ public class MultipartMessageReceiverRoute extends RouteBuilder {
 			.onCompletion().onFailureOnly()
 				// Using SpEL instead of simple to specify method parameters
 				.setBody().spel("#{properties['ebxmlManifest'].generateDeliveryFailureNotification('Unable to deliver payload')}")
-				.to("freemarker:uk/nhs/ciao/transport/spine/ebxml/ebxmlEnvelope.ftl")
+				.convertBodyTo(String.class)
 				.to("mock:multipart-ack-sender")
 			.end()
 
@@ -86,7 +74,7 @@ public class MultipartMessageReceiverRoute extends RouteBuilder {
 
 				// always send ebxml ack (i.e. if previously acked or if publishing was successful)
 				.setBody(simple("${property.ebxmlManifest.generateAcknowledgment()}"))
-				.to("freemarker:uk/nhs/ciao/transport/spine/ebxml/ebxmlEnvelope.ftl")
+				.convertBodyTo(String.class)
 				.to("mock:multipart-ack-sender")
 			.end()
 		.end();

@@ -18,7 +18,6 @@ import org.slf4j.LoggerFactory;
 
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
-import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelopeTypeConverter;
 import uk.nhs.ciao.transport.spine.multipart.ContentType;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.multipart.Part;
@@ -37,7 +36,7 @@ public class MultipartMessageReceiverRouteTest {
 		context = new DefaultCamelContext();
 		producerTemplate = new DefaultProducerTemplate(context);
 		
-		context.addRoutes(new MultipartMessageReceiverRoute(producerTemplate));
+		context.addRoutes(new MultipartMessageReceiverRoute());
 		
 		context.start();
 		producerTemplate.start();
@@ -232,8 +231,8 @@ public class MultipartMessageReceiverRouteTest {
 		return body.getParts().get(2).getMandatoryBody(String.class);
 	}
 	
-	private String serialize(final EbxmlEnvelope envelope) throws Exception {
-		return EbxmlEnvelopeTypeConverter.toString(producerTemplate, envelope);
+	private String serialize(final EbxmlEnvelope envelope) {
+		return context.getTypeConverter().convertTo(String.class, envelope);
 	}
 	
 	private EbxmlEnvelope sendMultipartMessage(final MultipartBody body) throws Exception {

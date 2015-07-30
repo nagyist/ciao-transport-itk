@@ -3,23 +3,13 @@ package uk.nhs.ciao.transport.spine.route;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
-import org.apache.camel.ProducerTemplate;
 
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
-import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelopeTypeConverter;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.multipart.Part;
 
-import com.google.common.base.Preconditions;
-
 public class EbxmlManifestVerifier implements Processor {
-	private final ProducerTemplate producerTemplate;
-	
-	public EbxmlManifestVerifier(final ProducerTemplate producerTemplate) {
-		this.producerTemplate = Preconditions.checkNotNull(producerTemplate);
-	}
-	
 	@Override
 	public void process(final Exchange exchange) throws Exception {
 		final MultipartBody multipartBody = exchange.getIn().getMandatoryBody(MultipartBody.class);
@@ -28,10 +18,8 @@ public class EbxmlManifestVerifier implements Processor {
 		
 		final EbxmlEnvelope soapFault = verifyManifest(manifest, multipartBody);			
 		if (soapFault != null) {
-			final String xml = EbxmlEnvelopeTypeConverter.toString(producerTemplate, soapFault);
-			
 			final Message message = exchange.getIn();
-			message.setBody(xml);
+			message.setBody(soapFault, String.class);
 			message.setFault(true);
 			message.setHeader(Exchange.HTTP_RESPONSE_CODE, "500");
 			

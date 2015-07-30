@@ -3,11 +3,7 @@ package uk.nhs.ciao.transport.spine.ebxml;
 import java.io.InputStream;
 
 import org.apache.camel.CamelContext;
-import org.apache.camel.LoggingLevel;
-import org.apache.camel.ProducerTemplate;
-import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
-import org.apache.camel.impl.DefaultProducerTemplate;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -24,40 +20,20 @@ public class EbxmlEnvelopeTemplateTest {
 	private static final Logger LOGGER = LoggerFactory.getLogger(EbxmlEnvelopeParserTest.class);
 	
 	private CamelContext context;
-	private ProducerTemplate producerTemplate;
 	private EbxmlEnvelopeParser parser;
+	private EbxmlEnvelopeSerializer serializer;
 	
 	@Before
 	public void setup() throws Exception {
 		context = new DefaultCamelContext();
-		context.addRoutes(new RouteBuilder() {
-			@Override
-			public void configure() throws Exception {
-				from("direct:serialize")
-					.log(LoggingLevel.INFO, LOGGER, "from: \n${body}")
-					.to("freemarker:uk/nhs/ciao/transport/spine/ebxml/ebxmlEnvelope.ftl")
-					.log(LoggingLevel.INFO, LOGGER, "to: \n${body}");
-			}
-		});
-		
 		context.start();
 		
-		producerTemplate = new DefaultProducerTemplate(context);
-		producerTemplate.start();
-		
 		this.parser = new EbxmlEnvelopeParser();
+		this.serializer = new EbxmlEnvelopeSerializer();
 	}
 	
 	@After
 	public void tearDown() {
-		if (producerTemplate != null) {
-			try {
-				producerTemplate.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop producerTemplate", e);
-			}
-		}
-		
 		if (context != null) {
 			try {
 				context.stop();
@@ -93,7 +69,7 @@ public class EbxmlEnvelopeTemplateTest {
 		}
 		
 		// Serialize the envelope back into XML (via the freemarker template)		
-		final String xml = EbxmlEnvelopeTypeConverter.toString(producerTemplate, expected);
+		final String xml = serializer.serialize(expected);
 		
 		// Parse the generate XML back into a bean
 		EbxmlEnvelope actual = null;

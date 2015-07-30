@@ -1,15 +1,14 @@
 package uk.nhs.ciao.transport.spine.ebxml;
 
+import static uk.nhs.ciao.transport.spine.util.TypeConverterHelper.*;
+
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.camel.Converter;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExchangePattern;
 import org.apache.camel.FallbackConverter;
-import org.apache.camel.ProducerTemplate;
-import org.apache.camel.TypeConverter;
-import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.spi.TypeConverterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,16 +17,13 @@ import com.google.common.base.Throwables;
 import com.google.common.io.Closeables;
 
 /**
- * Camel type converters to convert <strong>to</strong> EbxmlEnvelope
- * <p>
- * To convert an EbxmlEnvelope to XML, a route of
- * <code>to("freemarker:uk/nhs/ciao/transport/spine/ebxml/ebxmlEnvelope.ftl")</code> can be used.
+ * Camel type converters to convert to/from EbxmlEnvelope.
  * <p>
  * The converters are automatically registered via Camel's type converter META-INF/services file:
  * <code>/META-INF/services/org/apache/camel/TypeConverter</code>
  */
 @Converter
-public class EbxmlEnvelopeTypeConverter {
+public final class EbxmlEnvelopeTypeConverter {
 	private static final Logger LOGGER = LoggerFactory.getLogger(EbxmlEnvelopeTypeConverter.class);
 	
 	/**
@@ -44,6 +40,15 @@ public class EbxmlEnvelopeTypeConverter {
 			}
 		}
 	};
+
+	/**
+	 * Holds a single serializer instance across all threads (lazy-loaded)
+	 */
+	private static AtomicReference<EbxmlEnvelopeSerializer> SERIALIZER = new AtomicReference<EbxmlEnvelopeSerializer>();
+	
+	private EbxmlEnvelopeTypeConverter() {
+		// Suppress default constructor
+	}
 	
 	/**
 	 * Converts the specified input stream to a EbxmlEnvelope
@@ -56,6 +61,20 @@ public class EbxmlEnvelopeTypeConverter {
 		
 		final EbxmlEnvelopeParser parser = PARSER.get();
 		return parser.parse(in);
+	}
+	
+	/**
+	 * Encodes the envelope as an XML string (via a freemarker template)
+	 * 
+	 * @throws Exception If the envelope could not be encoded
+	 */
+	@Converter
+	public static String toString(final EbxmlEnvelope envelope) throws IOException {
+		if (envelope == null) {
+			return null;
+		}
+		
+		return getSerializer().serialize(envelope);
 	}
 	
 	/**
@@ -89,43 +108,45 @@ public class EbxmlEnvelopeTypeConverter {
 	}
 	
 	/**
-	 * Encodes the envelope as an XML string (via a freemarker template route)
-	 * 
-	 * @throws Exception If the envelope could not be encoded
+	 * Camel fallback converter to convert a EbxmlEnvelope to a specified type either directly or via String as an intermediate.
+	 * <p>
+	 * The type converter registry is used to convert the EbxmlEnvelope to String
 	 */
-	public static String toString(final ProducerTemplate producerTemplate, final EbxmlEnvelope envelope) throws Exception {
-		if (envelope == null) {
+	@FallbackConverter
+	public static <T> T convertFromEbxmlEnvelop(final Class<T> type, final Exchange exchange, final Object value, final TypeConverterRegistry registry) throws IOException {
+		if (!(value instanceof EbxmlEnvelope)) {
+			// Only handle envelope conversions
+			return null;
+		} else if (EbxmlEnvelope.class.isAssignableFrom(type)) {
+			// No conversion required
+			return type.cast(value);
+		} else if (!canConvert(byte[].class, type, registry)) {
+			// Can only support conversions via byte array as intermediate
 			return null;
 		}
 		
-		final Exchange exchange = new DefaultExchange(producerTemplate.getCamelContext());
-		exchange.setPattern(ExchangePattern.InOut);
-		exchange.getIn().setBody(envelope);
-		producerTemplate.send("freemarker:uk/nhs/ciao/transport/spine/ebxml/ebxmlEnvelope.ftl", exchange);
+		LOGGER.debug("convertFromEbxmlEnvelope via (String) to: {}", type);
 		
-		if (exchange.getException() != null) {
-			throw exchange.getException();
-		}
-		
-		return exchange.getOut().getMandatoryBody(String.class);
+		// Convert via String
+		final String string = toString((EbxmlEnvelope)value);		
+		return castOrConvert(type, exchange, string, registry);
 	}
-	
-	/**
-	 * Helper method to coerce the specified value into the required type.
-	 * <p>
-	 * Value is cast if it is already of the correct kind, otherwise a camel type converter is tried. Null is
-	 * returned if the value cannot be coerced.
-	 */
-	private static <T> T castOrConvert(final Class<T> toType, final Exchange exchange, final Object value, final TypeConverterRegistry registry) {
-		final T result;
 		
-		if (toType.isInstance(value)) {
-			result = toType.cast(value);
-		} else {
-			final TypeConverter typeConverter = registry.lookup(toType, value.getClass());
-			result = typeConverter == null ? null : typeConverter.convertTo(toType, exchange, value);
+	/**
+	 * Lazy loads the single serializer instance
+	 */
+	private static EbxmlEnvelopeSerializer getSerializer() throws IOException {
+		EbxmlEnvelopeSerializer serializer = SERIALIZER.get();
+		
+		// lazy-load
+		if (serializer == null) {
+			serializer = new EbxmlEnvelopeSerializer();
+			if (!SERIALIZER.compareAndSet(null, serializer)) {
+				// some other thread got there first - use their instance
+				serializer = SERIALIZER.get();
+			}
 		}
 		
-		return result;
+		return serializer;
 	}
 }
