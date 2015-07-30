@@ -269,7 +269,7 @@ public class EbxmlEnvelope {
 	 */
 	@Override
 	public int hashCode() {
-		return messageData.messageId.hashCode();
+		return messageData.messageId == null ? 0 : messageData.messageId.hashCode();
 	}
 
 	/**
