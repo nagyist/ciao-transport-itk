@@ -30,9 +30,9 @@ public class EbxmlEnvelopeParser {
 	private static final String HL7EBML_URI = "urn:hl7-org:transport/ebxml/DSTUv1.0";
 	
 	/**
-	 * XML digester
+	 * XML parser
 	 * <p>
-	 * The digester instance is reset and re-used when parsing a new document
+	 * The parser instance is reset and re-used when parsing a new document
 	 */
 	private final SAXParser parser;
 	

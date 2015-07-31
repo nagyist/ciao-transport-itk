@@ -46,6 +46,12 @@ public class DistributionEnvelope {
 		return addresses;
 	}
 	
+	public void addAddress(final Address address) {
+		if (address != null) {
+			addresses.add(address);
+		}
+	}
+	
 	public Identity getAuditIdentity() {
 		return auditIdentity;
 	}
@@ -60,6 +66,12 @@ public class DistributionEnvelope {
 	
 	public List<ManifestItem> getManifestItems() {
 		return manifestItems;
+	}
+	
+	public void addManifestItem(final ManifestItem manifestItem) {
+		if (manifestItem != null) {
+			manifestItems.add(manifestItem);
+		}
 	}
 	
 	public Address getSenderAddress() {
@@ -96,6 +108,12 @@ public class DistributionEnvelope {
 		manifestItems.add(manifestItem);
 		payloads.add(payload);
 		return payload;
+	}
+	
+	public void addPayload(final Payload payload) {
+		if (payload != null) {
+			payloads.add(payload);
+		}
 	}
 	
 	/**
