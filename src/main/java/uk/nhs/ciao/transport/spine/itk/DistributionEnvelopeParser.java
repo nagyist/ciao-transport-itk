@@ -78,7 +78,6 @@ public class DistributionEnvelopeParser {
 		parserFactory.setValidating(false);
 		
 		this.transformer = TransformerFactory.newInstance().newTransformer();
-		transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
 		
 		rules = new RulesBase();
 		parser = parserFactory.newSAXParser();
@@ -180,6 +179,9 @@ public class DistributionEnvelopeParser {
 		if (node instanceof Element) {
 			final Element element = (Element) node;
 			final StringWriter writer = new StringWriter();
+
+			transformer.reset();
+			transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
 			transformer.transform(new DOMSource(element), new StreamResult(writer));
 			value = writer.toString();
 		} else {

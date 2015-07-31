@@ -4,13 +4,13 @@
 		<#if addresses?size &gt; 0>
 		<itk:addresslist>
 			<#list addresses as address>
-			<itk:address<#if address.uri??> uri="${address.uri?xml}"</#if><#if !address.defaultType> type="${address.type?xml}"</#if> />
+			<itk:address<#if address.uri??> uri="${address.uri?xml}"</#if><#if address.type??> type="${address.type?xml}"</#if> />
 			</#list>
 		</itk:addresslist>
 		</#if>
 		<#if auditIdentity??>
 		<itk:auditIdentity>
-			<itk:id<#if auditIdentity.uri??> uri="${auditIdentity.uri?xml}"</#if><#if !auditIdentity.defaultType> type="${auditIdentity.type?xml}"</#if> />
+			<itk:id<#if auditIdentity.uri??> uri="${auditIdentity.uri?xml}"</#if><#if auditIdentity.type??> type="${auditIdentity.type?xml}"</#if> />
 		</itk:auditIdentity>
 		</#if>
 		<#if manifestItems?size &gt; 0>
@@ -21,7 +21,7 @@
 		</itk:manifest>
 		</#if>
 		<#if senderAddress??>
-		<itk:senderAddress<#if senderAddress.uri??> uri="${senderAddress.uri?xml}"</#if><#if !senderAddress.defaultType> type="${senderAddress.type?xml}"</#if> />
+		<itk:senderAddress<#if senderAddress.uri??> uri="${senderAddress.uri?xml}"</#if><#if senderAddress.type??> type="${senderAddress.type?xml}"</#if> />
 		</#if>
 		<#if handlingSpec.keys?size &gt; 0>
 		<itk:handlingSpecification>
@@ -34,7 +34,7 @@
 	<#if payloads?size &gt; 0>
 	<itk:payloads count="${payloads?size?c}">
 		<#list payloads as payload>
-		<itk:payload id="${payload.id?xml}">${payload.body}</itk:payload>
+		<itk:payload<#if payload.id??> id="${payload.id?xml}"</#if>><#if payload.body??>${payload.body}</#if></itk:payload>
 		</#list>
 	</itk:payloads>
 	</#if>
