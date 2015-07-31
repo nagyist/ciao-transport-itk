@@ -1,0 +1,8 @@
+<itk:InfrastructureResponse xmlns:itk="urn:nhs-itk:ns:201005"
+	timestamp="2015-06-03T08:27:33Z" serviceRef="urn:nhs-itk:services:201005:SendCDADocument-v2-0"
+	trackingIdRef="7D6F23E0-AE1A-11DB-8707-B18E1E0994EF" result="OK">
+	<itk:reportingIdentity>
+		<itk:id uri="urn:nhs-uk:identity:BBB:test:cdaresponder" />
+	</itk:reportingIdentity>
+	<itk:errors />
+</itk:InfrastructureResponse>

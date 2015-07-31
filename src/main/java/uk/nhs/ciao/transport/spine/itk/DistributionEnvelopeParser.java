@@ -30,7 +30,6 @@ import org.xml.sax.SAXException;
 
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.HandlingSpec;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Identity;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Payload;
 
@@ -77,7 +76,7 @@ public class DistributionEnvelopeParser {
 		parserFactory.setNamespaceAware(true);
 		parserFactory.setValidating(false);
 		
-		this.transformer = TransformerFactory.newInstance().newTransformer();
+		this.transformer = transformerFactory.newTransformer();
 		
 		rules = new RulesBase();
 		parser = parserFactory.newSAXParser();

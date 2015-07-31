@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<itk:InfrastructureResponse xmlns:itk="urn:nhs-itk:ns:201005"
+	timestamp="2015-06-03T08:27:33Z" serviceRef="urn:nhs-itk:services:201005:SendCDADocument-v2-0"
+	trackingIdRef="7D6F23E0-AE1A-11DB-8707-B18E1E0994EF" result="ERROR">
+	<itk:reportingIdentity>
+		<itk:id uri="urn:nhs-uk:identity:BBB:test:cdaresponder" />
+	</itk:reportingIdentity>
+	<itk:errors>
+		<itk:errorInfo>
+			<itk:ErrorID>urn:some-id-identifier</itk:ErrorID>
+			<itk:ErrorCode codeSystem="2.16.840.1.113883.2.1.3.2.4.17.268">098765</itk:ErrorCode>
+			<itk:ErrorText>display text for the error code</itk:ErrorText>
+			<itk:ErrorDiagnosticText>some diagnostic text</itk:ErrorDiagnosticText>
+		</itk:errorInfo>
+	</itk:errors>
+</itk:InfrastructureResponse>
