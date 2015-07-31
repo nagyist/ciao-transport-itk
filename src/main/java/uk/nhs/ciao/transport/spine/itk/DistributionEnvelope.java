@@ -13,9 +13,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 public class DistributionEnvelope {
-	public static String HANDLING_SPEC_ACK_REQUESTED = "urn:nhs-itk:ns:201005:ackrequested";
-	public static String HANDLING_SPEC_INF_ACK_REQUESTED = "urn:nhs-itk:ns:201005:infackrequested";
-	public static String HANDLING_SPEC_INTERACTION = "urn:nhs-itk:ns:201005:interaction";
+	public static final String HANDLING_SPEC_BUSINESS_ACK_REQUESTED = "urn:nhs-itk:ns:201005:ackrequested";
+	public static final String HANDLING_SPEC_INFRASTRUCTURE_ACK_REQUESTED = "urn:nhs-itk:ns:201005:infackrequested";
+	public static final String HANDLING_SPEC_INTERACTION = "urn:nhs-itk:ns:201005:interaction";
+	public static final String INTERACTION_INFRASTRUCTURE_ACK = "urn:nhs-itk:interaction:ITKInfrastructureAcknowledgement-v1-0";
+	public static final String INTERACTION_BUSINESS_ACK = "urn:nhs-itk:interaction:ITKBusinessAcknowledgement-v1-0";
 	
 	private String service;
 	private String trackingId;
@@ -273,20 +275,36 @@ public class DistributionEnvelope {
 			set(HANDLING_SPEC_INTERACTION, interaction);
 		}
 		
-		public boolean isAckRequested() {
-			return Boolean.parseBoolean(get(HANDLING_SPEC_ACK_REQUESTED));
+		public boolean isBusinessAckRequested() {
+			return Boolean.parseBoolean(get(HANDLING_SPEC_BUSINESS_ACK_REQUESTED));
 		}
 		
-		public void setAckRequested(final boolean ackRequested) {
-			set(HANDLING_SPEC_ACK_REQUESTED, ackRequested ? "true" : null);
+		public void setBusinessAckRequested(final boolean busAckRequested) {
+			set(HANDLING_SPEC_BUSINESS_ACK_REQUESTED, busAckRequested ? "true" : null);
 		}
 		
-		public boolean isInfAckRequested() {
-			return Boolean.parseBoolean(get(HANDLING_SPEC_INF_ACK_REQUESTED));
+		public boolean isBusinessAck() {
+			return INTERACTION_BUSINESS_ACK.equalsIgnoreCase(getInteration());
 		}
 		
-		public void setInfAckRequested(final boolean infAckRequested) {
-			set(HANDLING_SPEC_INF_ACK_REQUESTED, infAckRequested ? "true" : null);
+		public void setBusinessAck(final boolean busAck) {
+			setInteration(busAck ? INTERACTION_BUSINESS_ACK : null);
+		}
+		
+		public boolean isInfrastructureAckRequested() {
+			return Boolean.parseBoolean(get(HANDLING_SPEC_INFRASTRUCTURE_ACK_REQUESTED));
+		}
+		
+		public void setInfrastructureAckRequested(final boolean infAckRequested) {
+			set(HANDLING_SPEC_INFRASTRUCTURE_ACK_REQUESTED, infAckRequested ? "true" : null);
+		}
+		
+		public boolean isInfrastructureAck() {
+			return INTERACTION_INFRASTRUCTURE_ACK.equalsIgnoreCase(getInteration());
+		}
+		
+		public void setInfrastructureAck(final boolean infAck) {
+			setInteration(infAck ? INTERACTION_INFRASTRUCTURE_ACK : null);
 		}
 		
 		@Override
