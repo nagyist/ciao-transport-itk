@@ -93,15 +93,23 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	private void configureDistributionEnvelopeReceiver() {
 		from(distributionEnvelopeReceiverUri)
 			.errorHandler(new TransactionErrorHandlerBuilder()
+				// re-delivery attempts are handled in the publisher
+				// this error handler exists to perform the processing
+				// in a JMS transaction
 				.disableRedelivery()
-				.logHandled(true)
 			)
 			.transacted("PROPAGATION_REQUIRED")
 			
 			.convertBodyTo(DistributionEnvelope.class)
 			.log(LoggingLevel.DEBUG, LOGGER, "Converted to distribution envelope: ${body}")
-			.process(new DistributionEnvelopeVerifier())
-			.to(payloadPublisherUri)
+			.doTry()
+				.process(new DistributionEnvelopeVerifier())
+				.to(payloadPublisherUri)
+			.endDoTry()
+			.doCatch(Exception.class)
+				.to(deliveryFailureSenderUri)
+			.end()
+			
 		.end();
 	}
 	
@@ -115,9 +123,11 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	// TODO: this route should be direct - either that or collapse into the calling route - only send NACK after retrys fail
 	private void configurePayloadPublisher() {
 		from(payloadPublisherUri)
-			.errorHandler(deadLetterChannel(deliveryFailureSenderUri)
-					.maximumRedeliveries(5)
-					.redeliveryDelay(1000)
+			// faults and exceptions are thrown back to the caller
+			// sending the delivery fault is therefore handled in the calling route
+			.errorHandler(defaultErrorHandler()
+					.maximumRedeliveries(4)
+					.redeliveryDelay(500)
 					.log(LOGGER)
 					.logExhausted(true))
 			.handleFault()
@@ -162,8 +172,6 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 			.doCatch(Exception.class)
 				.log(LoggingLevel.INFO, LOGGER, "Unable to send ITK infrastructure delivery failure: ${exception}")
 			.end();
-//			.convertBodyTo(String.class)
-//			.to(infrastructureResponseSenderUri);
 	}
 	
 	/**

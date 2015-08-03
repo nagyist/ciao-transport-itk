@@ -14,7 +14,7 @@ public class DistributionEnvelopeVerifier implements Processor {
 		final DistributionEnvelope envelope = exchange.getIn().getMandatoryBody(DistributionEnvelope.class);
 		
 		if (envelope.getPayloads().isEmpty()) {
-			// TODO: how should an error be handled - as a fault message or throw exception?
+			throw new Exception("No payload found in distribution envelope");
 		}
 	}
 }

@@ -21,6 +21,9 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.unitils.reflectionassert.ReflectionAssert;
+
+import com.google.common.base.Throwables;
 
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
@@ -143,6 +146,63 @@ public class DistributionEnvelopeMessageReceiverRouteTest {
 	}
 	
 	@Test
+	public void testInfResponseIsNotSentIfMessageIsInfResponse() throws Exception {
+		final boolean isInfAck = true;
+		final DistributionEnvelope envelope = createExampleRequest(isInfAck);
+		envelope.getHandlingSpec().setInfrastructureAckRequested(true); // an inf ack should not request an inf ack response!
+		
+		sendDistributionEnvelope(envelope);
+		
+		payloadReceiver.expectedMessageCount(1);
+		final InfrastructureResponse payloadBody = toInfrastructureResponse(getPayloadBody(envelope));
+		payloadReceiver.expectedMessagesMatches(new Predicate() {
+			@Override
+			public boolean matches(final Exchange exchange) {
+				final DistributionEnvelope received = exchange.getIn().getBody(DistributionEnvelope.class);
+				Assert.assertNotNull("Expected DistributionEnvelope", received);
+				
+				Assert.assertEquals("Expected 1 payload", received.getPayloads().size(), 1);
+				final InfrastructureResponse receievedPayload = toInfrastructureResponse(received.getPayloads().get(0).getBody());
+				ReflectionAssert.assertReflectionEquals("Expected payload body", payloadBody, receievedPayload);
+				
+				return true;
+			}
+		});
+		
+		// async ack (although requested) should not be sent!
+		infrastructureResponseReceiver.expectedMessageCount(0);
+		
+		payloadReceiver.assertIsSatisfied();
+		infrastructureResponseReceiver.assertIsSatisfied(1000);
+	}
+	
+	@Test
+	public void testDeliveryFailureIsSentWhenManifestIsInvalid() throws Exception {
+		final boolean isInfAck = false;
+		final DistributionEnvelope envelope = createExampleRequest(isInfAck);
+		envelope.getHandlingSpec().setInfrastructureAckRequested(true);
+
+		// Removing payloads to break the manifest
+		envelope.getPayloads().clear();
+		
+		sendDistributionEnvelope(envelope);
+		
+		// async nack should be sent (after payload message publishing is attempted)
+		infrastructureResponseReceiver.expectedMessageCount(1);
+		
+		infrastructureResponseReceiver.assertIsSatisfied(1000);
+		
+		// Check that the response was a nack
+		final DistributionEnvelope nack = getFirstInfrastructureResponse();
+		Assert.assertTrue("isInfrastructureAck", nack.getHandlingSpec().isInfrastructureAck());
+		Assert.assertEquals("single payload", 1, nack.getPayloads().size());
+		
+		final InfrastructureResponse response = toInfrastructureResponse(nack.getPayloads().get(0).getBody());
+		Assert.assertEquals("Warning response", InfrastructureResponse.RESULT_WARNING, response.getResult());
+		Assert.assertFalse("ErrorInfo expected", response.getErrors().isEmpty());
+	}
+	
+	@Test
 	public void testDeliveryFailureIsSentWhenPayloadPublishingFailsWithAnException() throws Exception {
 		final boolean isInfAck = false;
 		final DistributionEnvelope envelope = createExampleRequest(isInfAck);
@@ -167,7 +227,7 @@ public class DistributionEnvelopeMessageReceiverRouteTest {
 		Assert.assertTrue("isInfrastructureAck", nack.getHandlingSpec().isInfrastructureAck());
 		Assert.assertEquals("single payload", 1, nack.getPayloads().size());
 		
-		final InfrastructureResponse response = context.getTypeConverter().mandatoryConvertTo(InfrastructureResponse.class, nack.getPayloads().get(0).getBody());
+		final InfrastructureResponse response = toInfrastructureResponse(nack.getPayloads().get(0).getBody());
 		Assert.assertEquals("Warning response", InfrastructureResponse.RESULT_WARNING, response.getResult());
 		Assert.assertFalse("ErrorInfo expected", response.getErrors().isEmpty());
 	}
@@ -198,7 +258,7 @@ public class DistributionEnvelopeMessageReceiverRouteTest {
 		Assert.assertTrue("isInfrastructureAck", nack.getHandlingSpec().isInfrastructureAck());
 		Assert.assertEquals("single payload", 1, nack.getPayloads().size());
 		
-		final InfrastructureResponse response = context.getTypeConverter().mandatoryConvertTo(InfrastructureResponse.class, nack.getPayloads().get(0).getBody());
+		final InfrastructureResponse response = toInfrastructureResponse(nack.getPayloads().get(0).getBody());
 		Assert.assertEquals("Warning response", InfrastructureResponse.RESULT_WARNING, response.getResult());
 		Assert.assertFalse("ErrorInfo expected", response.getErrors().isEmpty());
 	}
@@ -236,6 +296,14 @@ public class DistributionEnvelopeMessageReceiverRouteTest {
 	
 	private String serialize(final InfrastructureResponse ack) {
 		return context.getTypeConverter().convertTo(String.class, ack);
+	}
+	
+	private InfrastructureResponse toInfrastructureResponse(final String body) {
+		try {
+			return context.getTypeConverter().mandatoryConvertTo(InfrastructureResponse.class, body);
+		} catch (Exception e) {
+			throw Throwables.propagate(e);
+		}
 	}
 	
 	private void expectSinglePayload(final DistributionEnvelope envelope) throws Exception {
