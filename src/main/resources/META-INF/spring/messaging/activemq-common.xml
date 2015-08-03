@@ -22,6 +22,11 @@
   		<property name="propagationBehaviorName" value="PROPAGATION_NOT_SUPPORTED" />
   	</bean>
   	
+  	<bean id="PROPAGATION_REQUIRED" class="org.apache.camel.spring.spi.SpringTransactionPolicy">
+  		<property name="transactionManager" ref="jmsTransactionManager" />
+  		<property name="propagationBehaviorName" value="PROPAGATION_REQUIRED" />
+  	</bean>
+  	
   	<!-- 
   		Transactions are enabled for JMS
   		Also look at pre-fetch (default is 1000)
