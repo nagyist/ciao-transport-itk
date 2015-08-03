@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <itk:InfrastructureResponse xmlns:itk="urn:nhs-itk:ns:201005"<#if result??> result="${result?xml}"</#if><#if timestamp??> timestamp="${timestamp?xml}"</#if><#if trackingIdRef??> trackingIdRef="${trackingIdRef?xml}"</#if><#if serviceRef??> serviceRef="${serviceRef?xml}"</#if>>
 	<#if reportingIdentity??>
 	<itk:reportingIdentity>

@@ -116,7 +116,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 			.onCompletion().onFailureOnly()
 				.doTry()
 					// only send if requested (and NOT already an infrastructure response!)
-					.choice().when().simple("${body.handlingSpec.infrastructureAckRequested} AND ${!body.handlingSpec.infrastructureAck}")
+					.choice().when().simple("${body.handlingSpec.infrastructureAckRequested} && ${body.handlingSpec.infrastructureAck} == false")
 					.bean(infrastructureResponseFactory, "createDeliveryFailureWithEnvelope")
 					.to(infrastructureResponseSenderUri)
 					.endChoice()
@@ -139,7 +139,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 				// send infrastructure acknowledgement
 				.doTry()
 					// only send if requested (and NOT already an infrastructure response!)
-					.choice().when().simple("${!handlingSpec.infrastructureAckRequested} AND ${!body.handlingSpec.infrastructureAck}")
+					.choice().when().simple("${body.handlingSpec.infrastructureAckRequested} && ${body.handlingSpec.infrastructureAck} == false")
 						.bean(infrastructureResponseFactory, "createAcknowledgmentWithEnvelope")
 						.to(infrastructureResponseSenderUri)
 					.endChoice()
