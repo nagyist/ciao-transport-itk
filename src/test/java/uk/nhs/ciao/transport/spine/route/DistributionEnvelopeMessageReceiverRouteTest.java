@@ -5,6 +5,7 @@ import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.InvalidPayloadException;
 import org.apache.camel.Predicate;
+import org.apache.camel.Processor;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.impl.DefaultCamelContext;
@@ -27,7 +28,7 @@ import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
 
 public class DistributionEnvelopeMessageReceiverRouteTest {
-private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeMessageReceiverRouteTest.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeMessageReceiverRouteTest.class);
 	
 	private CamelContext context;
 	private ProducerTemplate producerTemplate;
@@ -43,9 +44,14 @@ private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelop
 		producerTemplate = new DefaultProducerTemplate(context);
 		
 		final SpringTransactionPolicy propegationRequiresNew = new SpringTransactionPolicy();
-		propegationRequiresNew.setTransactionManager(Mockito.mock(PlatformTransactionManager.class));
+		propegationRequiresNew.setTransactionManager(Mockito.mock(PlatformTransactionManager.class, Mockito.RETURNS_MOCKS));
 		propegationRequiresNew.setPropagationBehaviorName("PROPAGATION_REQUIRES_NEW");
 		registry.put("PROPAGATION_REQUIRES_NEW", propegationRequiresNew);
+		
+		final SpringTransactionPolicy propegationRequired= new SpringTransactionPolicy();
+		propegationRequired.setTransactionManager(Mockito.mock(PlatformTransactionManager.class, Mockito.RETURNS_MOCKS));
+		propegationRequired.setPropagationBehaviorName("PROPAGATION_REQUIRED");
+		registry.put("PROPAGATION_REQUIRED", propegationRequired);
 		
 		context.addRoutes(new DistributionEnvelopeReceiverRoute());
 		
@@ -136,6 +142,67 @@ private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelop
 		Assert.assertTrue("Acknowledgment", ack.getHandlingSpec().isInfrastructureAck());
 	}
 	
+	@Test
+	public void testDeliveryFailureIsSentWhenPayloadPublishingFailsWithAnException() throws Exception {
+		final boolean isInfAck = false;
+		final DistributionEnvelope envelope = createExampleRequest(isInfAck);
+		envelope.getHandlingSpec().setInfrastructureAckRequested(true);
+		
+		payloadReceiver.whenAnyExchangeReceived(new Processor() {
+			@Override
+			public void process(final Exchange exchange) throws Exception {
+				throw new Exception("Simulating message delivery failure");
+			}
+		});
+		
+		sendDistributionEnvelope(envelope);
+		
+		// async nack should be sent (after payload message publishing is attempted)
+		infrastructureResponseReceiver.expectedMessageCount(1);
+		
+		infrastructureResponseReceiver.assertIsSatisfied(1000);
+		
+		// Check that the response was a nack
+		final DistributionEnvelope nack = getFirstInfrastructureResponse();
+		Assert.assertTrue("isInfrastructureAck", nack.getHandlingSpec().isInfrastructureAck());
+		Assert.assertEquals("single payload", 1, nack.getPayloads().size());
+		
+		final InfrastructureResponse response = context.getTypeConverter().mandatoryConvertTo(InfrastructureResponse.class, nack.getPayloads().get(0).getBody());
+		Assert.assertEquals("Warning response", InfrastructureResponse.RESULT_WARNING, response.getResult());
+		Assert.assertFalse("ErrorInfo expected", response.getErrors().isEmpty());
+	}
+	
+	@Test
+	public void testDeliveryFailureIsSentWhenPayloadPublishingFailsWithAFaultMessage() throws Exception {
+		final boolean isInfAck = false;
+		final DistributionEnvelope envelope = createExampleRequest(isInfAck);
+		envelope.getHandlingSpec().setInfrastructureAckRequested(true);
+		
+		payloadReceiver.whenAnyExchangeReceived(new Processor() {
+			@Override
+			public void process(final Exchange exchange) throws Exception {
+				exchange.getOut().setBody("Simulating message delivery failure");
+				exchange.getOut().setFault(true);
+			}
+		});
+		
+		sendDistributionEnvelope(envelope);
+				
+		// async nack should be sent (after payload message publishing is attempted)
+		infrastructureResponseReceiver.expectedMessageCount(1);
+		
+		infrastructureResponseReceiver.assertIsSatisfied(1000);
+		
+		// Check that the response was a nack
+		final DistributionEnvelope nack = getFirstInfrastructureResponse();
+		Assert.assertTrue("isInfrastructureAck", nack.getHandlingSpec().isInfrastructureAck());
+		Assert.assertEquals("single payload", 1, nack.getPayloads().size());
+		
+		final InfrastructureResponse response = context.getTypeConverter().mandatoryConvertTo(InfrastructureResponse.class, nack.getPayloads().get(0).getBody());
+		Assert.assertEquals("Warning response", InfrastructureResponse.RESULT_WARNING, response.getResult());
+		Assert.assertFalse("ErrorInfo expected", response.getErrors().isEmpty());
+	}
+	
 	private DistributionEnvelope createExampleRequest(final boolean isInfAck) throws Exception {
 		final DistributionEnvelope envelope = new DistributionEnvelope();
 
@@ -204,13 +271,13 @@ private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelop
 	}
 	
 	private void sendDistributionEnvelope(final Exchange exchange) throws Exception {
-		exchange.setPattern(ExchangePattern.InOut);
+		exchange.setPattern(ExchangePattern.InOnly);
 		
 		producerTemplate.send("direct:distribution-envelope-receiver", exchange);
 		if (exchange.getException() != null) {
 			throw exchange.getException();
 		} else if (exchange.getOut().isFault()) {
-			throw new Exception(exchange.getOut().getMandatoryBody(String.class));
+			throw new Exception(exchange.getIn().getMandatoryBody(String.class));
 		}
 		
 		// no fault

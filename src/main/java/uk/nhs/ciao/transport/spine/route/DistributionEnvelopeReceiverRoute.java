@@ -50,11 +50,18 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	private final String payloadDestinationUri = "mock:distribution-envelope-payloads";
 	
 	/**
+	 * URI of internal route to build and send outgoing delivery failure responses
+	 * <p>
+	 * input and output (internal route)
+	 */
+	private final String deliveryFailureSenderUri = "direct:delivery-failure-sender";
+	
+	/**
 	 * URI of internal route to send outgoing infrastructure responses
 	 * <p>
 	 * input and output (internal route)
 	 */
-	private final String infrastructureResponseSenderUri = "seda:infrastructure-response-sender";	
+	private final String infrastructureResponseSenderUri = "seda:infrastructure-response-sender";
 	
 	/**
 	 * URI where outgoing infrastructure response messages are sent to
@@ -73,6 +80,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	public void configure() throws Exception {
 		configureDistributionEnvelopeReceiver();
 		configurePayloadPublisher();
+		configureDeliveryFailureSender();
 		configureInfrastructureResponseSender();
 	}
 	
@@ -86,13 +94,13 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 		from(distributionEnvelopeReceiverUri)
 			.errorHandler(new TransactionErrorHandlerBuilder()
 				.disableRedelivery()
+				.logHandled(true)
 			)
-			.transacted("PROPAGATION_REQUIRES_NEW")
+			.transacted("PROPAGATION_REQUIRED")
 			
 			.convertBodyTo(DistributionEnvelope.class)
 			.log(LoggingLevel.DEBUG, LOGGER, "Converted to distribution envelope: ${body}")
 			.process(new DistributionEnvelopeVerifier())
-			
 			.to(payloadPublisherUri)
 		.end();
 	}
@@ -107,24 +115,12 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	// TODO: this route should be direct - either that or collapse into the calling route - only send NACK after retrys fail
 	private void configurePayloadPublisher() {
 		from(payloadPublisherUri)
-			.errorHandler(defaultErrorHandler()
+			.errorHandler(deadLetterChannel(deliveryFailureSenderUri)
 					.maximumRedeliveries(5)
 					.redeliveryDelay(1000)
 					.log(LOGGER)
 					.logExhausted(true))
-			// On failure - send infrastructure delivery failure notification
-			.onCompletion().onFailureOnly()
-				.doTry()
-					// only send if requested (and NOT already an infrastructure response!)
-					.choice().when().simple("${body.handlingSpec.infrastructureAckRequested} && ${body.handlingSpec.infrastructureAck} == false")
-					.bean(infrastructureResponseFactory, "createDeliveryFailureWithEnvelope")
-					.to(infrastructureResponseSenderUri)
-					.endChoice()
-				.endDoTry()
-				.doCatch(Exception.class)
-					.log(LoggingLevel.INFO, LOGGER, "Unable to send ITK infrastructure delivery failure: ${exception}")
-				.end()
-			.end()
+			.handleFault()
 	
 			// Publish payload message for processing - but only if not successfully processed already
 			.idempotentConsumer(simple("${body.trackingId}"), idempotentRepository)
@@ -152,7 +148,26 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	}
 	
 	/**
-	 * Route to send outgoing ebxml acknowledgement and delivery fault async responses
+	 * Route to build and send outgoing infrastructure delivery failures
+	 */
+	private void configureDeliveryFailureSender() {
+		from(deliveryFailureSenderUri)
+			.doTry()
+				// only send if requested (and NOT already an infrastructure response!)
+				.choice().when().simple("${body.handlingSpec.infrastructureAckRequested} && ${body.handlingSpec.infrastructureAck} == false")
+				.bean(infrastructureResponseFactory, "createDeliveryFailureWithEnvelope")
+				.to(infrastructureResponseSenderUri)
+				.endChoice()
+			.endDoTry()
+			.doCatch(Exception.class)
+				.log(LoggingLevel.INFO, LOGGER, "Unable to send ITK infrastructure delivery failure: ${exception}")
+			.end();
+//			.convertBodyTo(String.class)
+//			.to(infrastructureResponseSenderUri);
+	}
+	
+	/**
+	 * Route to send outgoing infrastructure acknowledgement and delivery fault async responses
 	 */
 	// TODO: does outgoing ack response need retry logic / error hander? this will probably get handled by the outgoing spine component... (refactoring required)
 	private void configureInfrastructureResponseSender() {
