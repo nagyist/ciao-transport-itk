@@ -1,11 +1,31 @@
 package uk.nhs.ciao.transport.spine.itk;
 
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
 public class InfrastructureResponse {
+	/**
+	 * Date format used in ITK infrastructure time-stamps
+	 * <p>
+	 * This is expressed in the UTC time-zone
+	 */
+	private static final ThreadLocal<DateFormat> TIMESTAMP_FORMAT = new ThreadLocal<DateFormat>() {
+		@Override
+		protected DateFormat initialValue() {
+			final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+			dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+			return dateFormat;
+		}
+	};
+	
 	public static final String RESULT_OK = "OK";
 	public static final String RESULT_FAILURE = "Failure";
 	public static final String RESULT_WARNING = "Warning";
@@ -38,8 +58,21 @@ public class InfrastructureResponse {
 		return timestamp;
 	}
 	
+	public Date getTimestampAsDate() throws ParseException {
+		if (Strings.isNullOrEmpty(timestamp)) {
+			return null;
+		} else {
+			return TIMESTAMP_FORMAT.get().parse(timestamp);
+		}
+	}
+	
 	public void setTimestamp(final String timestamp) {
 		this.timestamp = timestamp;
+	}
+	
+	public void setTimestamp(final long millis) {
+		final Date date = new Date(millis);
+		this.timestamp = TIMESTAMP_FORMAT.get().format(date);
 	}
 	
 	public String getServiceRef() {

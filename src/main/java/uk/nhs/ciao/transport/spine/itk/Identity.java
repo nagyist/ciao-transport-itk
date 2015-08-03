@@ -21,6 +21,14 @@ public class Identity {
 		this.uri = uri;
 	}
 	
+	/**
+	 * Copy constructor
+	 */
+	public Identity(final Identity copy) {
+		this.type = copy.type;
+		this.uri = copy.uri;
+	}
+	
 	public String getType() {
 		return type;
 	}

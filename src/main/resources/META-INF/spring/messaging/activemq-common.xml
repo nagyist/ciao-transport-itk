@@ -12,6 +12,11 @@
   	<!-- 
   		Definitions for how transactions are propagated (or not) across boundaries / nested transactions
   	 -->
+  	<bean id="PROPAGATION_REQUIRES_NEW" class="org.apache.camel.spring.spi.SpringTransactionPolicy">
+  		<property name="transactionManager" ref="jmsTransactionManager" />
+  		<property name="propagationBehaviorName" value="PROPAGATION_REQUIRES_NEW" />
+  	</bean>
+  	
   	<bean id="PROPAGATION_NOT_SUPPORTED" class="org.apache.camel.spring.spi.SpringTransactionPolicy">
   		<property name="transactionManager" ref="jmsTransactionManager" />
   		<property name="propagationBehaviorName" value="PROPAGATION_NOT_SUPPORTED" />

@@ -331,6 +331,14 @@ public class DistributionEnvelope {
 			this.uri = uri;
 		}
 		
+		/**
+		 * Copy constructor
+		 */
+		public Address(final Address copy) {
+			this.type = copy.type;
+			this.uri = copy.uri;
+		}
+		
 		public String getType() {
 			return type;
 		}

@@ -5,10 +5,12 @@ import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.apache.camel.spi.IdempotentRepository;
+import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
+import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
 
 /**
  * Routes to handle incoming ITK distribution envelopes (from spine payloads).
@@ -38,7 +40,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	 * <p>
 	 * input and output (internal route)
 	 */
-	private final String payloadPublisherUri = "seda:distribution-envelope-payload-publisher";
+	private final String payloadPublisherUri = "direct:distribution-envelope-payload-publisher";
 	
 	/**
 	 * URI where outgoing payload messages are sent to
@@ -64,6 +66,9 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	// TODO: Make IdempotentRepository configurable
 	private final IdempotentRepository<?> idempotentRepository = new MemoryIdempotentRepository();
 	
+	// TODO: Make InfrastructureResponseFactory configurable
+	private final InfrastructureResponseFactory infrastructureResponseFactory = new InfrastructureResponseFactory();
+	
 	@Override
 	public void configure() throws Exception {
 		configureDistributionEnvelopeReceiver();
@@ -77,9 +82,12 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	 * <p>
 	 * The payload is extracted and sent for publishing via a separate route
 	 */
-	// This route probably needs an error handler / transactions...
 	private void configureDistributionEnvelopeReceiver() {
 		from(distributionEnvelopeReceiverUri)
+			.errorHandler(new TransactionErrorHandlerBuilder()
+				.disableRedelivery()
+			)
+			.transacted("PROPAGATION_REQUIRES_NEW")
 			
 			.convertBodyTo(DistributionEnvelope.class)
 			.log(LoggingLevel.DEBUG, LOGGER, "Converted to distribution envelope: ${body}")
@@ -99,12 +107,23 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	// TODO: this route should be direct - either that or collapse into the calling route - only send NACK after retrys fail
 	private void configurePayloadPublisher() {
 		from(payloadPublisherUri)
-			// On failure - send infrastructure delivery failure notification (if an inf ack was requested and not INF ack!)
+			.errorHandler(defaultErrorHandler()
+					.maximumRedeliveries(5)
+					.redeliveryDelay(1000)
+					.log(LOGGER)
+					.logExhausted(true))
+			// On failure - send infrastructure delivery failure notification
 			.onCompletion().onFailureOnly()
-				// TODO: Implement / fix inf nack generation method on DeliveryEnvelope
-				// TODO: handle in try-catch block - we don't want this to rollback...
-				.setBody().spel("#{body.generateDeliveryFailureNotification('Unable to deliver payload')}")
-				.to(infrastructureResponseSenderUri)
+				.doTry()
+					// only send if requested (and NOT already an infrastructure response!)
+					.choice().when().simple("${body.handlingSpec.infrastructureAckRequested} AND ${!body.handlingSpec.infrastructureAck}")
+					.bean(infrastructureResponseFactory, "createDeliveryFailureWithEnvelope")
+					.to(infrastructureResponseSenderUri)
+					.endChoice()
+				.endDoTry()
+				.doCatch(Exception.class)
+					.log(LoggingLevel.INFO, LOGGER, "Unable to send ITK infrastructure delivery failure: ${exception}")
+				.end()
 			.end()
 	
 			// Publish payload message for processing - but only if not successfully processed already
@@ -117,12 +136,17 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 					.to(payloadDestinationUri)
 				.end()
 	
-				// TODO: only send ack if requested - as sanity check the message should NOT be an inf ack!
-				// send infrastructure ack (i.e. if previously acked or if publishing was successful)
-				// TODO: Implement / fix inf ack generation method on DeliveryEnvelope
-				// TODO: handle in try-catch block - we don't want this to rollback...
-				.setBody(simple("${body.generateAcknowledgment()}"))
-				.to(infrastructureResponseSenderUri)
+				// send infrastructure acknowledgement
+				.doTry()
+					// only send if requested (and NOT already an infrastructure response!)
+					.choice().when().simple("${!handlingSpec.infrastructureAckRequested} AND ${!body.handlingSpec.infrastructureAck}")
+						.bean(infrastructureResponseFactory, "createAcknowledgmentWithEnvelope")
+						.to(infrastructureResponseSenderUri)
+					.endChoice()
+				.endDoTry()
+				.doCatch(Exception.class)
+					.log(LoggingLevel.INFO, LOGGER, "Unable to send ITK infrastructure acknowledgement: ${exception}")
+				.end()
 			.end()
 		.end();
 	}
