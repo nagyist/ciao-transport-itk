@@ -225,7 +225,7 @@ public class DistributionEnvelopeParser {
 		public void begin(String namespaceURI, String name, Attributes attributes) throws Exception {
 			final Payload payload = new Payload();
 			final String id = getValue(attributes, "id");
-			if (id == null) {
+			if (id != null) {
 				payload.setId(id);
 			}
 			

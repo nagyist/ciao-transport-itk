@@ -28,7 +28,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	// TODO: Make in/out route URLs configurable
 	
 	/**
-	 * URI where incoming multipart messages are received from
+	 * URI where incoming distribution envelope messages are received from
 	 * <p>
 	 * input only
 	 */

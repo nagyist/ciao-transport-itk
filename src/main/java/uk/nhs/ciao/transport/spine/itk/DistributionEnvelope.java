@@ -1,9 +1,17 @@
 package uk.nhs.ciao.transport.spine.itk;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+
+import javax.xml.bind.DatatypeConverter;
+
+import org.apache.activemq.util.ByteArrayInputStream;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
@@ -11,6 +19,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.Closeables;
 
 public class DistributionEnvelope {
 	public static final String HANDLING_SPEC_BUSINESS_ACK_REQUESTED = "urn:nhs-itk:ns:201005:ackrequested";
@@ -70,6 +80,19 @@ public class DistributionEnvelope {
 		return manifestItems;
 	}
 	
+	public ManifestItem getManifestItem(final String id) {
+		ManifestItem result = null;
+		
+		for (final ManifestItem manifestItem: manifestItems) {
+			if (Objects.equal(id, manifestItem.id)) {
+				result = manifestItem;
+				break;
+			}
+		}
+		
+		return result;
+	}
+	
 	public void addManifestItem(final ManifestItem manifestItem) {
 		if (manifestItem != null) {
 			manifestItems.add(manifestItem);
@@ -96,6 +119,19 @@ public class DistributionEnvelope {
 		return payloads;
 	}
 	
+	public Payload getPayload(final String id) {
+		Payload result = null;
+		
+		for (final Payload payload: payloads) {
+			if (Objects.equal(id, payload.id)) {
+				result = payload;
+				break;
+			}
+		}
+		
+		return result;
+	}
+	
 	public Payload addPayload(final ManifestItem manifestItem, final String payloadBody) {
 		Preconditions.checkNotNull(payloadBody);
 		
@@ -112,10 +148,70 @@ public class DistributionEnvelope {
 		return payload;
 	}
 	
+	public Payload addPayload(final ManifestItem manifestItem, final String payloadBody, final boolean encodeBody) throws IOException {		
+		if (encodeBody && payloadBody != null && (manifestItem.compressed || manifestItem.base64)) {
+			byte[] bytes = payloadBody.getBytes();
+			if (manifestItem.compressed) {
+				ByteArrayOutputStream byteArrayOut = null;
+				GZIPOutputStream out = null;
+				try {
+					byteArrayOut = new ByteArrayOutputStream();
+					out = new GZIPOutputStream(byteArrayOut);
+					
+					out.write(bytes);
+					out.flush();
+					bytes = byteArrayOut.toByteArray();
+				} finally {
+					final boolean swallowIOException = true;
+					Closeables.close(out, swallowIOException);
+					Closeables.close(byteArrayOut, swallowIOException);
+				}
+			}
+			
+			final String encodedBody;
+			if (manifestItem.base64) {
+				encodedBody = DatatypeConverter.printBase64Binary(bytes);
+			} else {
+				encodedBody = new String(bytes);
+			}
+			
+			return addPayload(manifestItem, encodedBody);
+		}
+		
+		return addPayload(manifestItem, payloadBody);
+	}
+	
 	public void addPayload(final Payload payload) {
 		if (payload != null) {
 			payloads.add(payload);
 		}
+	}
+	
+	public byte[] getDecodedPayloadBody(final String id) throws IOException {
+		final ManifestItem manifestItem = getManifestItem(id);
+		final Payload payload = getPayload(id);
+
+		if (manifestItem == null || payload == null || payload.body == null) {
+			return null;
+		}
+		
+		byte[] bytes;
+		if (manifestItem.base64) {
+			bytes = DatatypeConverter.parseBase64Binary(payload.body);
+		} else {
+			bytes = payload.body.getBytes();
+		}
+		
+		if (manifestItem.compressed) {
+			final GZIPInputStream in = new GZIPInputStream(new ByteArrayInputStream(bytes));
+			try {
+				bytes = ByteStreams.toByteArray(in);
+			} finally {
+				Closeables.closeQuietly(in);
+			}
+		}
+		
+		return bytes;
 	}
 	
 	/**
