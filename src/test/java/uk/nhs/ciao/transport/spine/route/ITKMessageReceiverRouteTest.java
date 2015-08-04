@@ -105,6 +105,34 @@ public class ITKMessageReceiverRouteTest {
 		inProgressDirectory.assertIsSatisfied();
 	}
 	
+	@Test
+	public void testBusinessAck() throws Exception {
+		final DistributionEnvelope envelope = context.getTypeConverter().mandatoryConvertTo(DistributionEnvelope.class,
+				getClass().getResourceAsStream("test-wrapped-busack.xml"));
+		envelope.getHandlingSpec().setBusinessAck(true);
+
+		inProgressDirectory.expectedMessageCount(1);
+		inProgressDirectory.expectedHeaderReceived(Exchange.FILE_NAME, "7D6F23E0-AE1A-11DB-8707-B18E1E0994EF/bus-ack");
+		
+		sendDistributionEnvelope(envelope);
+		
+		inProgressDirectory.assertIsSatisfied();
+	}
+	
+	@Test
+	public void testBusinessNack() throws Exception {
+		final DistributionEnvelope envelope = context.getTypeConverter().mandatoryConvertTo(DistributionEnvelope.class,
+				getClass().getResourceAsStream("test-wrapped-busnack.xml"));
+		envelope.getHandlingSpec().setBusinessAck(true);
+
+		inProgressDirectory.expectedMessageCount(1);
+		inProgressDirectory.expectedHeaderReceived(Exchange.FILE_NAME, "7D6F23E0-AE1A-11DB-8707-B18E1E0994EF/bus-nack");
+		
+		sendDistributionEnvelope(envelope);
+		
+		inProgressDirectory.assertIsSatisfied();
+	}
+	
 	private InfrastructureResponse createInfrastructureResponse(final String result) {
 		final InfrastructureResponse response = new InfrastructureResponse();
 

@@ -3,6 +3,7 @@ package uk.nhs.ciao.transport.spine.route;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,11 +129,25 @@ public class ITKMessageReceiverRoute extends RouteBuilder {
 	 * Route to handle an business ack
 	 */
 	private void configureBusinessAckHandler() {
+		final Namespaces namespaces = new Namespaces("hl7", "urn:hl7-org:v3");
+		
 		from(businessAckHandlerUri)
 			.log(LoggingLevel.INFO, LOGGER, "Got an business ack")
 			.setBody().spel("#{body.getDecodedPayloadBody(body.payloads[0].id)}")
 			.convertBodyTo(String.class)
-			.log(LoggingLevel.INFO, LOGGER, "Processing business ack: ${body}")
+			.setHeader(Exchange.CORRELATION_ID).xpath("/hl7:BusinessResponseMessage/hl7:acknowledgedBy3/hl7:conveyingTransmission/hl7:id/@root", String.class, namespaces)
+			.log(LoggingLevel.INFO, LOGGER, "Processing business ack - correlationId: ${headers.CamelCorrelationId}")
+			.choice()
+				// HL7 types codes AA and CA are ACKS
+				.when().xpath("/hl7:BusinessResponseMessage/hl7:acknowledgedBy3[@typeCode='AA' or @typeCode='CA']", namespaces)
+					.setHeader(Exchange.FILE_NAME).simple("${headers.CamelCorrelationId}/bus-ack")
+				.endChoice()
+				.otherwise()
+					.setHeader(Exchange.FILE_NAME).simple("${headers.CamelCorrelationId}/bus-nack")
+				.endChoice()
+			.end()
+			
+			.to(inProgressDirectoryRef)	
 		.end();
 	}
 }
