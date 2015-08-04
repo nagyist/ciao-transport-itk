@@ -23,12 +23,15 @@ import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 import uk.nhs.ciao.transport.spine.itk.Identity;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
+import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse.ErrorInfo;
 
 public class ITKMessageReceiverRouteTest {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ITKMessageReceiverRouteTest.class);
 	
 	private CamelContext context;
 	private ProducerTemplate producerTemplate;
+	
+	private MockEndpoint inProgressDirectory;
 	
 	@Before
 	public void setup() throws Exception {
@@ -51,6 +54,8 @@ public class ITKMessageReceiverRouteTest {
 		
 		context.start();
 		producerTemplate.start();
+		
+		inProgressDirectory = MockEndpoint.resolve(context, "mock:in-progress-directory");
 	}
 	
 	@After
@@ -74,18 +79,49 @@ public class ITKMessageReceiverRouteTest {
 	
 	@Test
 	public void testInfrastructureAck() throws Exception {
-		final Identity identity = new Identity("urn:someone");
+		final InfrastructureResponse response = createInfrastructureResponse(InfrastructureResponse.RESULT_OK);
+		final DistributionEnvelope envelope = createDistributionEnvelope(response);
+
+		inProgressDirectory.expectedHeaderReceived(Exchange.FILE_NAME, "12345/inf-ack");
 		
+		sendDistributionEnvelope(envelope);
+		
+		inProgressDirectory.assertIsSatisfied();
+	}
+	
+	@Test
+	public void testInfrastructureNack() throws Exception {
+		final InfrastructureResponse response = createInfrastructureResponse(InfrastructureResponse.RESULT_FAILURE);
+		final ErrorInfo errorInfo = new ErrorInfo();
+		errorInfo.setId("errorid");
+		errorInfo.setText("error text");
+		response.getErrors().add(errorInfo);
+		final DistributionEnvelope envelope = createDistributionEnvelope(response);
+
+		inProgressDirectory.expectedHeaderReceived(Exchange.FILE_NAME, "12345/inf-nack");
+		
+		sendDistributionEnvelope(envelope);
+		
+		inProgressDirectory.assertIsSatisfied();
+	}
+	
+	private InfrastructureResponse createInfrastructureResponse(final String result) {
 		final InfrastructureResponse response = new InfrastructureResponse();
-		response.setReportingIdentity(identity);
+
+		response.setReportingIdentity(new Identity("urn:someone"));
 		response.setTrackingIdRef("12345");
 		response.setServiceRef("someservice");
 		response.setTimestamp("2015-08-03T12:25:32Z");
-		response.setResult(InfrastructureResponse.RESULT_OK);
+		response.setResult(result);
 		
+		return response;
+	}
+	
+	private DistributionEnvelope createDistributionEnvelope(final InfrastructureResponse response) {		
 		final DistributionEnvelope envelope = new DistributionEnvelope();
-		envelope.setAuditIdentity(identity);
-		envelope.setSenderAddress(identity.getUri());
+
+		envelope.setAuditIdentity(new Identity(response.getReportingIdentity()));
+		envelope.setSenderAddress(response.getReportingIdentity().getUri());
 		envelope.setService(response.getServiceRef());
 		envelope.getAddresses().add(new Address("urn:sometarget"));
 		envelope.getHandlingSpec().setInfrastructureAck(true);
@@ -95,7 +131,7 @@ public class ITKMessageReceiverRouteTest {
 		envelope.addPayload(manifestItem, serialize(response));
 		envelope.applyDefaults();
 		
-		sendDistributionEnvelope(envelope);
+		return envelope;
 	}
 	
 	private String serialize(final InfrastructureResponse ack) {

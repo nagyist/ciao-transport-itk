@@ -1,5 +1,6 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
@@ -47,6 +48,18 @@ public class ITKMessageReceiverRoute extends RouteBuilder {
 	 */
 	private final String businessAckHandlerUri = "direct:business-ack-handler";
 	
+	/**
+	 * URI of the route that will store received acknowledgements in the in-progress
+	 * directory.
+	 * <p>
+	 * The {@link Exchange#FILE_NAME} header will be populated with a name constructed from
+	 * the correlation id (ITK trackingId) and ack type (inf-ack, inf-nack, bus-ack, bus-nack).
+	 * The body of the message is the original body of the associated ack/nack.
+	 * <p>
+	 * output only
+	 */
+	private final String inProgressDirectoryRef = "mock:in-progress-directory";
+	
 	@Override
 	public void configure() throws Exception {
 		configureITKMessageReceiver();
@@ -90,8 +103,24 @@ public class ITKMessageReceiverRoute extends RouteBuilder {
 	private void configureInfrastructureAckHandler() {
 		from(infrastructureAckHandlerUri)
 			.setBody().spel("#{body.getDecodedPayloadBody(body.payloads[0].id)}")
+			.convertBodyTo(String.class)
+
+			// Store the original body for later processing
+			.setProperty("properties.originalBody").body()
 			.convertBodyTo(InfrastructureResponse.class)
-			.log(LoggingLevel.INFO, LOGGER, "Got an infrastructure ack - trackingIdRef: ${body.trackingIdRef}")
+			.log(LoggingLevel.INFO, LOGGER, "Processing infrastructure response - trackingIdRef: ${body.trackingIdRef}, errors: ${body.errors}")
+			.choice()
+				.when().simple("${body.isAck}")
+					.setHeader(Exchange.FILE_NAME).simple("${body.trackingIdRef}/inf-ack")
+				.endChoice()
+				.otherwise()
+					.setHeader(Exchange.FILE_NAME).simple("${body.trackingIdRef}/inf-nack")
+				.endChoice()
+			.end()
+			
+			// Restore the original body
+			.setBody().property("properties.originalBody")
+			.to(inProgressDirectoryRef)			
 		.end();
 	}
 	
@@ -103,7 +132,7 @@ public class ITKMessageReceiverRoute extends RouteBuilder {
 			.log(LoggingLevel.INFO, LOGGER, "Got an business ack")
 			.setBody().spel("#{body.getDecodedPayloadBody(body.payloads[0].id)}")
 			.convertBodyTo(String.class)
-			.log(LoggingLevel.INFO, LOGGER, "Got an business ack: ${body}")
+			.log(LoggingLevel.INFO, LOGGER, "Processing business ack: ${body}")
 		.end();
 	}
 }
