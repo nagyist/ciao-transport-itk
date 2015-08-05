@@ -14,7 +14,7 @@
 	<import resource="classpath*:META-INF/spring/ssl/${sslConfig}.xml"/>
 	<import resource="classpath*:META-INF/spring/messaging/spine.xml"/>
     
-    <bean id="spineTransportRoutes" class="uk.nhs.ciao.transport.spine.route.SpineTransportRoutes" />
+    <bean id="spineTransportRoutes" class="uk.nhs.ciao.transport.spine.SpineTransportRoutes" />
     
 	<camelContext xmlns="http://camel.apache.org/schema/spring" id="camel" trace="true" streamCache="true">
 		<properties>

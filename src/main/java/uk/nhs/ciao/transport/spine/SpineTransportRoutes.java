@@ -1,7 +1,9 @@
-package uk.nhs.ciao.transport.spine.route;
+package uk.nhs.ciao.transport.spine;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
+
+import uk.nhs.ciao.transport.spine.route.LegacySpineTransportRoutes;
 
 /**
  * Main routes builder for the spine transport
