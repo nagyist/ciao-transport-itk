@@ -16,7 +16,7 @@
    <#if receiverAsid??>
    <communicationFunctionRcv>
       <device classCode="DEV" determinerCode="INSTANCE">
-         <id extension="$receiverAsid?xml}" root="1.2.826.0.1285.0.2.0.107"/>
+         <id extension="${receiverAsid?xml}" root="1.2.826.0.1285.0.2.0.107"/>
       </device>
    </communicationFunctionRcv>
    </#if>

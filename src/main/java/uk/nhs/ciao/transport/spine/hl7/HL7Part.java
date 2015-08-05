@@ -1,6 +1,7 @@
 package uk.nhs.ciao.transport.spine.hl7;
 
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
@@ -11,6 +12,10 @@ import com.google.common.base.Strings;
 /**
  * Represents the HL7 encoded part of a Spine
  * {@link uk.nhs.ciao.transport.spine.multipart.MultipartBody} message
+ * <p>
+ * This class is a minimal / partial representation of the HL7 content. Enough properties are present to
+ * generate the HL7 content needed in a typical outgoing multi-part spine request - however
+ * incoming HL7 parts may contain additional details that are not fully parsed/represented by this class.
  */
 public class HL7Part {
 	/**
@@ -42,6 +47,10 @@ public class HL7Part {
 
 	public String getCreationTime() {
 		return creationTime;
+	}
+	
+	public Date getCreationTimeAsDate() throws ParseException {
+		return Strings.isNullOrEmpty(creationTime) ? null : DATE_FORMAT.get().parse(creationTime);
 	}
 	
 	public void setCreationTime(final long millis) {
