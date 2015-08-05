@@ -2,7 +2,6 @@ package uk.nhs.ciao.transport.spine.route;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
-import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.apache.camel.spi.IdempotentRepository;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
@@ -24,11 +23,11 @@ import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
 public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeReceiverRoute.class);
 	
-	private String distributionEnvelopeReceiverUri = "direct:distribution-envelope-receiver";
-	private String payloadDestinationUri = "mock:distribution-envelope-payloads";
-	private String infrastructureResponseDestinationUri = "mock:infrastructure-responses";
-	private IdempotentRepository<?> idempotentRepository = new MemoryIdempotentRepository();
-	private InfrastructureResponseFactory infrastructureResponseFactory = new InfrastructureResponseFactory();
+	private String distributionEnvelopeReceiverUri;
+	private String payloadDestinationUri;
+	private String infrastructureResponseDestinationUri;
+	private IdempotentRepository<?> idempotentRepository;
+	private InfrastructureResponseFactory infrastructureResponseFactory;
 	
 	/**
 	 * URI where incoming distribution envelope messages are received from

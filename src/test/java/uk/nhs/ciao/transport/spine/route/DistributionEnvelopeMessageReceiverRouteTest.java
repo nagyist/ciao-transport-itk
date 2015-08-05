@@ -12,6 +12,7 @@ import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.impl.DefaultProducerTemplate;
 import org.apache.camel.impl.SimpleRegistry;
+import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.apache.camel.spring.spi.SpringTransactionPolicy;
 import org.junit.After;
 import org.junit.Assert;
@@ -29,6 +30,7 @@ import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
+import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
 
 public class DistributionEnvelopeMessageReceiverRouteTest {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeMessageReceiverRouteTest.class);
@@ -60,6 +62,8 @@ public class DistributionEnvelopeMessageReceiverRouteTest {
 		route.setDistributionEnvelopeReceiverUri("direct:distribution-envelope-receiver");
 		route.setPayloadDestinationUri("mock:distribution-envelope-payloads");
 		route.setInfrastructureResponseDestinationUri("mock:infrastructure-responses");
+		route.setIdempotentRepository(new MemoryIdempotentRepository());
+		route.setInfrastructureResponseFactory(new InfrastructureResponseFactory());
 		
 		context.addRoutes(route);
 		

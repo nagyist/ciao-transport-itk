@@ -10,6 +10,7 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.impl.DefaultProducerTemplate;
+import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -41,7 +42,8 @@ public class MultipartMessageReceiverRouteTest {
 		route.setMultipartReceiverUri("direct:multipart-receiver");
 		route.setPayloadDestinationUri("mock:multipart-payloads");
 		route.setEbxmlResponseDestinationUri("mock:ebxml-responses");
-		context.addRoutes(new MultipartMessageReceiverRoute());
+		route.setIdempotentRepository(new MemoryIdempotentRepository());
+		context.addRoutes(route);
 		
 		context.start();
 		producerTemplate.start();

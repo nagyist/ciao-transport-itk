@@ -5,7 +5,6 @@ import static uk.nhs.ciao.transport.spine.route.EbxmlManifestVerifier.MANIFEST_P
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
-import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.apache.camel.spi.IdempotentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,10 +23,10 @@ public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MultipartMessageReceiverRoute.class);
 	private static final String PAYLOAD_PROPERTY = "multipart-payload";
 	
-	private String multipartReceiverUri = "direct:multipart-receiver";
-	private String payloadDestinationUri = "mock:multipart-payloads";
-	private String ebxmlResponseDestinationUri = "mock:ebxml-responses";
-	private IdempotentRepository<?> idempotentRepository = new MemoryIdempotentRepository();
+	private String multipartReceiverUri;
+	private String payloadDestinationUri;
+	private String ebxmlResponseDestinationUri;
+	private IdempotentRepository<?> idempotentRepository;
 	
 	/**
 	 * URI where incoming multipart messages are received from

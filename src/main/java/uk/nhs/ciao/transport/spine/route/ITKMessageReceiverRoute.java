@@ -25,8 +25,8 @@ import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
 public class ITKMessageReceiverRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ITKMessageReceiverRoute.class);
 	
-	private String itkMessageReceiverUri = "direct:itk-message-receiver";
-	private String inProgressDirectoryUri = "mock:in-progress-directory";
+	private String itkMessageReceiverUri;
+	private String inProgressDirectoryUri;
 	
 	/**
 	 * URI where incoming ITK messages are received from
