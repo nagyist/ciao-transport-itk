@@ -2,7 +2,6 @@ package uk.nhs.ciao.transport.spine.route;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Property;
-import org.apache.camel.builder.RouteBuilder;
 
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
@@ -19,15 +18,32 @@ import uk.nhs.ciao.transport.spine.multipart.Part;
  * a multi-part wrapper) and storing it on a queue for sending by
  * the multi-part message sender route.
  */
-public class DistributionEnvelopeSenderRoute extends RouteBuilder {
-	// TODO: make URLs configurable
+public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
+	private String distributionEnvelopeSenderUri;
+	private String multipartMessageSenderUri;
 	
-	private final String distributionEnvelopeSenderUri = "direct:distribution-envelope-sender";
-	private final String multipartMessageSenderUri = "mock:multipart-message-sender";
-	
+	// optional properties
 	private DistributionEnvelope prototypeDistributionEnvelope;
 	private EbxmlEnvelope prototypeEbxmlManifest;
 	private HL7Part prototypeHl7Part;
+	
+	/**
+	 * URI where incoming distribution envelope messages are received from
+	 * <p>
+	 * input only
+	 */
+	public void setDistributionEnvelopeSenderUri(final String distributionEnvelopeSenderUri) {
+		this.distributionEnvelopeSenderUri = distributionEnvelopeSenderUri;
+	}
+	
+	/**
+	 * URI where outgoing multi-part messages are sent to
+	 * <p>
+	 * output only
+	 */
+	public void setMultipartMessageSenderUri(final String multipartMessageSenderUri) {
+		this.multipartMessageSenderUri = multipartMessageSenderUri;
+	}
 	
 	/**
 	 * Sets the prototype distribution envelope containing default properties that should
@@ -94,6 +110,8 @@ public class DistributionEnvelopeSenderRoute extends RouteBuilder {
 			
 			.to(multipartMessageSenderUri);
 	}
+	
+	// Processor / bean methods
 	
 	/**
 	 * Populates the distribution envelope with default properties if they have
