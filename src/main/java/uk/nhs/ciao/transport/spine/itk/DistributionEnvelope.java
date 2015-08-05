@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.zip.GZIPInputStream;
@@ -37,6 +38,61 @@ public class DistributionEnvelope {
 	private Address senderAddress;
 	private final HandlingSpec handlingSpec = new HandlingSpec();
 	private final List<Payload> payloads = Lists.newArrayList();
+	
+	/**
+	 * Copies properties from the specified prototype envelope
+	 * 
+	 * @param prototype The prototype to copy from
+	 * @param overwrite true if non-empty properties should be overwritten, or false if the existing values should be kept
+	 */
+	public void copyFrom(final DistributionEnvelope prototype, final boolean overwrite) {
+		if (prototype == null) {
+			return;
+		}
+		
+		service = copyProperty(service, prototype.service, overwrite);
+		trackingId = copyProperty(trackingId, prototype.trackingId, overwrite);
+		auditIdentity = copyProperty(auditIdentity, prototype.auditIdentity, overwrite);
+		senderAddress = copyProperty(senderAddress, prototype.senderAddress, overwrite);
+		
+		handlingSpec.copyFrom(prototype.handlingSpec, overwrite);
+		
+		if ((addresses.isEmpty() || overwrite) && !prototype.addresses.isEmpty()) {
+			addresses.clear();
+			
+			for (final Address prototypeAddress: prototype.addresses) {
+				addAddress(new Address(prototypeAddress));
+			}
+		}
+		
+		if ((manifestItems.isEmpty() || overwrite) && !prototype.manifestItems.isEmpty()) {
+			manifestItems.clear();
+			
+			for (final ManifestItem prototypeManifestItem: prototype.manifestItems) {
+				addManifestItem(new ManifestItem(prototypeManifestItem));
+			}
+		}
+
+		if ((payloads.isEmpty() || overwrite) && !prototype.payloads.isEmpty()) {
+			payloads.clear();
+			
+			for (final Payload prototypePayload: prototype.payloads) {
+				addPayload(new Payload(prototypePayload));
+			}
+		}
+	}
+	
+	private String copyProperty(final String original, final String prototype, final boolean overwrite) {
+		return (prototype != null && (original == null || overwrite)) ? prototype : original;
+	}
+	
+	private Identity copyProperty(final Identity original, final Identity prototype, final boolean overwrite) {
+		return (prototype != null && (original == null || overwrite)) ? new Identity(prototype) : original;
+	}
+	
+	private Address copyProperty(final Address original, final Address prototype, final boolean overwrite) {
+		return (prototype != null && (original == null || overwrite)) ? new Address(prototype) : original;
+	}
 	
 	public String getService() {
 		return service;
@@ -275,6 +331,22 @@ public class DistributionEnvelope {
 		private boolean compressed;
 		private boolean encrypted;
 		
+		public ManifestItem() {
+			// Default constructor
+		}
+		
+		/**
+		 * Copy constructor
+		 */
+		public ManifestItem(final ManifestItem copy) {
+			mimeType = copy.mimeType;
+			id = copy.id;
+			profileId = copy.profileId;
+			base64 = copy.base64;
+			compressed = copy.compressed;
+			encrypted = copy.encrypted;
+		}
+
 		public String getMimeType() {
 			return mimeType;
 		}
@@ -343,6 +415,18 @@ public class DistributionEnvelope {
 			return entries;
 		}
 		
+		public void copyFrom(final HandlingSpec prototype, boolean overwrite) {
+			if (prototype == null) {
+				return;
+			}
+			
+			for (final Entry<String, String> prototypeEntry: prototype.entries.entrySet()) {
+				if (!entries.containsKey(prototypeEntry.getKey()) || overwrite) {
+					entries.put(prototypeEntry.getKey(), prototypeEntry.getValue());
+				}
+			}
+		}
+
 		public void set(final String key, final String value) {
 			if (key == null) {
 				return;				
@@ -468,6 +552,18 @@ public class DistributionEnvelope {
 		private String id;
 		private String body;
 		
+		public Payload() {
+			// NOOP
+		}
+		
+		/**
+		 * Copy constructor
+		 */
+		public Payload(final Payload payload) {
+			id = payload.id;
+			body = payload.body;
+		}
+
 		public String getId() {
 			return id;
 		}

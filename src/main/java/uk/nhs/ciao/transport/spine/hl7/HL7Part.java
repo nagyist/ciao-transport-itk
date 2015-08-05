@@ -37,6 +37,29 @@ public class HL7Part {
 	private String senderAsid;
 	private String agentSystemAsid;
 	
+	/**
+	 * Copies properties from the specified HL7 parts
+	 * 
+	 * @param prototype The prototype to copy from
+	 * @param overwrite true if non-empty properties should be overwritten, or false if the existing values should be kept
+	 */
+	public void copyFrom(final HL7Part prototype, final boolean overwrite) {
+		if (prototype == null) {
+			return;
+		}
+		
+		id = copyProperty(id, prototype.id, overwrite);
+		creationTime = copyProperty(creationTime, prototype.creationTime, overwrite);
+		interactionId = copyProperty(interactionId, prototype.interactionId, overwrite);
+		receiverAsid = copyProperty(receiverAsid, prototype.receiverAsid, overwrite);
+		senderAsid = copyProperty(senderAsid, prototype.senderAsid, overwrite);
+		agentSystemAsid = copyProperty(agentSystemAsid, prototype.agentSystemAsid, overwrite);
+	}
+	
+	private String copyProperty(final String original, final String prototype, final boolean overwrite) {
+		return (prototype != null && (original == null || overwrite)) ? prototype : original;
+	}
+	
 	public String getId() {
 		return id;
 	}

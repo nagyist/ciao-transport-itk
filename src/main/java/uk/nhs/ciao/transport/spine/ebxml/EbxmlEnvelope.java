@@ -55,6 +55,43 @@ public class EbxmlEnvelope {
 	private ErrorDetail error;
 	private final List<ManifestReference> manifestReferences = Lists.newArrayList();
 	
+	/**
+	 * Copies properties from the specified prototype envelope
+	 * 
+	 * @param prototype The prototype to copy from
+	 * @param overwrite true if non-empty properties should be overwritten, or false if the existing values should be kept
+	 */
+	public void copyFrom(final EbxmlEnvelope prototype, final boolean overwrite) {
+		if (prototype == null) {
+			return;
+		}
+		
+		fromParty = copyProperty(fromParty, prototype.fromParty, overwrite);
+		toParty = copyProperty(toParty, prototype.toParty, overwrite);
+		cpaId = copyProperty(cpaId, prototype.cpaId, overwrite);
+		conversationId = copyProperty(conversationId, prototype.conversationId, overwrite);
+		service = copyProperty(service, prototype.service, overwrite);
+		action = copyProperty(action, prototype.action, overwrite);
+		if (overwrite) {
+			acknowledgment = prototype.acknowledgment;
+		}
+		
+		messageData.copyFrom(prototype.messageData, overwrite);
+		error.copyFrom(prototype.error, overwrite);
+		
+		if ((manifestReferences.isEmpty() || overwrite) && !prototype.manifestReferences.isEmpty()) {
+			manifestReferences.clear();
+			
+			for (final ManifestReference prototypeManifestReference: prototype.manifestReferences) {
+				manifestReferences.add(new ManifestReference(prototypeManifestReference));
+			}
+		}
+	}
+	
+	private String copyProperty(final String original, final String prototype, final boolean overwrite) {
+		return (prototype != null && (original == null || overwrite)) ? prototype : original;
+	}
+	
 	public String getFromParty() {
 		return fromParty;
 	}
@@ -306,6 +343,17 @@ public class EbxmlEnvelope {
 			return messageId;
 		}
 		
+		
+		public void copyFrom(final MessageData prototype, boolean overwrite) {
+			if (prototype == null) {
+				return;
+			}
+			
+			messageId = copyProperty(messageId, prototype.messageId, overwrite);
+			timestamp = copyProperty(timestamp, prototype.timestamp, overwrite);
+			refToMessageId = copyProperty(refToMessageId, prototype.refToMessageId, overwrite);
+		}
+
 		public void setMessageId(final String messageId) {
 			this.messageId = messageId;
 		}
@@ -380,6 +428,19 @@ public class EbxmlEnvelope {
 			}
 		}
 		
+		public void copyFrom(final ErrorDetail prototype, boolean overwrite) {
+			if (prototype == null) {
+				return;
+			}
+			
+			listId = copyProperty(listId, prototype.listId, overwrite);
+			id = copyProperty(id, prototype.id, overwrite);
+			code = copyProperty(code, prototype.code, overwrite);
+			severity = copyProperty(severity, prototype.severity, overwrite);
+			codeContext = copyProperty(codeContext, prototype.codeContext, overwrite);
+			description = copyProperty(description, prototype.description, overwrite);
+		}
+
 		public String getListId() {
 			return listId;
 		}
@@ -478,6 +539,19 @@ public class EbxmlEnvelope {
 		private boolean hl7;
 		private String description;
 		
+		public ManifestReference() {
+			// NOOP
+		}
+		
+		/**
+		 * Copy constructor
+		 */
+		public ManifestReference(final ManifestReference copy) {
+			href = copy.href;
+			hl7 = copy.hl7;
+			description = copy.description;
+		}
+
 		public String getHref() {
 			return href;
 		}
