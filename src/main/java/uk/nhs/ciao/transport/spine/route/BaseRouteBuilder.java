@@ -13,6 +13,13 @@ public abstract class BaseRouteBuilder extends RouteBuilder {
 	/**
 	 * Path prefix added to all generated internal route URLs (to ensure uniqueness)
 	 */
+	public String getInternalRoutePrefix() {
+		return internalRoutePrefix;
+	}
+	
+	/**
+	 * Path prefix added to all generated internal route URLs (to ensure uniqueness)
+	 */
 	public void setInternalRoutePrefix(final String internalRoutePrefix) {
 		this.internalRoutePrefix = internalRoutePrefix;
 	}

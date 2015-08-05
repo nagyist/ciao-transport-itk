@@ -1,7 +1,6 @@
 package uk.nhs.ciao.transport.spine.route;
 
 import static uk.nhs.ciao.docs.parser.HeaderNames.*;
-import static uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressSenderRoutes.*;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
@@ -12,8 +11,6 @@ import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Throwables;
 
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
@@ -47,7 +44,6 @@ public class LegacySpineTransportRoutes extends RouteBuilder {
 	public void configure() throws Exception {
 		configureTrunkRequestBuilder();
 		configureTrunkRequestSender();
-		configureSpineSender();
 		configureHttpServer();
 		configureEbxmlAckReceiver();
 		configureItkAckReceiver();
@@ -114,34 +110,6 @@ public class LegacySpineTransportRoutes extends RouteBuilder {
 //		.doCatch(HttpOperationFailedException.class)
 //			.process(new HttpErrorHandler())
 		;
-	}
-	
-	/**
-	 * Route to send an HTTP request/response to spine and wait
-	 * for a related asynchronous ack message.
-	 * <p>
-	 * The thread sending a message to this route will <strong>block</strong> until:
-	 * <ul>
-	 * <li>the original request-response fails
-	 * <li>or a timeout occurs while waiting for the ack
-	 * <li>or the ack is received
-	 */
-	private void configureSpineSender() {
-		final String name = "trunk";
-		final String requestRouteId = name;
-		final String ackRouteId = name + "-ack";
-		final String aggregateRouteId = name + "-aggregate";
-		
-		try {
-			forwardExpressSender(getContext(),
-				from("spine:" + requestRouteId).routeId(requestRouteId))
-				.to("{{spine.toUri}}")
-				.waitForResponse(
-					forwardExpressAckReceiver(ackRouteId, "{{spine.replyUri}}", "JMSMessageID", "JMSCorrelationId"),
-					forwardExpressMessageAggregator(aggregateRouteId, "direct:" + aggregateRouteId, 30000));
-		} catch (Exception e) {
-			throw Throwables.propagate(e);
-		}
 	}
 	
 	/**
