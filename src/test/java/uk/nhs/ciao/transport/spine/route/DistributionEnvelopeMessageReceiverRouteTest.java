@@ -56,7 +56,12 @@ public class DistributionEnvelopeMessageReceiverRouteTest {
 		propegationRequired.setPropagationBehaviorName("PROPAGATION_REQUIRED");
 		registry.put("PROPAGATION_REQUIRED", propegationRequired);
 		
-		context.addRoutes(new DistributionEnvelopeReceiverRoute());
+		final DistributionEnvelopeReceiverRoute route = new DistributionEnvelopeReceiverRoute();
+		route.setDistributionEnvelopeReceiverUri("direct:distribution-envelope-receiver");
+		route.setPayloadDestinationUri("mock:distribution-envelope-payloads");
+		route.setInfrastructureResponseDestinationUri("mock:infrastructure-responses");
+		
+		context.addRoutes(route);
 		
 		context.start();
 		producerTemplate.start();

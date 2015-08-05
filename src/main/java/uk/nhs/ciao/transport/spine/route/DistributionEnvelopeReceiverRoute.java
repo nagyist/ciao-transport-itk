@@ -9,6 +9,8 @@ import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
+
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
 
@@ -24,15 +26,55 @@ import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
  */
 public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeReceiverRoute.class);
-
-	// TODO: Make in/out route URLs configurable
+	
+	private String internalRoutePrefix;
+	private String distributionEnvelopeReceiverUri = "direct:distribution-envelope-receiver";
+	private String payloadDestinationUri = "mock:distribution-envelope-payloads";
+	private String infrastructureResponseDestinationUri = "mock:infrastructure-responses";
+	private IdempotentRepository<?> idempotentRepository = new MemoryIdempotentRepository();
+	private InfrastructureResponseFactory infrastructureResponseFactory = new InfrastructureResponseFactory();
+	
+	/**
+	 * Path prefix added to all generated internal route URLs (to ensure uniqueness)
+	 */
+	public void setInternalRoutePrefix(final String internalRoutePrefix) {
+		this.internalRoutePrefix = internalRoutePrefix;
+	}
 	
 	/**
 	 * URI where incoming distribution envelope messages are received from
 	 * <p>
 	 * input only
 	 */
-	private final String distributionEnvelopeReceiverUri = "direct:distribution-envelope-receiver";
+	public void setDistributionEnvelopeReceiverUri(final String distributionEnvelopeReceiverUri) {
+		this.distributionEnvelopeReceiverUri = distributionEnvelopeReceiverUri;
+	}
+	
+	/**
+	 * URI where outgoing payload messages are sent to
+	 * <p>
+	 * output only
+	 */
+	public void setPayloadDestinationUri(final String payloadDestinationUri) {
+		this.payloadDestinationUri = payloadDestinationUri;
+	}
+	
+	/**
+	 * URI where outgoing infrastructure response messages are sent to
+	 * <p>
+	 * output only
+	 */
+	public void setInfrastructureResponseDestinationUri(final String infrastructureResponseDestinationUri) {
+		this.infrastructureResponseDestinationUri = infrastructureResponseDestinationUri;
+	}
+	
+	public void setIdempotentRepository(final IdempotentRepository<?> idempotentRepository) {
+		this.idempotentRepository = idempotentRepository;
+	}
+	
+	public void setInfrastructureResponseFactory(final InfrastructureResponseFactory infrastructureResponseFactory) {
+		this.infrastructureResponseFactory = infrastructureResponseFactory;
+	}
 	
 	/**
 	 * URI of internal route to publish outgoing payloads and to create the
@@ -40,41 +82,36 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	 * <p>
 	 * input and output (internal route)
 	 */
-	private final String payloadPublisherUri = "direct:distribution-envelope-payload-publisher";
-	
-	/**
-	 * URI where outgoing payload messages are sent to
-	 * <p>
-	 * output only
-	 */
-	private final String payloadDestinationUri = "mock:distribution-envelope-payloads";
+	private String getPayloadPublisherUri() {
+		return internalUri("direct", "distribution-envelope-payload-publisher");
+	}
 	
 	/**
 	 * URI of internal route to build and send outgoing delivery failure responses
 	 * <p>
 	 * input and output (internal route)
 	 */
-	private final String deliveryFailureSenderUri = "direct:delivery-failure-sender";
+	private String getDeliveryFailureSenderUri() {
+		return internalUri("direct", "delivery-failure-sender");
+	}
 	
 	/**
 	 * URI of internal route to send outgoing infrastructure responses
 	 * <p>
 	 * input and output (internal route)
 	 */
-	private final String infrastructureResponseSenderUri = "seda:infrastructure-response-sender";
+	private String getInfrastructureResponseSenderUri() {
+		return internalUri("seda", "infrastructure-response-sender");
+	}
 	
-	/**
-	 * URI where outgoing infrastructure response messages are sent to
-	 * <p>
-	 * output only
-	 */
-	private final String infrastructureResponseDestinationUri = "mock:infrastructure-responses";
-	
-	// TODO: Make IdempotentRepository configurable
-	private final IdempotentRepository<?> idempotentRepository = new MemoryIdempotentRepository();
-	
-	// TODO: Make InfrastructureResponseFactory configurable
-	private final InfrastructureResponseFactory infrastructureResponseFactory = new InfrastructureResponseFactory();
+	private String internalUri(final String scheme, final String path) {
+		final StringBuilder builder = new StringBuilder(scheme).append(":");
+		if (!Strings.isNullOrEmpty(internalRoutePrefix)) {
+			builder.append(internalRoutePrefix).append("/");
+		}
+		builder.append(path);
+		return builder.toString();
+	}
 	
 	@Override
 	public void configure() throws Exception {
@@ -104,10 +141,10 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 			.log(LoggingLevel.DEBUG, LOGGER, "Converted to distribution envelope: ${body}")
 			.doTry()
 				.process(new DistributionEnvelopeVerifier())
-				.to(payloadPublisherUri)
+				.to(getPayloadPublisherUri())
 			.endDoTry()
 			.doCatch(Exception.class)
-				.to(deliveryFailureSenderUri)
+				.to(getDeliveryFailureSenderUri())
 			.end()
 			
 		.end();
@@ -122,7 +159,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	 */
 	// TODO: this route should be direct - either that or collapse into the calling route - only send NACK after retrys fail
 	private void configurePayloadPublisher() {
-		from(payloadPublisherUri)
+		from(getPayloadPublisherUri())
 			// faults and exceptions are thrown back to the caller
 			// sending the delivery fault is therefore handled in the calling route
 			.errorHandler(defaultErrorHandler()
@@ -147,7 +184,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 					// only send if requested (and NOT already an infrastructure response!)
 					.choice().when().simple("${body.handlingSpec.infrastructureAckRequested} && ${body.handlingSpec.infrastructureAck} == false")
 						.bean(infrastructureResponseFactory, "createAcknowledgmentWithEnvelope")
-						.to(infrastructureResponseSenderUri)
+						.to(getInfrastructureResponseSenderUri())
 					.endChoice()
 				.endDoTry()
 				.doCatch(Exception.class)
@@ -161,12 +198,12 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	 * Route to build and send outgoing infrastructure delivery failures
 	 */
 	private void configureDeliveryFailureSender() {
-		from(deliveryFailureSenderUri)
+		from(getDeliveryFailureSenderUri())
 			.doTry()
 				// only send if requested (and NOT already an infrastructure response!)
 				.choice().when().simple("${body.handlingSpec.infrastructureAckRequested} && ${body.handlingSpec.infrastructureAck} == false")
 				.bean(infrastructureResponseFactory, "createDeliveryFailureWithEnvelope")
-				.to(infrastructureResponseSenderUri)
+				.to(getInfrastructureResponseSenderUri())
 				.endChoice()
 			.endDoTry()
 			.doCatch(Exception.class)
@@ -179,7 +216,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	 */
 	// TODO: does outgoing ack response need retry logic / error hander? this will probably get handled by the outgoing spine component... (refactoring required)
 	private void configureInfrastructureResponseSender() {
-		from(infrastructureResponseSenderUri)
+		from(getInfrastructureResponseSenderUri())
 			.convertBodyTo(String.class)
 			.to(infrastructureResponseDestinationUri);
 	}
