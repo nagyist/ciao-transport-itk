@@ -5,7 +5,6 @@ import static uk.nhs.ciao.transport.spine.route.EbxmlManifestVerifier.MANIFEST_P
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
-import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.apache.camel.spi.IdempotentRepository;
 import org.slf4j.Logger;
@@ -21,18 +20,46 @@ import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
  * responsibility of another route. The ebxml ack is sent after the payload has
  * been extracted and stored for later processing.
  */
-public class MultipartMessageReceiverRoute extends RouteBuilder {
+public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MultipartMessageReceiverRoute.class);
 	private static final String PAYLOAD_PROPERTY = "multipart-payload";
 	
-	// TODO: Make in/out route URLs configurable
+	private String multipartReceiverUri = "direct:multipart-receiver";
+	private String payloadDestinationUri = "mock:multipart-payloads";
+	private String ebxmlResponseDestinationUri = "mock:ebxml-responses";
+	private IdempotentRepository<?> idempotentRepository = new MemoryIdempotentRepository();
 	
 	/**
 	 * URI where incoming multipart messages are received from
 	 * <p>
 	 * input only
 	 */
-	private final String multipartReceiverUri = "direct:multipart-receiver";
+	public void setMultipartReceiverUri(final String multipartReceiverUri) {
+		this.multipartReceiverUri = multipartReceiverUri;
+	}
+	
+	/**
+	 * URI where outgoing payload messages are sent to
+	 * <p>
+	 * output only
+	 */
+	public void setPayloadDestinationUri(final String payloadDestinationUri) {
+		this.payloadDestinationUri = payloadDestinationUri;
+	}
+	
+	/**
+	 * URI where outgoing ebxml response messages are sent to
+	 * <p>
+	 * output only
+	 */
+	public void setEbxmlResponseDestinationUri(final String ebxmlResponseDestinationUri) {
+		this.ebxmlResponseDestinationUri = ebxmlResponseDestinationUri;
+	}
+	
+	public void setIdempotentRepository(final IdempotentRepository<?> idempotentRepository) {
+		this.idempotentRepository = idempotentRepository;
+	}
+	
 	
 	/**
 	 * URI of internal route to publish outgoing payloads and to create the
@@ -40,32 +67,18 @@ public class MultipartMessageReceiverRoute extends RouteBuilder {
 	 * <p>
 	 * input and output (internal route)
 	 */
-	private final String payloadPublisherUri = "seda:multipart-payload-publisher";
-	
-	/**
-	 * URI where outgoing payload messages are sent to
-	 * <p>
-	 * output only
-	 */
-	private final String payloadDestinationUri = "mock:multipart-payloads";
+	private String getPayloadPublisherUri() {
+		return internalSedaUri("multipart-payload-publisher");
+	}
 	
 	/**
 	 * URI of internal route to send outgoing ebxml responses
 	 * <p>
 	 * input and output (internal route)
 	 */
-	private final String ebxmlResponseSenderUri = "seda:ebxml-response-sender";	
-	
-	/**
-	 * URI where outgoing ebxml response messages are sent to
-	 * <p>
-	 * output only
-	 */
-	private final String ebxmlResponseDestinationUri = "mock:ebxml-responses";
-	
-	
-	// TODO: Make IdempotentRepository configurable
-	private final IdempotentRepository<?> idempotentRepository = new MemoryIdempotentRepository();
+	private String getEbxmlResponseSenderUri() {
+		return internalSedaUri("ebxml-response-sender");
+	}	
 	
 	@Override
 	public void configure() throws Exception {		
@@ -86,7 +99,7 @@ public class MultipartMessageReceiverRoute extends RouteBuilder {
 			.onCompletion().onCompleteOnly()
 				.setExchangePattern(ExchangePattern.InOnly)
 				.setBody(property(PAYLOAD_PROPERTY))
-				.to(payloadPublisherUri)
+				.to(getPayloadPublisherUri())
 			.end()
 			
 			.convertBodyTo(MultipartBody.class)
@@ -110,12 +123,12 @@ public class MultipartMessageReceiverRoute extends RouteBuilder {
 	 * determined by the type / content of the payload.
 	 */
 	private void configurePayloadPublisher() {
-		from(payloadPublisherUri)
+		from(getPayloadPublisherUri())
 			// On failure - send ebxml delivery failure notification
 			.onCompletion().onFailureOnly()
 				.setBody().property(MANIFEST_PROPERTY)
 				.setBody().spel("#{body.generateDeliveryFailureNotification('Unable to deliver payload')}")
-				.to(ebxmlResponseSenderUri)
+				.to(getEbxmlResponseSenderUri())
 			.end()
 	
 			// Publish payload message for processing - but only if not successfully processed already
@@ -132,7 +145,7 @@ public class MultipartMessageReceiverRoute extends RouteBuilder {
 				// always send ebxml ack (i.e. if previously acked or if publishing was successful)
 				.setBody().property(MANIFEST_PROPERTY)
 				.setBody(simple("${body.generateAcknowledgment()}"))
-				.to(ebxmlResponseSenderUri)
+				.to(getEbxmlResponseSenderUri())
 			.end()
 		.end();
 	}
@@ -142,7 +155,7 @@ public class MultipartMessageReceiverRoute extends RouteBuilder {
 	 */
 	// TODO: does outgoing ack response need retry logic / error hander?
 	private void configureEbxmlResponseSender() {
-		from(ebxmlResponseSenderUri)
+		from(getEbxmlResponseSenderUri())
 			.convertBodyTo(String.class)
 			.to(ebxmlResponseDestinationUri);
 	}

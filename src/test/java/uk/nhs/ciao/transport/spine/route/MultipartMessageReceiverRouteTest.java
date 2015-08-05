@@ -37,6 +37,10 @@ public class MultipartMessageReceiverRouteTest {
 		context = new DefaultCamelContext();
 		producerTemplate = new DefaultProducerTemplate(context);
 		
+		final MultipartMessageReceiverRoute route = new MultipartMessageReceiverRoute();
+		route.setMultipartReceiverUri("direct:multipart-receiver");
+		route.setPayloadDestinationUri("mock:multipart-payloads");
+		route.setEbxmlResponseDestinationUri("mock:ebxml-responses");
 		context.addRoutes(new MultipartMessageReceiverRoute());
 		
 		context.start();
