@@ -14,11 +14,13 @@
 	<import resource="classpath*:META-INF/spring/ssl/${sslConfig}.xml"/>
 	<import resource="classpath*:META-INF/spring/messaging/spine.xml"/>
     
+    <bean id="spineTransportRoutes" class="uk.nhs.ciao.transport.spine.route.SpineTransportRoutes" />
+    
 	<camelContext xmlns="http://camel.apache.org/schema/spring" id="camel" trace="true" streamCache="true">
 		<properties>
 			<property key="CamelLogDebugStreams" value="true" />
 		</properties>
 		
-		<package>uk.nhs.ciao.transport.spine.route</package>		
+		<routeBuilder ref="spineTransportRoutes" /> 
 	</camelContext>
 </beans>
