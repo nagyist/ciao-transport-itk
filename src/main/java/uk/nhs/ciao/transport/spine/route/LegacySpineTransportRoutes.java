@@ -6,6 +6,7 @@ import static uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressSenderRou
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
+import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
@@ -14,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 
-import uk.nhs.ciao.CIPRoutes;
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
@@ -27,13 +27,13 @@ import uk.nhs.ciao.transport.spine.trunk.TrunkRequestPropertiesFactory;
  * Configures multiple camel CDA builder routes determined by properties specified
  * in the applications registered {@link CIAOConfig}.
  */
-public class SpineTransportRoutes extends CIPRoutes {
-	private static final Logger LOGGER = LoggerFactory.getLogger(SpineTransportRoutes.class);
+public class LegacySpineTransportRoutes extends RouteBuilder {
+	private static final Logger LOGGER = LoggerFactory.getLogger(LegacySpineTransportRoutes.class);
 	private static final String EBXML_ACK_RECEIVER_URL = "direct:asyncEbxmlAcks";
 	private static final String ITK_ACK_RECEIVER_URL = "direct:asyncItkAcks";
 	private final Namespaces namespaces;
 	
-	public SpineTransportRoutes() {
+	public LegacySpineTransportRoutes() {
 		namespaces = new Namespaces("soap", "http://schemas.xmlsoap.org/soap/envelope/");
 		namespaces.add("eb", "http://www.oasis-open.org/committees/ebxml-msg/schema/msg-header-2_0.xsd");
 	}
@@ -44,9 +44,7 @@ public class SpineTransportRoutes extends CIPRoutes {
 	 * @throws RuntimeException If required CIAO-config properties are missing
 	 */
 	@Override
-	public void configure() {
-		super.configure();
-
+	public void configure() throws Exception {
 		configureTrunkRequestBuilder();
 		configureTrunkRequestSender();
 		configureSpineSender();
