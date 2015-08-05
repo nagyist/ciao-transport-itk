@@ -50,7 +50,10 @@ public class ITKMessageReceiverRouteTest {
 		propegationRequired.setPropagationBehaviorName("PROPAGATION_REQUIRED");
 		registry.put("PROPAGATION_REQUIRED", propegationRequired);
 		
-		context.addRoutes(new ITKMessageReceiverRoute());
+		final ITKMessageReceiverRoute route = new ITKMessageReceiverRoute();
+		route.setItkMessageReceiverUri("direct:itk-message-receiver");
+		route.setInProgressDirectoryUri("mock:in-progress-directory");
+		context.addRoutes(route);
 		
 		context.start();
 		producerTemplate.start();

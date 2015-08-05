@@ -2,14 +2,11 @@ package uk.nhs.ciao.transport.spine.route;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
-import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.apache.camel.spi.IdempotentRepository;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Strings;
 
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
@@ -24,22 +21,14 @@ import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
  * been extracted and stored for later processing. Business acks (if requested
  * in the envelope) are the responsibility of another route.
  */
-public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
+public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeReceiverRoute.class);
 	
-	private String internalRoutePrefix;
 	private String distributionEnvelopeReceiverUri = "direct:distribution-envelope-receiver";
 	private String payloadDestinationUri = "mock:distribution-envelope-payloads";
 	private String infrastructureResponseDestinationUri = "mock:infrastructure-responses";
 	private IdempotentRepository<?> idempotentRepository = new MemoryIdempotentRepository();
 	private InfrastructureResponseFactory infrastructureResponseFactory = new InfrastructureResponseFactory();
-	
-	/**
-	 * Path prefix added to all generated internal route URLs (to ensure uniqueness)
-	 */
-	public void setInternalRoutePrefix(final String internalRoutePrefix) {
-		this.internalRoutePrefix = internalRoutePrefix;
-	}
 	
 	/**
 	 * URI where incoming distribution envelope messages are received from
@@ -83,7 +72,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	 * input and output (internal route)
 	 */
 	private String getPayloadPublisherUri() {
-		return internalUri("direct", "distribution-envelope-payload-publisher");
+		return internalDirectUri("distribution-envelope-payload-publisher");
 	}
 	
 	/**
@@ -92,7 +81,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	 * input and output (internal route)
 	 */
 	private String getDeliveryFailureSenderUri() {
-		return internalUri("direct", "delivery-failure-sender");
+		return internalDirectUri("delivery-failure-sender");
 	}
 	
 	/**
@@ -101,16 +90,7 @@ public class DistributionEnvelopeReceiverRoute extends RouteBuilder {
 	 * input and output (internal route)
 	 */
 	private String getInfrastructureResponseSenderUri() {
-		return internalUri("seda", "infrastructure-response-sender");
-	}
-	
-	private String internalUri(final String scheme, final String path) {
-		final StringBuilder builder = new StringBuilder(scheme).append(":");
-		if (!Strings.isNullOrEmpty(internalRoutePrefix)) {
-			builder.append(internalRoutePrefix).append("/");
-		}
-		builder.append(path);
-		return builder.toString();
+		return internalSedaUri("infrastructure-response-sender");
 	}
 	
 	@Override

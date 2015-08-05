@@ -2,7 +2,6 @@ package uk.nhs.ciao.transport.spine.route;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
-import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
@@ -23,31 +22,21 @@ import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
  * either in this route or in a child of this route. Infrastructure acks are handled
  * lower down the protocol stack before the message is receieved by this route.
  */
-public class ITKMessageReceiverRoute extends RouteBuilder {
+public class ITKMessageReceiverRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ITKMessageReceiverRoute.class);
 	
-	// TODO: Make in/out route URLs configurable
+	private String itkMessageReceiverUri = "direct:itk-message-receiver";
+	private String inProgressDirectoryUri = "mock:in-progress-directory";
 	
 	/**
 	 * URI where incoming ITK messages are received from
 	 * <p>
 	 * input only
 	 */
-	private final String itkMessageReceiverUri = "direct:itk-message-receiver";
+	public void setItkMessageReceiverUri(String itkMessageReceiverUri) {
+		this.itkMessageReceiverUri = itkMessageReceiverUri;
+	}
 	
-	/**
-	 * URI of internal route to handle incoming infrastructure acks
-	 * <p>
-	 * input and output (internal route)
-	 */
-	private final String infrastructureAckHandlerUri = "direct:infrastructure-ack-handler";
-	
-	/**
-	 * URI of internal route to handle incoming business acks
-	 * <p>
-	 * input and output (internal route)
-	 */
-	private final String businessAckHandlerUri = "direct:business-ack-handler";
 	
 	/**
 	 * URI of the route that will store received acknowledgements in the in-progress
@@ -59,7 +48,28 @@ public class ITKMessageReceiverRoute extends RouteBuilder {
 	 * <p>
 	 * output only
 	 */
-	private final String inProgressDirectoryRef = "mock:in-progress-directory";
+	public void setInProgressDirectoryUri(final String inProgressDirectoryRef) {
+		this.inProgressDirectoryUri = inProgressDirectoryRef;
+	}
+	
+	
+	/**
+	 * URI of internal route to handle incoming infrastructure acks
+	 * <p>
+	 * input and output (internal route)
+	 */
+	private String getInfrastructureAckHandlerUri() {
+		return internalDirectUri("infrastructure-ack-handler");
+	}
+	
+	/**
+	 * URI of internal route to handle incoming business acks
+	 * <p>
+	 * input and output (internal route)
+	 */
+	private String getBusinessAckHandlerUri() {
+		return internalDirectUri("business-ack-handler");
+	}	
 	
 	@Override
 	public void configure() throws Exception {
@@ -85,10 +95,10 @@ public class ITKMessageReceiverRoute extends RouteBuilder {
 			.convertBodyTo(DistributionEnvelope.class)
 			.choice()
 				.when().simple("${body.handlingSpec.infrastructureAck}")
-					.to(infrastructureAckHandlerUri)
+					.to(getInfrastructureAckHandlerUri())
 				.endChoice()
 				.when().simple("${body.handlingSpec.businessAck}")
-					.to(businessAckHandlerUri)
+					.to(getBusinessAckHandlerUri())
 				.endChoice()
 				.otherwise()
 					.log(LoggingLevel.WARN, LOGGER, "Unsupported ITK message interaction: ${body.handlingSpec.interaction}")
@@ -102,7 +112,7 @@ public class ITKMessageReceiverRoute extends RouteBuilder {
 	 * Route to handle an infrastructure ack
 	 */
 	private void configureInfrastructureAckHandler() {
-		from(infrastructureAckHandlerUri)
+		from(getInfrastructureAckHandlerUri())
 			.setBody().spel("#{body.getDecodedPayloadBody(body.payloads[0].id)}")
 			.convertBodyTo(String.class)
 
@@ -121,7 +131,7 @@ public class ITKMessageReceiverRoute extends RouteBuilder {
 			
 			// Restore the original body
 			.setBody().property("properties.originalBody")
-			.to(inProgressDirectoryRef)			
+			.to(inProgressDirectoryUri)			
 		.end();
 	}
 	
@@ -131,7 +141,7 @@ public class ITKMessageReceiverRoute extends RouteBuilder {
 	private void configureBusinessAckHandler() {
 		final Namespaces namespaces = new Namespaces("hl7", "urn:hl7-org:v3");
 		
-		from(businessAckHandlerUri)
+		from(getBusinessAckHandlerUri())
 			.log(LoggingLevel.INFO, LOGGER, "Got an business ack")
 			.setBody().spel("#{body.getDecodedPayloadBody(body.payloads[0].id)}")
 			.convertBodyTo(String.class)
@@ -147,7 +157,7 @@ public class ITKMessageReceiverRoute extends RouteBuilder {
 				.endChoice()
 			.end()
 			
-			.to(inProgressDirectoryRef)	
+			.to(inProgressDirectoryUri)	
 		.end();
 	}
 }
