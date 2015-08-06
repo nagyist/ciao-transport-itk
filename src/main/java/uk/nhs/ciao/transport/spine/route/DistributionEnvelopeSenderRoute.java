@@ -128,6 +128,7 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	 */
 	public EbxmlEnvelope startEbxmlManifest(final DistributionEnvelope envelope) {
 		final EbxmlEnvelope ebxmlManifest = new EbxmlEnvelope();
+		ebxmlManifest.setAckRequested(true);
 		
 		// TODO: pick up details from the envelope (i.e. ToParty!)
 		

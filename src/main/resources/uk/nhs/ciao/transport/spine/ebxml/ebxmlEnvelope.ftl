@@ -44,6 +44,9 @@
 			
 			<eb:duplicateElimination />
 		</eb:MessageHeader>
+		<#if ackRequested>
+		<eb:AckRequested eb:version="2.0" soap:mustUnderstand="1" soap:actor="urn:oasis:names:tc:ebxml-msg:actor:toPartyMSH" eb:signed="false"/>
+		</#if>
 		<#if acknowledgment>
 		<eb:Acknowledgment eb:version="2.0" soap:mustUnderstand="1" soap:actor="urn:oasis:names:tc:ebxml-msg:actor:toPartyMSH">
 			<#if messageData.timestamp??>

@@ -112,6 +112,7 @@ public class EbxmlEnvelopeParser {
 		rules.add("Envelope/Header/MessageHeader/MessageData/Timestamp", new BeanPropertySetterRule("timestamp"));
 		rules.add("Envelope/Header/MessageHeader/MessageData/RefToMessageId", new BeanPropertySetterRule("refToMessageId"));
 		
+		rules.add("Envelope/Header/AckRequested", new AckRequestedRule());
 		rules.add("Envelope/Header/Acknowledgment", new AcknowledgmentRule());
 		
 		rules.add("Envelope/Header/ErrorList", new ErrorListRule());		
@@ -148,6 +149,17 @@ public class EbxmlEnvelopeParser {
 		@Override
 		public void end(final String namespace, final String name) throws Exception {
 			getDigester().pop();
+		}
+	}
+	
+	/**
+	 * Marks the envelope as wanting an acknowledgement when an AckRequested element is seen
+	 */
+	private class AckRequestedRule extends Rule {
+		@Override
+		public void begin(final String namespace, final String name,
+				final Attributes attributes) throws Exception {
+			getDigester().<EbxmlEnvelope>peek().setAckRequested(true);
 		}
 	}
 	

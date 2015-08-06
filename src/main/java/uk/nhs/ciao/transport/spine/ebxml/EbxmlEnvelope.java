@@ -51,6 +51,7 @@ public class EbxmlEnvelope {
 	private String service;
 	private String action;
 	private final MessageData messageData = new MessageData(); // required
+	private boolean ackRequested = true;
 	private boolean acknowledgment;
 	private ErrorDetail error;
 	private final List<ManifestReference> manifestReferences = Lists.newArrayList();
@@ -74,6 +75,7 @@ public class EbxmlEnvelope {
 		action = copyProperty(action, prototype.action, overwrite);
 		if (overwrite) {
 			acknowledgment = prototype.acknowledgment;
+			ackRequested = prototype.ackRequested;
 		}
 		
 		messageData.copyFrom(prototype.messageData, overwrite);
@@ -138,6 +140,14 @@ public class EbxmlEnvelope {
 
 	public void setAction(final String action) {
 		this.action = action;
+	}
+	
+	public boolean isAckRequested() {
+		return ackRequested;
+	}
+	
+	public void setAckRequested(final boolean ackRequested) {
+		this.ackRequested = ackRequested;
 	}
 
 	public boolean isAcknowledgment() {
@@ -281,6 +291,7 @@ public class EbxmlEnvelope {
 		reply.conversationId = conversationId;
 		reply.service = SERVICE_EBXML_MSG;
 		reply.messageData.refToMessageId = messageData.messageId;
+		reply.ackRequested = false;
 		
 		return reply;
 	}
@@ -295,6 +306,7 @@ public class EbxmlEnvelope {
 			.add("service", service)
 			.add("action", action)
 			.add("messageData", messageData)
+			.add("ackRequested", ackRequested)
 			.add("acknowledgment", acknowledgment)
 			.add("error", error)
 			.add("manifestReferences", manifestReferences)
