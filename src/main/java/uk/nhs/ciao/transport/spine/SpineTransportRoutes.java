@@ -3,6 +3,7 @@ package uk.nhs.ciao.transport.spine;
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
 
+import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeSenderRoute;
 import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.HttpServerRoute;
 import uk.nhs.ciao.transport.spine.route.LegacySpineTransportRoutes;
@@ -19,9 +20,21 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	public void addRoutesToCamelContext(final CamelContext context) throws Exception {
 		context.addRoutes(new LegacySpineTransportRoutes());
 		
+		addDistributionEnvelopeSenderRoute(context);
 		addMultipartMessageSenderRoute(context);
 		addHttpServerRoute(context);
 		addEbxmlAckReceieverRoute(context);
+	}
+	
+	private void addDistributionEnvelopeSenderRoute(final CamelContext context) throws Exception {
+		final DistributionEnvelopeSenderRoute route = new DistributionEnvelopeSenderRoute();
+		
+		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
+		route.setMultipartMessageSenderUri("jms:queue:{{trunkRequestQueue}}");
+		
+		// TODO: Add prototype objects to populate different parts of the message
+		
+		context.addRoutes(route);
 	}
 	
 	private void addMultipartMessageSenderRoute(final CamelContext context) throws Exception {
