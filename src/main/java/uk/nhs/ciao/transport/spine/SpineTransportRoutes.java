@@ -3,6 +3,7 @@ package uk.nhs.ciao.transport.spine;
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
 
+import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.HttpServerRoute;
 import uk.nhs.ciao.transport.spine.route.LegacySpineTransportRoutes;
 import uk.nhs.ciao.transport.spine.route.MultipartMessageSenderRoute;
@@ -19,6 +20,8 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		context.addRoutes(new LegacySpineTransportRoutes());
 		
 		addMultipartMessageSenderRoute(context);
+		addHttpServerRoute(context);
+		addEbxmlAckReceieverRoute(context);
 	}
 	
 	private void addMultipartMessageSenderRoute(final CamelContext context) throws Exception {
@@ -38,6 +41,15 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		route.setHttpServerUrl("{{spine.fromUri}}");
 		route.setEbxmlAckReceieverUrl("direct:asyncEbxmlAcks");
 		route.setMultipartMessageReceieverUrl("direct:asyncItkAcks"); // Select a better route name
+		
+		context.addRoutes(route);
+	}
+	
+	private void addEbxmlAckReceieverRoute(final CamelContext context) throws Exception {
+		final EbxmlAckReceiverRoute route = new EbxmlAckReceiverRoute();
+		
+		route.setEbxmlAckReceiverUrl("direct:asyncEbxmlAcks");
+		route.setEbxmlAckDestinationUrl("{{spine.replyUri}}");
 		
 		context.addRoutes(route);
 	}
