@@ -24,8 +24,8 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeReceiverRoute.class);
 	
 	private String distributionEnvelopeReceiverUri;
-	private String payloadDestinationUri;
-	private String infrastructureResponseDestinationUri;
+	private String itkMessageReceiverUri;
+	private String distributionEnvelopeSenderUri;
 	private IdempotentRepository<?> idempotentRepository;
 	private InfrastructureResponseFactory infrastructureResponseFactory;
 	
@@ -39,21 +39,21 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 	}
 	
 	/**
-	 * URI where outgoing payload messages are sent to
+	 * URI where outgoing ITK payload messages are sent to
 	 * <p>
 	 * output only
 	 */
-	public void setPayloadDestinationUri(final String payloadDestinationUri) {
-		this.payloadDestinationUri = payloadDestinationUri;
+	public void setItkMessageReceiverUri(final String itkMessageReceiverUri) {
+		this.itkMessageReceiverUri = itkMessageReceiverUri;
 	}
 	
 	/**
-	 * URI where outgoing infrastructure response messages are sent to
+	 * URI where outgoing distribution envelope (infrastructure response) messages are sent to
 	 * <p>
 	 * output only
 	 */
-	public void setInfrastructureResponseDestinationUri(final String infrastructureResponseDestinationUri) {
-		this.infrastructureResponseDestinationUri = infrastructureResponseDestinationUri;
+	public void setDistributionEnvelopeSenderUri(final String distributionEnvelopeSenderUri) {
+		this.distributionEnvelopeSenderUri = distributionEnvelopeSenderUri;
 	}
 	
 	public void setIdempotentRepository(final IdempotentRepository<?> idempotentRepository) {
@@ -155,7 +155,7 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 			.skipDuplicate(false)
 				// only publish if not handled already
 				.filter(property(Exchange.DUPLICATE_MESSAGE).isNull())
-					.to(payloadDestinationUri)
+					.to(itkMessageReceiverUri)
 				.end()
 	
 				// send infrastructure acknowledgement
@@ -192,11 +192,13 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 	
 	/**
 	 * Route to send outgoing infrastructure acknowledgement and delivery fault async responses
+	 * <p>
+	 * Processed in a separate thread via an internal seda route so as not to hold up the main processing flow
 	 */
 	// TODO: does outgoing ack response need retry logic / error hander? this will probably get handled by the outgoing spine component... (refactoring required)
 	private void configureInfrastructureResponseSender() {
 		from(getInfrastructureResponseSenderUri())
 			.convertBodyTo(String.class)
-			.to(infrastructureResponseDestinationUri);
+			.to(distributionEnvelopeSenderUri);
 	}
 }

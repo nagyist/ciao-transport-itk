@@ -60,8 +60,8 @@ public class DistributionEnvelopeMessageReceiverRouteTest {
 		
 		final DistributionEnvelopeReceiverRoute route = new DistributionEnvelopeReceiverRoute();
 		route.setDistributionEnvelopeReceiverUri("direct:distribution-envelope-receiver");
-		route.setPayloadDestinationUri("mock:distribution-envelope-payloads");
-		route.setInfrastructureResponseDestinationUri("mock:infrastructure-responses");
+		route.setItkMessageReceiverUri("mock:distribution-envelope-payloads");
+		route.setDistributionEnvelopeSenderUri("mock:infrastructure-responses");
 		route.setIdempotentRepository(new MemoryIdempotentRepository());
 		route.setInfrastructureResponseFactory(new InfrastructureResponseFactory());
 		

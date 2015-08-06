@@ -22,8 +22,8 @@ import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
  * either in this route or in a child of this route. Infrastructure acks are handled
  * lower down the protocol stack before the message is receieved by this route.
  */
-public class ITKMessageReceiverRoute extends BaseRouteBuilder {
-	private static final Logger LOGGER = LoggerFactory.getLogger(ITKMessageReceiverRoute.class);
+public class ItkMessageReceiverRoute1 extends BaseRouteBuilder {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ItkMessageReceiverRoute1.class);
 	
 	private String itkMessageReceiverUri;
 	private String inProgressDirectoryUri;

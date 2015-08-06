@@ -25,8 +25,8 @@ import uk.nhs.ciao.transport.spine.itk.Identity;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse.ErrorInfo;
 
-public class ITKMessageReceiverRouteTest {
-	private static final Logger LOGGER = LoggerFactory.getLogger(ITKMessageReceiverRouteTest.class);
+public class ItkMessageReceiverRoute1Test {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ItkMessageReceiverRoute1Test.class);
 	
 	private CamelContext context;
 	private ProducerTemplate producerTemplate;
@@ -50,7 +50,7 @@ public class ITKMessageReceiverRouteTest {
 		propegationRequired.setPropagationBehaviorName("PROPAGATION_REQUIRED");
 		registry.put("PROPAGATION_REQUIRED", propegationRequired);
 		
-		final ITKMessageReceiverRoute route = new ITKMessageReceiverRoute();
+		final ItkMessageReceiverRoute1 route = new ItkMessageReceiverRoute1();
 		route.setItkMessageReceiverUri("direct:itk-message-receiver");
 		route.setInProgressDirectoryUri("mock:in-progress-directory");
 		context.addRoutes(route);
