@@ -16,19 +16,19 @@ public class HttpServerRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(HttpServerRoute.class);
 	
 	private String httpServerUrl;
-	private String ebxmlAckReceieverUrl;
-	private String multipartMessageReceieverUrl;
+	private String ebxmlAckReceiverUrl;
+	private String multipartMessageReceiverUrl;
 	
 	public void setHttpServerUrl(final String httpServerUrl) {
 		this.httpServerUrl = httpServerUrl;
 	}
 	
-	public void setEbxmlAckReceieverUrl(final String ebxmlAckReceieverUrl) {
-		this.ebxmlAckReceieverUrl = ebxmlAckReceieverUrl;
+	public void setEbxmlAckReceiverUrl(final String ebxmlAckReceiverUrl) {
+		this.ebxmlAckReceiverUrl = ebxmlAckReceiverUrl;
 	}
 	
-	public void setMultipartMessageReceieverUrl(final String multipartMessageReceieverUrl) {
-		this.multipartMessageReceieverUrl = multipartMessageReceieverUrl;
+	public void setMultipartMessageReceiverUrl(final String multipartMessageReceiverUrl) {
+		this.multipartMessageReceiverUrl = multipartMessageReceiverUrl;
 	}
 	
 	@Override
@@ -37,10 +37,10 @@ public class HttpServerRoute extends BaseRouteBuilder {
 			.id("http-server")
 			.choice()
 			.when(header("SOAPAction").isEqualTo("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
-				.to(ebxmlAckReceieverUrl)
+				.to(ebxmlAckReceiverUrl)
 			.endChoice()
 			.when(header("SOAPAction").startsWith("urn:nhs:names:services:itk/"))
-				.to(multipartMessageReceieverUrl)
+				.to(multipartMessageReceiverUrl)
 			.endChoice()
 			.otherwise()
 				.log(LoggingLevel.WARN, LOGGER, "Unsupported SOAPAction receieved: ${header.SOAPAction}")

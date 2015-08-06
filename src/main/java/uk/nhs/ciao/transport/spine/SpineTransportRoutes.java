@@ -19,11 +19,17 @@ import uk.nhs.ciao.transport.spine.route.MultipartMessageSenderRoute;
 public class SpineTransportRoutes implements RoutesBuilder {
 	@Override
 	public void addRoutesToCamelContext(final CamelContext context) throws Exception {
+		// senders
 		addItkDocumentSenderRoute(context);
 		addDistributionEnvelopeSenderRoute(context);
 		addMultipartMessageSenderRoute(context);
+		
+		// receivers
 		addHttpServerRoute(context);
 		addEbxmlAckReceieverRoute(context);
+		addMultipartMessageReceiverRoute(context);
+		addDistributionEnvelopeReceiverRoute(context);
+		addItkMessageReceiverRoute(context);
 	}
 	
 	private void addItkDocumentSenderRoute(final CamelContext context) throws Exception {
@@ -66,8 +72,8 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		final HttpServerRoute route = new HttpServerRoute();
 		
 		route.setHttpServerUrl("{{spine.fromUri}}");
-		route.setEbxmlAckReceieverUrl("direct:asyncEbxmlAcks");
-		route.setMultipartMessageReceieverUrl("direct:asyncItkAcks"); // Select a better route name
+		route.setEbxmlAckReceiverUrl("direct:ebxml-ack-receiver");
+		route.setMultipartMessageReceiverUrl("direct:multipart-message-receiever");
 		
 		context.addRoutes(route);
 	}
@@ -75,9 +81,21 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	private void addEbxmlAckReceieverRoute(final CamelContext context) throws Exception {
 		final EbxmlAckReceiverRoute route = new EbxmlAckReceiverRoute();
 		
-		route.setEbxmlAckReceiverUrl("direct:asyncEbxmlAcks");
+		route.setEbxmlAckReceiverUrl("direct:ebxml-ack-receiver");
 		route.setEbxmlAckDestinationUrl("{{spine.replyUri}}");
 		
 		context.addRoutes(route);
+	}
+	
+	private void addMultipartMessageReceiverRoute(final CamelContext context) throws Exception {
+		// TODO:
+	}
+	
+	private void addDistributionEnvelopeReceiverRoute(final CamelContext context) throws Exception {
+		// TODO:
+	}
+	
+	private void addItkMessageReceiverRoute(final CamelContext context) throws Exception {
+		// TODO:
 	}
 }
