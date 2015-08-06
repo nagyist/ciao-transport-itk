@@ -204,9 +204,13 @@ public class DistributionEnvelope {
 		return payload;
 	}
 	
-	public Payload addPayload(final ManifestItem manifestItem, final String payloadBody, final boolean encodeBody) throws IOException {		
-		if (encodeBody && payloadBody != null && (manifestItem.compressed || manifestItem.base64)) {
-			byte[] bytes = payloadBody.getBytes();
+	public Payload addPayload(final ManifestItem manifestItem, final byte[] payloadBody) throws IOException {
+		final String payloadBodyAsString;
+		
+		if (payloadBody == null) {
+			payloadBodyAsString = null;
+		} else if (manifestItem.compressed || manifestItem.base64) {
+			byte[] bytes = payloadBody;
 			if (manifestItem.compressed) {
 				ByteArrayOutputStream byteArrayOut = null;
 				GZIPOutputStream out = null;
@@ -224,17 +228,25 @@ public class DistributionEnvelope {
 				}
 			}
 			
-			final String encodedBody;
 			if (manifestItem.base64) {
-				encodedBody = DatatypeConverter.printBase64Binary(bytes);
+				payloadBodyAsString = DatatypeConverter.printBase64Binary(bytes);
 			} else {
-				encodedBody = new String(bytes);
+				payloadBodyAsString = new String(bytes);
 			}
 			
-			return addPayload(manifestItem, encodedBody);
+		} else {
+			payloadBodyAsString = new String(payloadBody);
 		}
 		
-		return addPayload(manifestItem, payloadBody);
+		return addPayload(manifestItem, payloadBodyAsString);
+	}
+	
+	public Payload addPayload(final ManifestItem manifestItem, final String payloadBody, final boolean encodeBody) throws IOException {	
+		if (encodeBody && payloadBody != null && (manifestItem.compressed || manifestItem.base64)) {
+			return addPayload(manifestItem, payloadBody.getBytes());
+		} else {
+			return addPayload(manifestItem, payloadBody);
+		}
 	}
 	
 	public void addPayload(final Payload payload) {
