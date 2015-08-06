@@ -4,7 +4,6 @@ import static uk.nhs.ciao.docs.parser.HeaderNames.*;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
-import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.model.dataformat.JsonLibrary;
@@ -44,7 +43,6 @@ public class LegacySpineTransportRoutes extends RouteBuilder {
 	public void configure() throws Exception {
 		configureTrunkRequestBuilder();
 		configureTrunkRequestSender();
-		configureHttpServer();
 		configureEbxmlAckReceiver();
 		configureItkAckReceiver();
 	}
@@ -110,26 +108,6 @@ public class LegacySpineTransportRoutes extends RouteBuilder {
 //		.doCatch(HttpOperationFailedException.class)
 //			.process(new HttpErrorHandler())
 		;
-	}
-	
-	/**
-	 * HTTP server for incoming messages (async ebXml acks as well as higher level ITK ack messages)
-	 * <ul>
-	 * <li>Determines the type of incoming message from the declared SOAPAction
-	 * <li>Routes the handling to a suitable direct route based on the type
-	 */
-	private void configureHttpServer() {
-		from("{{spine.fromUri}}")
-		.id("http-server")
-		.choice()
-		.when(header("SOAPAction").isEqualTo("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
-			.to(EBXML_ACK_RECEIVER_URL)
-		.endChoice()
-		.when(header("SOAPAction").isEqualTo(simple("urn:nhs:names:services:itk/{{interactionId}}")))
-			.to(ITK_ACK_RECEIVER_URL)
-		.endChoice()
-		.otherwise()
-			.log(LoggingLevel.WARN, LOGGER, "Unsupported SOAPAction receieved: ${header.SOAPAction}");
 	}
 	
 	/**
