@@ -507,6 +507,7 @@ public class DistributionEnvelope {
 	
 	public static class Address {
 		public static final String DEFAULT_TYPE = "2.16.840.1.113883.2.1.3.2.4.18.22";
+		private static final String ODS_URI_PREFIX = "urn:nhs-uk:addressing:ods:";
 		private String type;
 		private String uri;
 		
@@ -549,6 +550,18 @@ public class DistributionEnvelope {
 		
 		public boolean isDefaultType() {
 			return Strings.isNullOrEmpty(type) || DEFAULT_TYPE.equals(type);
+		}
+		
+		public void setODSCode(final String odsCode) {
+			this.uri = odsCode == null ? null : ODS_URI_PREFIX + odsCode;
+		}
+		
+		public String getODSCode() {
+			if (uri == null || !uri.startsWith(ODS_URI_PREFIX)) {
+				return null;
+			}
+			
+			return uri.substring(ODS_URI_PREFIX.length());
 		}
 		
 		@Override

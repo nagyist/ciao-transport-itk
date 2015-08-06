@@ -3,12 +3,17 @@ package uk.nhs.ciao.transport.spine.route;
 import org.apache.camel.Exchange;
 import org.apache.camel.Property;
 
+import com.google.common.base.Strings;
+
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
 import uk.nhs.ciao.transport.spine.hl7.HL7Part;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
+import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.multipart.Part;
+import uk.nhs.ciao.transport.spine.sds.PartyDetails;
+import uk.nhs.ciao.transport.spine.sds.PartyDetailsResolver;
 
 /**
  * Route to send an ITK distribution envelope over spine
@@ -26,6 +31,7 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	private DistributionEnvelope prototypeDistributionEnvelope;
 	private EbxmlEnvelope prototypeEbxmlManifest;
 	private HL7Part prototypeHl7Part;
+	private PartyDetailsResolver partyDetailsResolver;
 	
 	/**
 	 * URI where incoming distribution envelope messages are received from
@@ -81,6 +87,16 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 		prototypeHl7Part = prototype;
 	}
 	
+	/**
+	 * Sets the resolver used to lookup party details from ODS codes specified
+	 * in the distribution envelope
+	 * 
+	 * @param partyDetailsResolver The resolver to use
+	 */
+	public void setPartyDetailsResolver(final PartyDetailsResolver partyDetailsResolver) {
+		this.partyDetailsResolver = partyDetailsResolver;
+	}
+	
 	@Override
 	public void configure() throws Exception {
 		/*
@@ -88,10 +104,14 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 		 * and stored as properties until the body is built in the final stage 
 		 */
 		from(distributionEnvelopeSenderUri)				
-			// Configure the distribution envelop
+			// Configure the distribution envelope
 			.convertBodyTo(DistributionEnvelope.class)
 			.bean(new DistributionEnvelopePopulator())
 			.setProperty("distributionEnvelope").body()
+			
+			// Resolve recipient details
+			.bean(new RecipientResolver())
+			.setProperty("recipient").body()
 			
 			// Configure ebxml manifest
 			.bean(new EbxmlManifestBuilder())
@@ -128,14 +148,50 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	}
 	
 	/**
+	 * Resolves details of the recipient from the ODS code contained in the distribution envelope
+	 */
+	public class RecipientResolver {
+		public PartyDetails resolveRecipient(final DistributionEnvelope envelope) {
+			PartyDetails recipient = null;
+			
+			final String odsCode = getRecipientODSCode(envelope);
+			if (!Strings.isNullOrEmpty(odsCode) && partyDetailsResolver != null) {
+				partyDetailsResolver.resolveByODSCode(odsCode);
+			}
+			
+			return recipient == null ? new PartyDetails() : recipient;
+		}
+		
+		private String getRecipientODSCode(final DistributionEnvelope envelope) {
+			String odsCode = null;
+			
+			if (!envelope.getAddresses().isEmpty()) {
+				final Address address = envelope.getAddresses().get(0);
+				if (address != null) {
+					odsCode = address.getODSCode();
+				}
+			}
+			
+			return odsCode;
+		}
+	}
+	
+	/**
 	 * Builds an EbxmlManifest for the specified DistributionEnvelope
 	 */
 	public class EbxmlManifestBuilder {
-		public EbxmlEnvelope startEbxmlManifest(final DistributionEnvelope envelope) {
+		public EbxmlEnvelope startEbxmlManifest(@Property("distributionEnvelope") final DistributionEnvelope envelope,
+				@Property("recipient") final PartyDetails recipient) {
 			final EbxmlEnvelope ebxmlManifest = new EbxmlEnvelope();
 			ebxmlManifest.setAckRequested(true);
 			
-			// TODO: pick up details from the envelope (i.e. ToParty!)
+			if (!Strings.isNullOrEmpty(recipient.getCpaId())) {
+				ebxmlManifest.setCpaId(recipient.getCpaId());
+			}
+			
+			if (!Strings.isNullOrEmpty(recipient.getPartyKey())) {
+				ebxmlManifest.setToParty(recipient.getPartyKey());
+			}
 			
 			// Apply defaults from the prototype
 			final boolean overwrite = false;
@@ -151,10 +207,13 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	 */
 	public class HL7PartBuilder {
 		public HL7Part buildHl7Part(@Property("ebxmlManifest") final EbxmlEnvelope ebxmlManifest,
-				@Property("distributionEnvelope") final DistributionEnvelope envelope) {
+				@Property("distributionEnvelope") final DistributionEnvelope envelope,
+				@Property("recipient") final PartyDetails recipient) {
 			final HL7Part hl7Part = new HL7Part();
 			
-			// TODO: pick up details from the envelope / manifest (i.e. ReceiverAsid!)
+			if (!Strings.isNullOrEmpty(recipient.getAsid())) {
+				hl7Part.setReceiverAsid(recipient.getAsid());
+			}
 			hl7Part.setInteractionId(ebxmlManifest.getAction());
 			
 			// Apply defaults from the prototype

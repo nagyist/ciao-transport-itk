@@ -226,6 +226,10 @@ public class EbxmlEnvelope {
 		if (error != null) {
 			error.applyDefaults();
 		}
+		
+		if (conversationId == null) {
+			conversationId = messageData.messageId;
+		}
 	}
 	
 	/**
