@@ -3,7 +3,9 @@ package uk.nhs.ciao.transport.spine;
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
 
+import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeSenderRoute;
+import uk.nhs.ciao.transport.spine.route.ItkDocumentSenderRoute;
 import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.HttpServerRoute;
 import uk.nhs.ciao.transport.spine.route.LegacySpineTransportRoutes;
@@ -20,10 +22,20 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	public void addRoutesToCamelContext(final CamelContext context) throws Exception {
 		context.addRoutes(new LegacySpineTransportRoutes());
 		
+		addItkDocumentSenderRoute(context);
 		addDistributionEnvelopeSenderRoute(context);
 		addMultipartMessageSenderRoute(context);
 		addHttpServerRoute(context);
 		addEbxmlAckReceieverRoute(context);
+	}
+	
+	private void addItkDocumentSenderRoute(final CamelContext context) throws Exception {
+		final ItkDocumentSenderRoute route = new ItkDocumentSenderRoute();
+		
+		route.setDocumentSenderRouteUri("jms:queue:{{documentQueue}}?destination.consumer.prefetchSize=0");
+		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
+		
+		context.addRoutes(route);
 	}
 	
 	private void addDistributionEnvelopeSenderRoute(final CamelContext context) throws Exception {
@@ -32,7 +44,12 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
 		route.setMultipartMessageSenderUri("jms:queue:{{trunkRequestQueue}}");
 		
-		// TODO: Add prototype objects to populate different parts of the message
+		// TODO: Add/configure prototype objects to populate different parts of the message
+		
+		// Dummy prototypes for now!
+		final EbxmlEnvelope ebxmlPrototype = new EbxmlEnvelope();
+		ebxmlPrototype.setAction("COPC_IN000001GB01");
+		route.setPrototypeEbxmlManifest(ebxmlPrototype);
 		
 		context.addRoutes(route);
 	}

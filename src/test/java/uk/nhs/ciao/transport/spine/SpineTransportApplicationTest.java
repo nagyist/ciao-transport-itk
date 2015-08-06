@@ -41,6 +41,8 @@ import uk.nhs.ciao.configuration.impl.MemoryCipProperties;
 import uk.nhs.ciao.docs.parser.Document;
 import uk.nhs.ciao.docs.parser.HeaderNames;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
+import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
+import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
@@ -177,9 +179,13 @@ public class SpineTransportApplicationTest {
 			public void configure() throws Exception {
 				// Send an ack whenever a request is received
 				from("seda:trunk-request")
-				.to("language:constant:resource:classpath:/example-ack.xml")
-				.setHeader("JMSCorrelationID", constant("89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95"))
-				.setHeader(Exchange.CORRELATION_ID, constant("89EEFD54-7C9E-4B6F-93A8-835CFE6EFC95"))
+				.convertBodyTo(MultipartBody.class)
+				.setBody().spel("#{body.parts[0].body}")
+				.convertBodyTo(EbxmlEnvelope.class)
+				.setBody().spel("#{body.generateAcknowledgment()}")
+				.setHeader("JMSCorrelationID").simple("${body.messageData.refToMessageId}", String.class)
+				.setHeader(Exchange.CORRELATION_ID).header("JMSCorrelationID")
+				.convertBodyTo(String.class)
 				.setHeader("SOAPAction", constant("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
 				.to("direct:trunk-reply");
 				

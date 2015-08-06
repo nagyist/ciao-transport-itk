@@ -79,7 +79,14 @@ public class EbxmlEnvelope {
 		}
 		
 		messageData.copyFrom(prototype.messageData, overwrite);
-		error.copyFrom(prototype.error, overwrite);
+		
+		if (prototype.error != null) {
+			if (error == null) {
+				error = new ErrorDetail();
+			}
+			
+			error.copyFrom(prototype.error, overwrite);
+		}
 		
 		if ((manifestReferences.isEmpty() || overwrite) && !prototype.manifestReferences.isEmpty()) {
 			manifestReferences.clear();

@@ -29,7 +29,7 @@ public class LegacySpineTransportRoutes extends RouteBuilder {
 	 */
 	@Override
 	public void configure() throws Exception {
-		configureTrunkRequestBuilder();
+		//configureTrunkRequestBuilder();
 		configureItkAckReceiver();
 	}
 	
