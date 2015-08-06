@@ -13,6 +13,4 @@
 	<bean id="jetty" class="org.apache.camel.component.jetty.JettyHttpComponent">
 		<property name="sslContextParameters" ref="spineSSLContextParameters"/>
 	</bean>
-	
-	<bean id="spine" class="org.apache.camel.component.direct.DirectComponent" />
 </beans>

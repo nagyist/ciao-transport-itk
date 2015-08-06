@@ -1,7 +1,5 @@
 package uk.nhs.ciao.transport.spine.route;
 
-import static uk.nhs.ciao.docs.parser.HeaderNames.*;
-
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.model.dataformat.JsonLibrary;
@@ -13,7 +11,6 @@ import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
-import uk.nhs.ciao.transport.spine.forwardexpress.EbxmlAcknowledgementProcessor;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.trunk.TrunkRequestPropertiesFactory;
 
@@ -33,7 +30,6 @@ public class LegacySpineTransportRoutes extends RouteBuilder {
 	@Override
 	public void configure() throws Exception {
 		configureTrunkRequestBuilder();
-		configureTrunkRequestSender();
 		configureItkAckReceiver();
 	}
 	
@@ -64,40 +60,6 @@ public class LegacySpineTransportRoutes extends RouteBuilder {
 		.setHeader(Exchange.CORRELATION_ID).simple("${body.ebxmlCorrelationId}")
 		.to("freemarker:uk/nhs/ciao/transport/spine/trunk/TrunkRequest.ftl")
 		.to("jms:queue:{{trunkRequestQueue}}");
-	}
-	
-	/**
-	 * Outgoing trunk request message queue
-	 * <ul>
-	 * <li>Stores a copy of the outgoing request message in the document's in-progress folder
-	 * <li>Sends a multi-part trunk request message over the spine
-	 * <li>Blocks until an async ebXml ack is received off a configured JMS topic or a timeout occurs
-	 * <li>Marks message as success, retry or failure based on the ACK content
-	 */
-	private void configureTrunkRequestSender() {
-		from("jms:queue:{{trunkRequestQueue}}?destination.consumer.prefetchSize=0")
-		.id("trunk-request-sender")
-		.errorHandler(new TransactionErrorHandlerBuilder()
-			.asyncDelayedRedelivery()
-			.maximumRedeliveries(2)
-			.backOffMultiplier(2)
-			.redeliveryDelay(2000)
-			.log(LOGGER)
-			.logExhausted(true)
-		)
-		.transacted("PROPAGATION_NOT_SUPPORTED")
-		
-		// Store a copy of the outgoing request into the documents in-progress folder
-		.setHeader(Exchange.FILE_NAME, simple("${header." + IN_PROGRESS_FOLDER + "}/trunk-request"))
-		.to("file://.") // full location is determined by Exchange.FILE_NAME header
-		
-//		.doTry()
-			.to("spine:trunk")
-			.process(new EbxmlAcknowledgementProcessor())
-//		.endDoTry()
-//		.doCatch(HttpOperationFailedException.class)
-//			.process(new HttpErrorHandler())
-		;
 	}
 	
 	/**
