@@ -8,7 +8,6 @@ import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeSenderRoute;
 import uk.nhs.ciao.transport.spine.route.ItkDocumentSenderRoute;
 import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.HttpServerRoute;
-import uk.nhs.ciao.transport.spine.route.LegacySpineTransportRoutes;
 import uk.nhs.ciao.transport.spine.route.MultipartMessageSenderRoute;
 
 /**
@@ -20,8 +19,6 @@ import uk.nhs.ciao.transport.spine.route.MultipartMessageSenderRoute;
 public class SpineTransportRoutes implements RoutesBuilder {
 	@Override
 	public void addRoutesToCamelContext(final CamelContext context) throws Exception {
-		context.addRoutes(new LegacySpineTransportRoutes());
-		
 		addItkDocumentSenderRoute(context);
 		addDistributionEnvelopeSenderRoute(context);
 		addMultipartMessageSenderRoute(context);
