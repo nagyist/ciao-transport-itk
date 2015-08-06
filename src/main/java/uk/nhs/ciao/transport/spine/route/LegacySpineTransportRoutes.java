@@ -3,9 +3,7 @@ package uk.nhs.ciao.transport.spine.route;
 import static uk.nhs.ciao.docs.parser.HeaderNames.*;
 
 import org.apache.camel.Exchange;
-import org.apache.camel.ExchangePattern;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
@@ -25,15 +23,8 @@ import uk.nhs.ciao.transport.spine.trunk.TrunkRequestPropertiesFactory;
  */
 public class LegacySpineTransportRoutes extends RouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(LegacySpineTransportRoutes.class);
-	private static final String EBXML_ACK_RECEIVER_URL = "direct:asyncEbxmlAcks";
 	private static final String ITK_ACK_RECEIVER_URL = "direct:asyncItkAcks";
-	private final Namespaces namespaces;
-	
-	public LegacySpineTransportRoutes() {
-		namespaces = new Namespaces("soap", "http://schemas.xmlsoap.org/soap/envelope/");
-		namespaces.add("eb", "http://www.oasis-open.org/committees/ebxml-msg/schema/msg-header-2_0.xsd");
-	}
-	
+
 	/**
 	 * Creates multiple document parser routes
 	 * 
@@ -43,7 +34,6 @@ public class LegacySpineTransportRoutes extends RouteBuilder {
 	public void configure() throws Exception {
 		configureTrunkRequestBuilder();
 		configureTrunkRequestSender();
-		configureEbxmlAckReceiver();
 		configureItkAckReceiver();
 	}
 	
@@ -108,23 +98,6 @@ public class LegacySpineTransportRoutes extends RouteBuilder {
 //		.doCatch(HttpOperationFailedException.class)
 //			.process(new HttpErrorHandler())
 		;
-	}
-	
-	/**
-	 * Incoming ebXml ACK receiver route
-	 * <ul>
-	 * <li>Receives ebXml acks from a direct route (but originally from an HTTP request) [sync]
-	 * <li>Extracts the related original message id (for correlation)
-	 * <li>Adds the ebXml ack to a JMS topic for later processing (by the process holding the associated transaction open)
-	 */
-	private void configureEbxmlAckReceiver() {
-		from(EBXML_ACK_RECEIVER_URL)
-		.id("ebxml-ack-receiver")
-		.setHeader("JMSCorrelationID",
-			namespaces.xpath("/soap:Envelope/soap:Header/eb:Acknowledgment/eb:RefToMessageId", String.class))
-		.setHeader(Exchange.CORRELATION_ID).simple("${header.JMSCorrelationID}")
-		.setExchangePattern(ExchangePattern.InOnly)
-		.to("{{spine.replyUri}}");
 	}
 	
 	/**
