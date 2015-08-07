@@ -8,6 +8,7 @@ import com.google.common.base.Strings;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
 import uk.nhs.ciao.transport.spine.hl7.HL7Part;
+import uk.nhs.ciao.transport.spine.itk.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.multipart.Part;
@@ -24,7 +25,7 @@ import uk.nhs.ciao.transport.spine.sds.EndpointAddress;
 public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	private String distributionEnvelopeSenderUri;
 	private String multipartMessageSenderUri;
-	private String endpointAddressServiceUri;
+	private String endpointAddressEnricherUrl;
 	
 	// optional properties
 	private DistributionEnvelope prototypeDistributionEnvelope;
@@ -50,10 +51,10 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	}
 	
 	/**
-	 * URI of service used to resolve destination endpoint address details
+	 * URI of service used to enrich destination endpoint address details
 	 */
-	public void setEndpointAddressServiceUri(final String endpointAddressServiceUri) {
-		this.endpointAddressServiceUri = endpointAddressServiceUri;
+	public void setEndpointAddressEnricherUri(final String endpointAddressEnricherUrl) {
+		this.endpointAddressEnricherUrl = endpointAddressEnricherUrl;
 	}
 	
 	/**
@@ -105,13 +106,12 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 			.setProperty("distributionEnvelope").body()
 			
 			// Resolve destination address
-			.setHeader("address").simple("${body.addresses[0]}")
-			.setHeader("interaction").constant("TODO") // TODO: This needs to be determined: service:action (from ebXml)
-			.to(endpointAddressServiceUri)
+			.bean(new DestinationAddressBuilder())
+			.to(endpointAddressEnricherUrl)
 			
 			.choice()
 				.when().body()
-					.setProperty("recipient").body()
+					.setProperty("destination").body()
 				.endChoice()
 			.end()
 			
@@ -146,6 +146,24 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 			final boolean overwrite = false;
 			envelope.copyFrom(prototypeDistributionEnvelope, overwrite);
 			envelope.applyDefaults();
+		}
+	}
+	
+	public class DestinationAddressBuilder {
+		public EndpointAddress buildDestinationAdddress(final DistributionEnvelope envelope) {
+			final EndpointAddress destination = new EndpointAddress();
+			
+			final Address address = envelope.getAddresses().get(0);
+			if (address.isASID()) {
+				destination.setAsid(address.getUri());
+			} else if (address.isODS()) {
+				destination.setOdsCode(address.getODSCode());
+			}
+			
+			// TODO: interaction may need resolving first (ebXml -> service:action)
+			destination.setInteraction("DUMMY");
+			
+			return destination;
 		}
 	}
 	
