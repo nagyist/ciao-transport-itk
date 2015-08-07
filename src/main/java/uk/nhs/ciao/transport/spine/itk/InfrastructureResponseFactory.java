@@ -5,7 +5,6 @@ import org.apache.camel.TypeConversionException;
 import org.apache.camel.TypeConverter;
 
 import joptsimple.internal.Strings;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse.ErrorInfo;
 

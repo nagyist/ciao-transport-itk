@@ -1,7 +1,12 @@
 package uk.nhs.ciao.transport.spine;
 
+import java.util.List;
+
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
+import org.apache.camel.builder.RouteBuilder;
+
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeSenderRoute;
@@ -9,6 +14,10 @@ import uk.nhs.ciao.transport.spine.route.ItkDocumentSenderRoute;
 import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.HttpServerRoute;
 import uk.nhs.ciao.transport.spine.route.MultipartMessageSenderRoute;
+import uk.nhs.ciao.transport.spine.route.EndpointAddressServiceRoute;
+import uk.nhs.ciao.transport.spine.sds.MemoryEndpointAddressRepository;
+import uk.nhs.ciao.transport.spine.sds.EndpointAddress;
+import uk.nhs.ciao.transport.spine.util.GenericJacksonDataFormat;
 
 /**
  * Main routes builder for the spine transport
@@ -30,6 +39,9 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		addMultipartMessageReceiverRoute(context);
 		addDistributionEnvelopeReceiverRoute(context);
 		addItkMessageReceiverRoute(context);
+		
+		// services
+		addEndpointAddressServiceRoute(context);
 	}
 	
 	private void addItkDocumentSenderRoute(final CamelContext context) throws Exception {
@@ -46,6 +58,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
 		route.setMultipartMessageSenderUri("jms:queue:{{trunkRequestQueue}}");
+		route.setEndpointAddressServiceUri("direct:endpoint-address-service");
 		
 		// TODO: Add/configure prototype objects to populate different parts of the message
 		
@@ -97,5 +110,27 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	
 	private void addItkMessageReceiverRoute(final CamelContext context) throws Exception {
 		// TODO:
+	}
+	
+	private void addEndpointAddressServiceRoute(final CamelContext context) throws Exception {
+		final EndpointAddressServiceRoute route = new EndpointAddressServiceRoute();
+		
+		route.setEndpointAddressServiceUri("direct:endpoint-address-service");
+		
+		// TODO: Work out how to configure this
+		final MemoryEndpointAddressRepository repository = new MemoryEndpointAddressRepository();
+		route.setEndpointAddressRepository(repository);
+		
+		context.addRoutes(new RouteBuilder() {
+			@Override
+			public void configure() throws Exception {
+				from("file:./?fileName=endpoint-addresses.json")
+					.unmarshal(new GenericJacksonDataFormat(new TypeReference<List<EndpointAddress>>() {}))
+					.bean(repository, "storeAll")
+				.end();
+			}
+		});
+		
+		context.addRoutes(route);
 	}
 }

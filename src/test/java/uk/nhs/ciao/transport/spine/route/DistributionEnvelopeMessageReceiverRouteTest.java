@@ -26,8 +26,8 @@ import org.unitils.reflectionassert.ReflectionAssert;
 
 import com.google.common.base.Throwables;
 
+import uk.nhs.ciao.transport.spine.itk.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;

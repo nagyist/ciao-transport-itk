@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import uk.nhs.ciao.docs.parser.Document;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
+import uk.nhs.ciao.transport.spine.itk.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 
 /**

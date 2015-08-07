@@ -9,11 +9,9 @@ import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
 import uk.nhs.ciao.transport.spine.hl7.HL7Part;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.multipart.Part;
-import uk.nhs.ciao.transport.spine.sds.PartyDetails;
-import uk.nhs.ciao.transport.spine.sds.PartyDetailsResolver;
+import uk.nhs.ciao.transport.spine.sds.EndpointAddress;
 
 /**
  * Route to send an ITK distribution envelope over spine
@@ -26,12 +24,12 @@ import uk.nhs.ciao.transport.spine.sds.PartyDetailsResolver;
 public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	private String distributionEnvelopeSenderUri;
 	private String multipartMessageSenderUri;
+	private String endpointAddressServiceUri;
 	
 	// optional properties
 	private DistributionEnvelope prototypeDistributionEnvelope;
 	private EbxmlEnvelope prototypeEbxmlManifest;
 	private HL7Part prototypeHl7Part;
-	private PartyDetailsResolver partyDetailsResolver;
 	
 	/**
 	 * URI where incoming distribution envelope messages are received from
@@ -49,6 +47,13 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	 */
 	public void setMultipartMessageSenderUri(final String multipartMessageSenderUri) {
 		this.multipartMessageSenderUri = multipartMessageSenderUri;
+	}
+	
+	/**
+	 * URI of service used to resolve destination endpoint address details
+	 */
+	public void setEndpointAddressServiceUri(final String endpointAddressServiceUri) {
+		this.endpointAddressServiceUri = endpointAddressServiceUri;
 	}
 	
 	/**
@@ -87,16 +92,6 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 		prototypeHl7Part = prototype;
 	}
 	
-	/**
-	 * Sets the resolver used to lookup party details from ODS codes specified
-	 * in the distribution envelope
-	 * 
-	 * @param partyDetailsResolver The resolver to use
-	 */
-	public void setPartyDetailsResolver(final PartyDetailsResolver partyDetailsResolver) {
-		this.partyDetailsResolver = partyDetailsResolver;
-	}
-	
 	@Override
 	public void configure() throws Exception {
 		/*
@@ -109,9 +104,16 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 			.bean(new DistributionEnvelopePopulator())
 			.setProperty("distributionEnvelope").body()
 			
-			// Resolve recipient details
-			.bean(new RecipientResolver())
-			.setProperty("recipient").body()
+			// Resolve destination address
+			.setHeader("address").simple("${body.addresses[0]}")
+			.setHeader("interaction").constant("TODO") // TODO: This needs to be determined: service:action (from ebXml)
+			.to(endpointAddressServiceUri)
+			
+			.choice()
+				.when().body()
+					.setProperty("recipient").body()
+				.endChoice()
+			.end()
 			
 			// Configure ebxml manifest
 			.bean(new EbxmlManifestBuilder())
@@ -148,49 +150,22 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	}
 	
 	/**
-	 * Resolves details of the recipient from the ODS code contained in the distribution envelope
-	 */
-	public class RecipientResolver {
-		public PartyDetails resolveRecipient(final DistributionEnvelope envelope) {
-			PartyDetails recipient = null;
-			
-			final String odsCode = getRecipientODSCode(envelope);
-			if (!Strings.isNullOrEmpty(odsCode) && partyDetailsResolver != null) {
-				partyDetailsResolver.resolveByODSCode(odsCode);
-			}
-			
-			return recipient == null ? new PartyDetails() : recipient;
-		}
-		
-		private String getRecipientODSCode(final DistributionEnvelope envelope) {
-			String odsCode = null;
-			
-			if (!envelope.getAddresses().isEmpty()) {
-				final Address address = envelope.getAddresses().get(0);
-				if (address != null) {
-					odsCode = address.getODSCode();
-				}
-			}
-			
-			return odsCode;
-		}
-	}
-	
-	/**
 	 * Builds an EbxmlManifest for the specified DistributionEnvelope
 	 */
 	public class EbxmlManifestBuilder {
 		public EbxmlEnvelope startEbxmlManifest(@Property("distributionEnvelope") final DistributionEnvelope envelope,
-				@Property("recipient") final PartyDetails recipient) {
+				@Property("destination") final EndpointAddress destination) {
 			final EbxmlEnvelope ebxmlManifest = new EbxmlEnvelope();
 			ebxmlManifest.setAckRequested(true);
 			
-			if (!Strings.isNullOrEmpty(recipient.getCpaId())) {
-				ebxmlManifest.setCpaId(recipient.getCpaId());
-			}
-			
-			if (!Strings.isNullOrEmpty(recipient.getPartyKey())) {
-				ebxmlManifest.setToParty(recipient.getPartyKey());
+			if (destination != null) {
+				if (!Strings.isNullOrEmpty(destination.getCpaId())) {
+					ebxmlManifest.setCpaId(destination.getCpaId());
+				}
+				
+				if (!Strings.isNullOrEmpty(destination.getMhsPartyKey())) {
+					ebxmlManifest.setToParty(destination.getMhsPartyKey());
+				}
 			}
 			
 			// Apply defaults from the prototype
@@ -208,11 +183,11 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	public class HL7PartBuilder {
 		public HL7Part buildHl7Part(@Property("ebxmlManifest") final EbxmlEnvelope ebxmlManifest,
 				@Property("distributionEnvelope") final DistributionEnvelope envelope,
-				@Property("recipient") final PartyDetails recipient) {
+				@Property("destination") final EndpointAddress destination) {
 			final HL7Part hl7Part = new HL7Part();
 			
-			if (!Strings.isNullOrEmpty(recipient.getAsid())) {
-				hl7Part.setReceiverAsid(recipient.getAsid());
+			if (destination != null && !Strings.isNullOrEmpty(destination.getAsid())) {
+				hl7Part.setReceiverAsid(destination.getAsid());
 			}
 			hl7Part.setInteractionId(ebxmlManifest.getAction());
 			

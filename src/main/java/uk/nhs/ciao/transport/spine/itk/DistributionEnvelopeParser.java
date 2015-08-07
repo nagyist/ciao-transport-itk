@@ -28,7 +28,6 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.HandlingSpec;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Payload;

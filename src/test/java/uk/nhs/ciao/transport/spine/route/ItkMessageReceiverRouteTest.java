@@ -18,8 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import uk.nhs.ciao.transport.spine.itk.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 import uk.nhs.ciao.transport.spine.itk.Identity;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
