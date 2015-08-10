@@ -80,7 +80,7 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 			}
 			
 			if (properties.containsKey("auditODSCode")) {
-				envelope.setAuditIdentity("urn:nhs-uk:addressing:ods:" + properties.get("senderODSCode"));
+				envelope.setAuditIdentity("urn:nhs-uk:addressing:ods:" + properties.get("auditODSCode"));
 			}
 			
 			if (properties.containsKey("itkHandlingSpec")) {
