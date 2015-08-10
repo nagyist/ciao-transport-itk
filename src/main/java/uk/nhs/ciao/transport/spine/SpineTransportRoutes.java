@@ -3,8 +3,6 @@ package uk.nhs.ciao.transport.spine;
 import java.io.File;
 import java.util.List;
 
-import joptsimple.internal.Strings;
-
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
