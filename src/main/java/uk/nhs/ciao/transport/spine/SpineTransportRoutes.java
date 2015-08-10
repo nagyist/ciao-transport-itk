@@ -5,15 +5,20 @@ import java.util.List;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
+import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
+import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
+import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeSenderRoute;
 import uk.nhs.ciao.transport.spine.route.ItkDocumentSenderRoute;
 import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.HttpServerRoute;
+import uk.nhs.ciao.transport.spine.route.ItkMessageReceiverRoute;
+import uk.nhs.ciao.transport.spine.route.MultipartMessageReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.MultipartMessageSenderRoute;
 import uk.nhs.ciao.transport.spine.route.SpineEndpointAddressEnricherRoute;
 import uk.nhs.ciao.transport.spine.sds.MemorySpineEndpointAddressRepository;
@@ -102,15 +107,35 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	}
 	
 	private void addMultipartMessageReceiverRoute(final CamelContext context) throws Exception {
-		// TODO:
+		final MultipartMessageReceiverRoute route = new MultipartMessageReceiverRoute();
+		
+		route.setMultipartReceiverUri("direct:multipart-message-receiever");
+		route.setPayloadDestinationUri("jms:distribution-envelope-receiver");
+		route.setEbxmlResponseDestinationUri("{{spine.toUri}}");
+		route.setIdempotentRepository(new MemoryIdempotentRepository()); // TODO: hazelcast
+		
+		context.addRoutes(route);
 	}
 	
 	private void addDistributionEnvelopeReceiverRoute(final CamelContext context) throws Exception {
-		// TODO:
+		final DistributionEnvelopeReceiverRoute route = new DistributionEnvelopeReceiverRoute();
+		
+		route.setDistributionEnvelopeReceiverUri("jms:distribution-envelope-receiver");
+		route.setItkMessageReceiverUri("jms:itk-message-receiver");
+		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
+		route.setIdempotentRepository(new MemoryIdempotentRepository()); // TODO: hazelcast
+		route.setInfrastructureResponseFactory(new InfrastructureResponseFactory());
+		
+		context.addRoutes(route);
 	}
 	
 	private void addItkMessageReceiverRoute(final CamelContext context) throws Exception {
-		// TODO:
+		final ItkMessageReceiverRoute route = new ItkMessageReceiverRoute();
+		
+		route.setItkMessageReceiverUri("jms:itk-message-receiver");
+		route.setInProgressDirectoryUri("file:./in-progress"); // TODO: make this configurable
+		
+		context.addRoutes(route);
 	}
 	
 	private void addSpineEndpointAddressEnricherRoute(final CamelContext context) throws Exception {
