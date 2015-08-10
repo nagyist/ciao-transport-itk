@@ -110,7 +110,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		final MultipartMessageReceiverRoute route = new MultipartMessageReceiverRoute();
 		
 		route.setMultipartReceiverUri("direct:multipart-message-receiever");
-		route.setPayloadDestinationUri("jms:distribution-envelope-receiver");
+		route.setPayloadDestinationUri("jms:queue:distribution-envelope-receiver");
 		route.setEbxmlResponseDestinationUri("{{spine.toUri}}");
 		route.setIdempotentRepository(new MemoryIdempotentRepository()); // TODO: hazelcast
 		
@@ -120,8 +120,8 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	private void addDistributionEnvelopeReceiverRoute(final CamelContext context) throws Exception {
 		final DistributionEnvelopeReceiverRoute route = new DistributionEnvelopeReceiverRoute();
 		
-		route.setDistributionEnvelopeReceiverUri("jms:distribution-envelope-receiver");
-		route.setItkMessageReceiverUri("jms:itk-message-receiver");
+		route.setDistributionEnvelopeReceiverUri("jms:queue:distribution-envelope-receiver");
+		route.setItkMessageReceiverUri("jms:queue:itk-message-receiver");
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
 		route.setIdempotentRepository(new MemoryIdempotentRepository()); // TODO: hazelcast
 		route.setInfrastructureResponseFactory(new InfrastructureResponseFactory());
@@ -132,7 +132,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	private void addItkMessageReceiverRoute(final CamelContext context) throws Exception {
 		final ItkMessageReceiverRoute route = new ItkMessageReceiverRoute();
 		
-		route.setItkMessageReceiverUri("jms:itk-message-receiver");
+		route.setItkMessageReceiverUri("jms:queue:itk-message-receiver");
 		route.setInProgressDirectoryUri("file:./in-progress"); // TODO: make this configurable
 		
 		context.addRoutes(route);
