@@ -16,7 +16,7 @@ import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.HttpServerRoute;
 import uk.nhs.ciao.transport.spine.route.MultipartMessageSenderRoute;
 import uk.nhs.ciao.transport.spine.route.SpineEndpointAddressEnricherRoute;
-import uk.nhs.ciao.transport.spine.sds.SpineMemoryEndpointAddressRepository;
+import uk.nhs.ciao.transport.spine.sds.MemorySpineEndpointAddressRepository;
 import uk.nhs.ciao.transport.spine.sds.SpineEndpointAddress;
 
 /**
@@ -118,7 +118,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
 		
 		// TODO: Work out how to configure this
-		final SpineMemoryEndpointAddressRepository repository = new SpineMemoryEndpointAddressRepository();
+		final MemorySpineEndpointAddressRepository repository = new MemorySpineEndpointAddressRepository();
 		route.setSpineEndpointAddressRepository(repository);
 		
 		// For now - load the JSON manually (if available)

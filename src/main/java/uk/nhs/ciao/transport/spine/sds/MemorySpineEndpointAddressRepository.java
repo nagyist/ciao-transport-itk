@@ -9,18 +9,18 @@ import com.google.common.collect.Maps;
 /**
  * A {@link SpineEndpointAddressRepository} which stores addresses in memory
  */
-public class SpineMemoryEndpointAddressRepository implements SpineEndpointAddressRepository {
+public class MemorySpineEndpointAddressRepository implements SpineEndpointAddressRepository {
 	private final Map<ODSKey, SpineEndpointAddress> odsIndex = Maps.newConcurrentMap();
 	private final Map<ASIDKey, SpineEndpointAddress> asidIndex = Maps.newConcurrentMap();
 	
 	@Override
 	public SpineEndpointAddress findByODSCode(final String interaction, final String odsCode) {
-		return odsIndex.get(new ODSKey(interaction, odsCode));
+		return createCopy(odsIndex.get(new ODSKey(interaction, odsCode)));
 	}
 	
 	@Override
 	public SpineEndpointAddress findByAsid(final String interaction, final String asid) {
-		return asidIndex.get(new ASIDKey(interaction, asid));
+		return createCopy(asidIndex.get(new ASIDKey(interaction, asid)));
 	}
 	
 	public void storeAll(final Collection<? extends SpineEndpointAddress> addresses) {
@@ -33,14 +33,30 @@ public class SpineMemoryEndpointAddressRepository implements SpineEndpointAddres
 				continue;
 			}
 			
-			odsIndex.put(new ODSKey(address.getInteraction(), address.getOdsCode()), address);
-			asidIndex.put(new ASIDKey(address.getInteraction(), address.getAsid()), address);
+			// Store a defensive copy
+			final SpineEndpointAddress addressToStore = createCopy(address);
+			odsIndex.put(new ODSKey(addressToStore), addressToStore);
+			asidIndex.put(new ASIDKey(addressToStore), addressToStore);
 		}
+	}
+	
+	/**
+	 * Null-safe copy
+	 * <p>
+	 * Addresses are mutable - so use defensive copies to ensure in-memory instances are
+	 * not accidently changed by client classes
+	 */
+	private SpineEndpointAddress createCopy(final SpineEndpointAddress address) {
+		return address == null ? null : new SpineEndpointAddress(address);
 	}
 	
 	private static class ODSKey {
 		private final String interaction;
 		private final String odsCode;
+		
+		public ODSKey(final SpineEndpointAddress address) {
+			this(address.getInteraction(), address.getOdsCode());
+		}
 		
 		public ODSKey(final String interaction, final String odsCode) {
 			this.interaction = interaction;
@@ -75,6 +91,10 @@ public class SpineMemoryEndpointAddressRepository implements SpineEndpointAddres
 	private static class ASIDKey {
 		private final String interaction;
 		private final String asid;
+		
+		public ASIDKey(final SpineEndpointAddress address) {
+			this(address.getInteraction(), address.getAsid());
+		}
 		
 		public ASIDKey(final String interaction, final String asid) {
 			this.interaction = interaction;
