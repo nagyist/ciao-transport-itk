@@ -108,13 +108,8 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 			// Resolve destination address
 			.bean(new DestinationAddressBuilder())
 			.to(spineEndpointAddressEnricherUrl)
-			
-			.choice()
-				.when().body()
-					.setProperty("destination").body()
-				.endChoice()
-			.end()
-			
+			.setProperty("destination").body()
+
 			// Configure ebxml manifest
 			.bean(new EbxmlManifestBuilder())
 			.setHeader(Exchange.CORRELATION_ID).simple("${body.messageData.messageId}")
@@ -160,8 +155,10 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 				destination.setOdsCode(address.getODSCode());
 			}
 			
-			// TODO: interaction may need resolving first (ebXml -> service:action)
-			destination.setInteraction("DUMMY");
+			if (prototypeEbxmlManifest != null) {
+				destination.setService(prototypeEbxmlManifest.getService());
+				destination.setAction(prototypeEbxmlManifest.getAction());
+			}
 			
 			return destination;
 		}
@@ -176,14 +173,20 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 			final EbxmlEnvelope ebxmlManifest = new EbxmlEnvelope();
 			ebxmlManifest.setAckRequested(true);
 			
-			if (destination != null) {
-				if (!Strings.isNullOrEmpty(destination.getCpaId())) {
-					ebxmlManifest.setCpaId(destination.getCpaId());
-				}
-				
-				if (!Strings.isNullOrEmpty(destination.getMhsPartyKey())) {
-					ebxmlManifest.setToParty(destination.getMhsPartyKey());
-				}
+			if (!Strings.isNullOrEmpty(destination.getService())) {
+				ebxmlManifest.setService(destination.getService());
+			}
+			
+			if (!Strings.isNullOrEmpty(destination.getAction())) {
+				ebxmlManifest.setAction(destination.getAction());
+			}
+			
+			if (!Strings.isNullOrEmpty(destination.getCpaId())) {
+				ebxmlManifest.setCpaId(destination.getCpaId());
+			}
+			
+			if (!Strings.isNullOrEmpty(destination.getMhsPartyKey())) {
+				ebxmlManifest.setToParty(destination.getMhsPartyKey());
 			}
 			
 			// Apply defaults from the prototype
@@ -204,7 +207,7 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 				@Property("destination") final SpineEndpointAddress destination) {
 			final HL7Part hl7Part = new HL7Part();
 			
-			if (destination != null && !Strings.isNullOrEmpty(destination.getAsid())) {
+			if (!Strings.isNullOrEmpty(destination.getAsid())) {
 				hl7Part.setReceiverAsid(destination.getAsid());
 			}
 			hl7Part.setInteractionId(ebxmlManifest.getAction());

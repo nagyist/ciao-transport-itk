@@ -14,13 +14,13 @@ public class MemorySpineEndpointAddressRepository implements SpineEndpointAddres
 	private final Map<ASIDKey, SpineEndpointAddress> asidIndex = Maps.newConcurrentMap();
 	
 	@Override
-	public SpineEndpointAddress findByODSCode(final String interaction, final String odsCode) {
-		return createCopy(odsIndex.get(new ODSKey(interaction, odsCode)));
+	public SpineEndpointAddress findByODSCode(final String service, final String action, final String odsCode) {
+		return createCopy(odsIndex.get(new ODSKey(service, action, odsCode)));
 	}
 	
 	@Override
-	public SpineEndpointAddress findByAsid(final String interaction, final String asid) {
-		return createCopy(asidIndex.get(new ASIDKey(interaction, asid)));
+	public SpineEndpointAddress findByAsid(final String service, final String action, final String asid) {
+		return createCopy(asidIndex.get(new ASIDKey(service, action, asid)));
 	}
 	
 	public void storeAll(final Collection<? extends SpineEndpointAddress> addresses) {
@@ -51,15 +51,17 @@ public class MemorySpineEndpointAddressRepository implements SpineEndpointAddres
 	}
 	
 	private static class ODSKey {
-		private final String interaction;
+		private final String service;
+		private final String action;
 		private final String odsCode;
 		
 		public ODSKey(final SpineEndpointAddress address) {
-			this(address.getInteraction(), address.getOdsCode());
+			this(address.getService(), address.getAction(), address.getOdsCode());
 		}
 		
-		public ODSKey(final String interaction, final String odsCode) {
-			this.interaction = interaction;
+		public ODSKey(final String service, final String action, final String odsCode) {
+			this.service = service;
+			this.action = action;
 			this.odsCode = odsCode;
 		}
 
@@ -68,7 +70,9 @@ public class MemorySpineEndpointAddressRepository implements SpineEndpointAddres
 			final int prime = 31;
 			int result = 1;
 			result = prime * result
-					+ ((interaction == null) ? 0 : interaction.hashCode());
+					+ ((service == null) ? 0 : service.hashCode());
+			result = prime * result
+					+ ((action == null) ? 0 : action.hashCode());
 			result = prime * result
 					+ ((odsCode == null) ? 0 : odsCode.hashCode());
 			return result;
@@ -83,21 +87,24 @@ public class MemorySpineEndpointAddressRepository implements SpineEndpointAddres
 			}
 			
 			final ODSKey other = (ODSKey) obj;
-			return Objects.equal(interaction, other.interaction)
+			return Objects.equal(service, other.service)
+					&& Objects.equal(action, other.action)
 					&& Objects.equal(odsCode, other.odsCode);
 		}
 	}
 	
 	private static class ASIDKey {
-		private final String interaction;
+		private final String service;
+		private final String action;
 		private final String asid;
 		
 		public ASIDKey(final SpineEndpointAddress address) {
-			this(address.getInteraction(), address.getAsid());
+			this(address.getService(), address.getAction(), address.getAsid());
 		}
 		
-		public ASIDKey(final String interaction, final String asid) {
-			this.interaction = interaction;
+		public ASIDKey(final String service, final String action, final String asid) {
+			this.service = service;
+			this.action = action;
 			this.asid = asid;
 		}
 		
@@ -106,7 +113,9 @@ public class MemorySpineEndpointAddressRepository implements SpineEndpointAddres
 			final int prime = 31;
 			int result = 1;
 			result = prime * result
-					+ ((interaction == null) ? 0 : interaction.hashCode());
+					+ ((service == null) ? 0 : service.hashCode());
+			result = prime * result
+					+ ((action == null) ? 0 : action.hashCode());
 			result = prime * result
 					+ ((asid == null) ? 0 : asid.hashCode());
 			return result;
@@ -121,7 +130,8 @@ public class MemorySpineEndpointAddressRepository implements SpineEndpointAddres
 			}
 			
 			final ASIDKey other = (ASIDKey) obj;
-			return Objects.equal(interaction, other.interaction)
+			return Objects.equal(service, other.service)
+					&& Objects.equal(action, other.action)
 					&& Objects.equal(asid, other.asid);
 		}
 	}

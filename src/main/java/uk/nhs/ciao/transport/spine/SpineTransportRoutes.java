@@ -64,6 +64,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		
 		// Dummy prototypes for now!
 		final EbxmlEnvelope ebxmlPrototype = new EbxmlEnvelope();
+		ebxmlPrototype.setService("urn:nhs:names:services:itk");
 		ebxmlPrototype.setAction("COPC_IN000001GB01");
 		route.setPrototypeEbxmlManifest(ebxmlPrototype);
 		

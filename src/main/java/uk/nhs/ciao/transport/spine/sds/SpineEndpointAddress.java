@@ -11,7 +11,10 @@ public class SpineEndpointAddress {
 	 * Identifies the organisation associated with the Accredited System
 	 */
 	private String odsCode;
-	private String interaction;
+
+	private String service;
+	
+	private String action;
 	
 	/**
 	 * Identifies the Accredited System
@@ -28,9 +31,7 @@ public class SpineEndpointAddress {
 	 * messages to the Accredited System
 	 */
 	private String mhsPartyKey;
-	
-	
-	
+
 	public SpineEndpointAddress() {
 		// NOOP
 	}
@@ -40,7 +41,8 @@ public class SpineEndpointAddress {
 	 */
 	public SpineEndpointAddress(final SpineEndpointAddress copy) {
 		odsCode = copy.odsCode;
-		interaction = copy.interaction;
+		service = copy.service;
+		action = copy.action;
 		asid = copy.asid;
 		cpaId = copy.cpaId;
 		mhsPartyKey = copy.mhsPartyKey;
@@ -53,13 +55,21 @@ public class SpineEndpointAddress {
 	public void setOdsCode(final String odsCode) {
 		this.odsCode = odsCode;
 	}
-	
-	public String getInteraction() {
-		return interaction;
+
+	public String getService() {
+		return service;
 	}
 	
-	public void setInteraction(final String interaction) {
-		this.interaction = interaction;
+	public void setService(final String service) {
+		this.service = service;
+	}
+	
+	public String getAction() {
+		return action;
+	}
+	
+	public void setAction(final String action) {
+		this.action = action;
 	}
 	
 	public String getAsid() {
@@ -90,7 +100,8 @@ public class SpineEndpointAddress {
 	public String toString() {
 		return MoreObjects.toStringHelper(this)
 			.add("odsCode", odsCode)
-			.add("interaction", interaction)
+			.add("service", service)
+			.add("action", action)
 			.add("asid", asid)
 			.add("cpaId", cpaId)
 			.add("mhsPartyKey", mhsPartyKey)
@@ -103,7 +114,8 @@ public class SpineEndpointAddress {
 		int result = 1;
 		result = prime * result + ((asid == null) ? 0 : asid.hashCode());
 		result = prime * result + ((cpaId == null) ? 0 : cpaId.hashCode());
-		result = prime * result + ((interaction == null) ? 0 : interaction.hashCode());
+		result = prime * result + ((service == null) ? 0 : service.hashCode());
+		result = prime * result + ((action == null) ? 0 : action.hashCode());
 		result = prime * result + ((mhsPartyKey == null) ? 0 : mhsPartyKey.hashCode());
 		result = prime * result + ((odsCode == null) ? 0 : odsCode.hashCode());
 		return result;
@@ -118,10 +130,11 @@ public class SpineEndpointAddress {
 		}
 		
 		final SpineEndpointAddress other = (SpineEndpointAddress) obj;
-		return Objects.equal(asid, other.asid)
+		return Objects.equal(action, other.action)
+				&& Objects.equal(asid, other.asid)
 				&& Objects.equal(cpaId, other.cpaId)
-				&& Objects.equal(interaction, other.interaction)
 				&& Objects.equal(mhsPartyKey, other.mhsPartyKey)
-				&& Objects.equal(odsCode, other.odsCode);
+				&& Objects.equal(odsCode, other.odsCode)
+				&& Objects.equal(service, other.service);
 	}	
 }

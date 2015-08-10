@@ -29,10 +29,10 @@ public class SpineEndpointAddressEnricherRoute extends BaseRouteBuilder {
 			.setProperty("spineEndpointAddress").body(SpineEndpointAddress.class)
 			.choice()
 				.when().simple("${body.asid}")
-					.bean(spineEndpointAddressRepository, "findByAsid(${body.interaction}, ${body.asid})")
+					.bean(spineEndpointAddressRepository, "findByAsid(${body.service}, ${body.action}, ${body.asid})")
 				.endChoice()
 				.when().simple("${body.odsCode}")
-					.bean(spineEndpointAddressRepository, "findByODSCode(${body.interaction}, ${body.odsCode})")
+					.bean(spineEndpointAddressRepository, "findByODSCode(${body.service}, ${body.action}, ${body.odsCode})")
 				.endChoice()
 			.end()
 			
