@@ -75,14 +75,6 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 				envelope.addAddress(new Address("urn:nhs-uk:addressing:ods:" + properties.get("receiverODSCode")));
 			}
 			
-			if (properties.containsKey("senderODSCode")) {
-				envelope.setSenderAddress("urn:nhs-uk:addressing:ods:" + properties.get("senderODSCode"));
-			}
-			
-			if (properties.containsKey("auditODSCode")) {
-				envelope.setAuditIdentity("urn:nhs-uk:addressing:ods:" + properties.get("auditODSCode"));
-			}
-			
 			if (properties.containsKey("itkHandlingSpec")) {
 				envelope.getHandlingSpec().setInteration(String.valueOf(properties.get("itkHandlingSpec")));
 			}

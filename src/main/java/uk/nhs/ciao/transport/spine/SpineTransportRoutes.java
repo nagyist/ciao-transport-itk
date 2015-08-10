@@ -3,6 +3,8 @@ package uk.nhs.ciao.transport.spine;
 import java.io.File;
 import java.util.List;
 
+import joptsimple.internal.Strings;
+
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
@@ -10,7 +12,11 @@ import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import uk.nhs.ciao.camel.CamelApplication;
+import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
+import uk.nhs.ciao.transport.spine.hl7.HL7Part;
+import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeSenderRoute;
@@ -65,13 +71,26 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		route.setMultipartMessageSenderUri("jms:queue:{{trunkRequestQueue}}");
 		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
 		
-		// TODO: Add/configure prototype objects to populate different parts of the message
+		final CIAOConfig config = CamelApplication.getConfig(context);
 		
-		// Dummy prototypes for now!
+		final DistributionEnvelope distributionEnvelopePrototype = new DistributionEnvelope();
+		distributionEnvelopePrototype.setSenderAddress("urn:nhs-uk:addressing:ods:" + config.getConfigValue("senderODSCode"));
+		
+		if (config.getConfigKeys().contains("auditODSCode")) {
+			distributionEnvelopePrototype.setAuditIdentity("urn:nhs-uk:addressing:ods:" + config.getConfigValue("auditODSCode"));
+		}
+		
+		route.setPrototypeDistributionEnvelope(distributionEnvelopePrototype);
+		
 		final EbxmlEnvelope ebxmlPrototype = new EbxmlEnvelope();
-		ebxmlPrototype.setService("urn:nhs:names:services:itk");
-		ebxmlPrototype.setAction("COPC_IN000001GB01");
+		ebxmlPrototype.setService(config.getConfigValue("senderService"));
+		ebxmlPrototype.setAction(config.getConfigValue("senderAction"));
+		ebxmlPrototype.setFromParty(config.getConfigValue("senderPartyId"));
 		route.setPrototypeEbxmlManifest(ebxmlPrototype);
+		
+		final HL7Part hl7Prototype = new HL7Part();
+		hl7Prototype.setSenderAsid(config.getConfigValue("senderAsid"));
+		route.setPrototypeHl7Part(hl7Prototype);
 		
 		context.addRoutes(route);
 	}
