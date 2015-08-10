@@ -7,28 +7,28 @@ import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
 
 /**
- * A {@link EndpointAddressRepository} which stores addresses in memory
+ * A {@link SpineEndpointAddressRepository} which stores addresses in memory
  */
-public class MemoryEndpointAddressRepository implements EndpointAddressRepository {
-	private final Map<ODSKey, EndpointAddress> odsIndex = Maps.newConcurrentMap();
-	private final Map<ASIDKey, EndpointAddress> asidIndex = Maps.newConcurrentMap();
+public class SpineMemoryEndpointAddressRepository implements SpineEndpointAddressRepository {
+	private final Map<ODSKey, SpineEndpointAddress> odsIndex = Maps.newConcurrentMap();
+	private final Map<ASIDKey, SpineEndpointAddress> asidIndex = Maps.newConcurrentMap();
 	
 	@Override
-	public EndpointAddress findByODSCode(final String interaction, final String odsCode) {
+	public SpineEndpointAddress findByODSCode(final String interaction, final String odsCode) {
 		return odsIndex.get(new ODSKey(interaction, odsCode));
 	}
 	
 	@Override
-	public EndpointAddress findByAsid(final String interaction, final String asid) {
+	public SpineEndpointAddress findByAsid(final String interaction, final String asid) {
 		return asidIndex.get(new ASIDKey(interaction, asid));
 	}
 	
-	public void storeAll(final Collection<? extends EndpointAddress> collection) {
-		if (collection == null) {
+	public void storeAll(final Collection<? extends SpineEndpointAddress> addresses) {
+		if (addresses == null) {
 			return;
 		}
 		
-		for (final EndpointAddress address: collection) {
+		for (final SpineEndpointAddress address: addresses) {
 			if (address == null) {
 				continue;
 			}

@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
-import org.apache.camel.builder.RouteBuilder;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,10 +15,9 @@ import uk.nhs.ciao.transport.spine.route.ItkDocumentSenderRoute;
 import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.HttpServerRoute;
 import uk.nhs.ciao.transport.spine.route.MultipartMessageSenderRoute;
-import uk.nhs.ciao.transport.spine.route.EndpointAddressEnricherRoute;
-import uk.nhs.ciao.transport.spine.sds.MemoryEndpointAddressRepository;
-import uk.nhs.ciao.transport.spine.sds.EndpointAddress;
-import uk.nhs.ciao.transport.spine.util.GenericJacksonDataFormat;
+import uk.nhs.ciao.transport.spine.route.SpineEndpointAddressEnricherRoute;
+import uk.nhs.ciao.transport.spine.sds.SpineMemoryEndpointAddressRepository;
+import uk.nhs.ciao.transport.spine.sds.SpineEndpointAddress;
 
 /**
  * Main routes builder for the spine transport
@@ -43,7 +41,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		addItkMessageReceiverRoute(context);
 		
 		// services
-		addEndpointAddressServiceRoute(context);
+		addSpineEndpointAddressEnricherRoute(context);
 	}
 	
 	private void addItkDocumentSenderRoute(final CamelContext context) throws Exception {
@@ -60,7 +58,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
 		route.setMultipartMessageSenderUri("jms:queue:{{trunkRequestQueue}}");
-		route.setEndpointAddressEnricherUri("direct:endpoint-address-enricher");
+		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
 		
 		// TODO: Add/configure prototype objects to populate different parts of the message
 		
@@ -114,33 +112,21 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		// TODO:
 	}
 	
-	private void addEndpointAddressServiceRoute(final CamelContext context) throws Exception {
-		final EndpointAddressEnricherRoute route = new EndpointAddressEnricherRoute();
+	private void addSpineEndpointAddressEnricherRoute(final CamelContext context) throws Exception {
+		final SpineEndpointAddressEnricherRoute route = new SpineEndpointAddressEnricherRoute();
 		
-		route.setEndpointAddressEnricherUri("direct:endpoint-address-enricher");
+		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
 		
 		// TODO: Work out how to configure this
-		final MemoryEndpointAddressRepository repository = new MemoryEndpointAddressRepository();
-		route.setEndpointAddressRepository(repository);
-		
-		
-		// There is a race condition during startup here
-//		context.addRoutes(new RouteBuilder() {
-//			@Override
-//			public void configure() throws Exception {
-//				from("file:./?fileName=endpoint-addresses.json&initialDelay=0")
-//					.unmarshal(new GenericJacksonDataFormat(new TypeReference<List<EndpointAddress>>() {}))
-//					.bean(repository, "storeAll")
-//				.end();
-//			}
-//		});
+		final SpineMemoryEndpointAddressRepository repository = new SpineMemoryEndpointAddressRepository();
+		route.setSpineEndpointAddressRepository(repository);
 		
 		// For now - load the JSON manually (if available)
 		final File file = new File("endpoint-addresses.json");
 		if (file.isFile()) {
 			final ObjectMapper mapper = new ObjectMapper();
-			final List<EndpointAddress> endpointAddresses = mapper.readValue(file, new TypeReference<List<EndpointAddress>>() {});
-			repository.storeAll(endpointAddresses);
+			final List<SpineEndpointAddress> spineEndpointAddresses = mapper.readValue(file, new TypeReference<List<SpineEndpointAddress>>() {});
+			repository.storeAll(spineEndpointAddresses);
 		}
 		
 		context.addRoutes(route);

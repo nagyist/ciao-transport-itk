@@ -12,7 +12,7 @@ import uk.nhs.ciao.transport.spine.itk.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.multipart.Part;
-import uk.nhs.ciao.transport.spine.sds.EndpointAddress;
+import uk.nhs.ciao.transport.spine.sds.SpineEndpointAddress;
 
 /**
  * Route to send an ITK distribution envelope over spine
@@ -25,7 +25,7 @@ import uk.nhs.ciao.transport.spine.sds.EndpointAddress;
 public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	private String distributionEnvelopeSenderUri;
 	private String multipartMessageSenderUri;
-	private String endpointAddressEnricherUrl;
+	private String spineEndpointAddressEnricherUrl;
 	
 	// optional properties
 	private DistributionEnvelope prototypeDistributionEnvelope;
@@ -53,8 +53,8 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	/**
 	 * URI of service used to enrich destination endpoint address details
 	 */
-	public void setEndpointAddressEnricherUri(final String endpointAddressEnricherUrl) {
-		this.endpointAddressEnricherUrl = endpointAddressEnricherUrl;
+	public void setSpineEndpointAddressEnricherUri(final String spineEndpointAddressEnricherUrl) {
+		this.spineEndpointAddressEnricherUrl = spineEndpointAddressEnricherUrl;
 	}
 	
 	/**
@@ -107,7 +107,7 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 			
 			// Resolve destination address
 			.bean(new DestinationAddressBuilder())
-			.to(endpointAddressEnricherUrl)
+			.to(spineEndpointAddressEnricherUrl)
 			
 			.choice()
 				.when().body()
@@ -150,8 +150,8 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	}
 	
 	public class DestinationAddressBuilder {
-		public EndpointAddress buildDestinationAdddress(final DistributionEnvelope envelope) {
-			final EndpointAddress destination = new EndpointAddress();
+		public SpineEndpointAddress buildDestinationAdddress(final DistributionEnvelope envelope) {
+			final SpineEndpointAddress destination = new SpineEndpointAddress();
 			
 			final Address address = envelope.getAddresses().get(0);
 			if (address.isASID()) {
@@ -172,7 +172,7 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	 */
 	public class EbxmlManifestBuilder {
 		public EbxmlEnvelope startEbxmlManifest(@Property("distributionEnvelope") final DistributionEnvelope envelope,
-				@Property("destination") final EndpointAddress destination) {
+				@Property("destination") final SpineEndpointAddress destination) {
 			final EbxmlEnvelope ebxmlManifest = new EbxmlEnvelope();
 			ebxmlManifest.setAckRequested(true);
 			
@@ -201,7 +201,7 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	public class HL7PartBuilder {
 		public HL7Part buildHl7Part(@Property("ebxmlManifest") final EbxmlEnvelope ebxmlManifest,
 				@Property("distributionEnvelope") final DistributionEnvelope envelope,
-				@Property("destination") final EndpointAddress destination) {
+				@Property("destination") final SpineEndpointAddress destination) {
 			final HL7Part hl7Part = new HL7Part();
 			
 			if (destination != null && !Strings.isNullOrEmpty(destination.getAsid())) {

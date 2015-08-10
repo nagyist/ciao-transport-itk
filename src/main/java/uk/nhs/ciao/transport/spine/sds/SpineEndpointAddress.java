@@ -6,7 +6,7 @@ import com.google.common.base.Objects;
 /**
  * Details to identify / address an Accredited System end-point over spine
  */
-public class EndpointAddress {
+public class SpineEndpointAddress {
 	/**
 	 * Identifies the organisation associated with the Accredited System
 	 */
@@ -31,14 +31,14 @@ public class EndpointAddress {
 	
 	
 	
-	public EndpointAddress() {
+	public SpineEndpointAddress() {
 		// NOOP
 	}
 	
 	/**
 	 * Copy constructor
 	 */
-	public EndpointAddress(final EndpointAddress copy) {
+	public SpineEndpointAddress(final SpineEndpointAddress copy) {
 		odsCode = copy.odsCode;
 		interaction = copy.interaction;
 		asid = copy.asid;
@@ -117,7 +117,7 @@ public class EndpointAddress {
 			return false;
 		}
 		
-		final EndpointAddress other = (EndpointAddress) obj;
+		final SpineEndpointAddress other = (SpineEndpointAddress) obj;
 		return Objects.equal(asid, other.asid)
 				&& Objects.equal(cpaId, other.cpaId)
 				&& Objects.equal(interaction, other.interaction)
