@@ -17,7 +17,8 @@ public class Address {
 	public static final String ITK_ADDRESS_TYPE = "2.16.840.1.113883.2.1.3.2.4.18.22";
 	public static final String DEFAULT_TYPE = ITK_ADDRESS_TYPE;
 	
-	private static final String ODS_URI_PREFIX = "urn:nhs-uk:addressing:ods:";
+	//private static final String ODS_URI_PREFIX = "urn:nhs-uk:addressing:ods:"; // TODO: prefix!!!
+	private static final String ODS_URI_PREFIX = "urn:nhs-uk:addressing:";
 	private String type;
 	private String uri;
 	

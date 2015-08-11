@@ -96,13 +96,13 @@ public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 		from(multipartReceiverUri)
 			// Start publishing the payload after the initial HTTP response has been sent
 			.onCompletion().onCompleteOnly()
-				.setExchangePattern(ExchangePattern.InOnly)
 				.setBody(property(PAYLOAD_PROPERTY))
-				.to(getPayloadPublisherUri())
+				.to(ExchangePattern.InOnly, getPayloadPublisherUri())
 			.end()
 			
 			.convertBodyTo(MultipartBody.class)
 			.log(LoggingLevel.DEBUG, LOGGER, "Converted to multipart body: ${body}")
+			.removeHeaders("*")
 			.process(new EbxmlManifestVerifier())
 	
 			// Store the payload in a property so it can be published after the main response is sent
@@ -127,7 +127,7 @@ public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 			.onCompletion().onFailureOnly()
 				.setBody().property(MANIFEST_PROPERTY)
 				.setBody().spel("#{body.generateDeliveryFailureNotification('Unable to deliver payload')}")
-				.to(getEbxmlResponseSenderUri())
+				.to(ExchangePattern.InOnly, getEbxmlResponseSenderUri())
 			.end()
 	
 			// Publish payload message for processing - but only if not successfully processed already
@@ -138,13 +138,13 @@ public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 			.skipDuplicate(false)
 				// only publish if not handled already
 				.filter(property(Exchange.DUPLICATE_MESSAGE).isNull())
-					.to(payloadDestinationUri)
+					.to(ExchangePattern.InOnly, payloadDestinationUri)
 				.end()
 	
 				// always send ebxml ack (i.e. if previously acked or if publishing was successful)
 				.setBody().property(MANIFEST_PROPERTY)
 				.setBody(simple("${body.generateAcknowledgment()}"))
-				.to(getEbxmlResponseSenderUri())
+				.to(ExchangePattern.InOnly, getEbxmlResponseSenderUri())
 			.end()
 		.end();
 	}
@@ -155,7 +155,16 @@ public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 	// TODO: does outgoing ack response need retry logic / error hander?
 	private void configureEbxmlResponseSender() {
 		from(getEbxmlResponseSenderUri())
-			.convertBodyTo(String.class)
-			.to(ebxmlResponseDestinationUri);
+			.doTry()
+				.removeHeaders("*")
+				.setHeader(Exchange.CONTENT_TYPE).constant("text/xml")
+				.setHeader("SOAPAction").simple("${body.service}/${body.action}")
+				.convertBodyTo(String.class)
+				.to(ExchangePattern.InOut, ebxmlResponseDestinationUri)
+			.endDoTry()
+			.doCatch(Exception.class)
+				.log(LoggingLevel.WARN, LOGGER, "Unable to send async ebXml response: ${exception}")
+			.end()
+		.end();
 	}
 }

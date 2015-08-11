@@ -100,8 +100,17 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 				.when().simple("${body.handlingSpec.businessAck}")
 					.to(getBusinessAckHandlerUri())
 				.endChoice()
+				
+				// TODO: Workaround for missing infrastructure response interaction in TKW
+				.when().simple("${body.service} == 'urn:nhs-itk:services:201005:SendInfrastructureAck-v1-0'")
+					.to(getInfrastructureAckHandlerUri())
+				.endChoice()
+				
+				.when().simple("${body.handlingSpec.getInteration} == null")
+					.log(LoggingLevel.WARN, LOGGER, "ITK message interaction not specified on handling spec")
+				.endChoice()
 				.otherwise()
-					.log(LoggingLevel.WARN, LOGGER, "Unsupported ITK message interaction: ${body.handlingSpec.interaction}")
+					.log(LoggingLevel.WARN, LOGGER, "Unsupported ITK message interaction: ${body.handlingSpec.getInteration}")
 				.endChoice()
 			.end()
 			

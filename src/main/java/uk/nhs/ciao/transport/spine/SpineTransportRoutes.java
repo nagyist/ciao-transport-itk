@@ -14,7 +14,9 @@ import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.hl7.HL7Part;
+import uk.nhs.ciao.transport.spine.itk.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
+import uk.nhs.ciao.transport.spine.itk.Identity;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeSenderRoute;
@@ -72,11 +74,19 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		final CIAOConfig config = CamelApplication.getConfig(context);
 		
 		final DistributionEnvelope distributionEnvelopePrototype = new DistributionEnvelope();
-		distributionEnvelopePrototype.setSenderAddress("urn:nhs-uk:addressing:ods:" + config.getConfigValue("senderODSCode"));
+		distributionEnvelopePrototype.setService(config.getConfigValue("senderItkService"));
 		
+		final Address senderAddress = new Address();
+		senderAddress.setODSCode(String.valueOf(config.getConfigValue("senderODSCode")));
+		distributionEnvelopePrototype.setSenderAddress(senderAddress);
+		
+		final Identity auditIdentity = new Identity();
 		if (config.getConfigKeys().contains("auditODSCode")) {
-			distributionEnvelopePrototype.setAuditIdentity("urn:nhs-uk:addressing:ods:" + config.getConfigValue("auditODSCode"));
+			auditIdentity.setODSCode(String.valueOf(config.getConfigValue("auditODSCode")));
+		} else {
+			auditIdentity.setODSCode(String.valueOf(config.getConfigValue("senderODSCode")));
 		}
+		distributionEnvelopePrototype.setAuditIdentity(auditIdentity);
 		
 		route.setPrototypeDistributionEnvelope(distributionEnvelopePrototype);
 		

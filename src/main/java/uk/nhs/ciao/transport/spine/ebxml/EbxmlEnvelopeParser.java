@@ -106,7 +106,8 @@ public class EbxmlEnvelopeParser {
 		rules.add("Envelope/Header/MessageHeader/ConversationId", new BeanPropertySetterRule("conversationId"));
 		rules.add("Envelope/Header/MessageHeader/Service", new BeanPropertySetterRule("service"));
 		rules.add("Envelope/Header/MessageHeader/Action", new BeanPropertySetterRule("action"));
-	
+		rules.add("Envelope/Header/MessageHeader/DuplicateElimination", new DuplicateEliminationRule());
+		
 		rules.add("Envelope/Header/MessageHeader/MessageData", new MessageDataRule());		
 		rules.add("Envelope/Header/MessageHeader/MessageData/MessageId", new BeanPropertySetterRule("messageId"));
 		rules.add("Envelope/Header/MessageHeader/MessageData/Timestamp", new BeanPropertySetterRule("timestamp"));
@@ -149,6 +150,17 @@ public class EbxmlEnvelopeParser {
 		@Override
 		public void end(final String namespace, final String name) throws Exception {
 			getDigester().pop();
+		}
+	}
+	
+	/**
+	 * Marks the envelope as requiring duplicate elimination logic
+	 */
+	private class DuplicateEliminationRule extends Rule {
+		@Override
+		public void begin(final String namespace, final String name,
+				final Attributes attributes) throws Exception {
+			getDigester().<EbxmlEnvelope>peek().setDuplicateElimination(true);
 		}
 	}
 	

@@ -172,6 +172,7 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 				@Property("destination") final SpineEndpointAddress destination) {
 			final EbxmlEnvelope ebxmlManifest = new EbxmlEnvelope();
 			ebxmlManifest.setAckRequested(true);
+			ebxmlManifest.setDuplicateElimination(true);
 			
 			if (!Strings.isNullOrEmpty(destination.getService())) {
 				ebxmlManifest.setService(destination.getService());

@@ -41,8 +41,10 @@
 				<eb:RefToMessageId>${messageData.refToMessageId?xml}</eb:RefToMessageId>
 				</#if>
 			</eb:MessageData>
+			<#if duplicateElimination>
 			
-			<eb:duplicateElimination />
+			<eb:DuplicateElimination />
+			</#if>
 		</eb:MessageHeader>
 		<#if ackRequested>
 		<eb:AckRequested eb:version="2.0" soap:mustUnderstand="1" soap:actor="urn:oasis:names:tc:ebxml-msg:actor:toPartyMSH" eb:signed="false"/>
@@ -63,7 +65,7 @@
 		</eb:Acknowledgment>
 		</#if>
 		<#if errorMessage>
-		<eb:ErrorList <#if error.listId??>eb:id="${error.listId?xml}"</#if> eb:highestSeverity="Error" eb:version="2.0" soap:mustUnderstand="1">
+		<eb:ErrorList <#if error.listId??>eb:id="${error.listId?xml}"</#if> <#if error.severity??>eb:highestSeverity="${error.severity?xml}"</#if> eb:version="2.0" soap:mustUnderstand="1">
 			<eb:Error <#if error.id??>eb:id="${error.id?xml}"</#if> <#if error.code??>eb:errorCode="${error.code?xml}"</#if> <#if error.severity??>eb:severity="${error.severity?xml}"</#if> <#if error.codeContext??>eb:codeContext="${error.codeContext?xml}"</#if>>
 				<#if error.description??>
 				<eb:Description xml:lang="en-GB">${error.description?xml}</eb:Description>

@@ -136,7 +136,6 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 	 * (e.g. JMS queue / data store) for later processing. The nature of the processing is
 	 * determined by the type / content of the payload.
 	 */
-	// TODO: this route should be direct - either that or collapse into the calling route - only send NACK after retrys fail
 	private void configurePayloadPublisher() {
 		from(getPayloadPublisherUri())
 			// faults and exceptions are thrown back to the caller

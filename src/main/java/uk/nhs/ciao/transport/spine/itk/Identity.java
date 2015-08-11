@@ -5,6 +5,9 @@ import com.google.common.base.Strings;
 
 public class Identity {
 	public static final String DEFAULT_TYPE = "2.16.840.1.113883.2.1.3.2.4.18.27";
+	
+	private static final String ODS_URI_PREFIX = "urn:nhs-uk:identity:";
+	
 	private String type;
 	private String uri;
 	
@@ -47,6 +50,10 @@ public class Identity {
 	
 	public boolean isDefaultType() {
 		return Strings.isNullOrEmpty(type) || DEFAULT_TYPE.equals(type);
+	}
+	
+	public void setODSCode(final String odsCode) {
+		this.uri = odsCode == null ? null : ODS_URI_PREFIX + odsCode;
 	}
 	
 	@Override

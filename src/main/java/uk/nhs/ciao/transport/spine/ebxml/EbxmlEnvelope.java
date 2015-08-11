@@ -53,6 +53,7 @@ public class EbxmlEnvelope {
 	private final MessageData messageData = new MessageData(); // required
 	private boolean ackRequested = true;
 	private boolean acknowledgment;
+	private boolean duplicateElimination;
 	private ErrorDetail error;
 	private final List<ManifestReference> manifestReferences = Lists.newArrayList();
 	
@@ -76,6 +77,7 @@ public class EbxmlEnvelope {
 		if (overwrite) {
 			acknowledgment = prototype.acknowledgment;
 			ackRequested = prototype.ackRequested;
+			duplicateElimination = prototype.duplicateElimination;
 		}
 		
 		messageData.copyFrom(prototype.messageData, overwrite);
@@ -163,6 +165,14 @@ public class EbxmlEnvelope {
 
 	public void setAcknowledgment(final boolean acknowledgment) {
 		this.acknowledgment = acknowledgment;
+	}
+	
+	public boolean isDuplicateElimination() {
+		return duplicateElimination;
+	}
+	
+	public void setDuplicateElimination(final boolean duplicateElimination) {
+		this.duplicateElimination = duplicateElimination;
 	}
 
 	public ErrorDetail getError() {
@@ -302,6 +312,7 @@ public class EbxmlEnvelope {
 		reply.conversationId = conversationId;
 		reply.service = SERVICE_EBXML_MSG;
 		reply.messageData.refToMessageId = messageData.messageId;
+		reply.duplicateElimination = duplicateElimination;
 		reply.ackRequested = false;
 		
 		return reply;
@@ -319,6 +330,7 @@ public class EbxmlEnvelope {
 			.add("messageData", messageData)
 			.add("ackRequested", ackRequested)
 			.add("acknowledgment", acknowledgment)
+			.add("duplicateElimination", duplicateElimination)
 			.add("error", error)
 			.add("manifestReferences", manifestReferences)
 			.toString();
