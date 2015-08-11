@@ -2,6 +2,10 @@ package uk.nhs.ciao.transport.spine.route;
 
 import java.util.Map;
 
+import joptsimple.internal.Strings;
+
+import org.apache.camel.Exchange;
+import org.apache.camel.Header;
 import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
@@ -59,7 +63,8 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 	 * Builds an ITK distribution envelope wrapping a parsed ITK document
 	 */
 	public class DistributionEnvelopeBuilder {
-		public DistributionEnvelope buildDistributionEnvelope(final ParsedDocument parsedDocument) throws Exception {
+		public DistributionEnvelope buildDistributionEnvelope(final ParsedDocument parsedDocument,
+				@Header(Exchange.CORRELATION_ID) final String correlationId) throws Exception {
 			final Document document = parsedDocument.getOriginalDocument();
 			final Map<String, Object> properties = parsedDocument.getProperties();
 			
@@ -68,6 +73,9 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 			}
 			
 			final DistributionEnvelope envelope = new DistributionEnvelope();
+			if (!Strings.isNullOrEmpty(correlationId)) {
+				envelope.setTrackingId(correlationId);
+			}
 			envelope.getHandlingSpec().setInfrastructureAckRequested(true);
 			envelope.getHandlingSpec().setBusinessAckRequested(true);
 			
