@@ -5,7 +5,7 @@ import java.util.List;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
-import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
+import org.apache.camel.spi.IdempotentRepository;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -139,7 +139,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		route.setMultipartReceiverUri("direct:multipart-message-receiever");
 		route.setPayloadDestinationUri("jms:queue:distribution-envelope-receiver");
 		route.setEbxmlResponseDestinationUri("{{spine.toUri}}");
-		route.setIdempotentRepository(new MemoryIdempotentRepository()); // TODO: hazelcast
+		route.setIdempotentRepository(get(context, IdempotentRepository.class, "multipartMessageIdempotentRepository"));
 		
 		context.addRoutes(route);
 	}
@@ -150,7 +150,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		route.setDistributionEnvelopeReceiverUri("jms:queue:distribution-envelope-receiver");
 		route.setItkMessageReceiverUri("jms:queue:itk-message-receiver");
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
-		route.setIdempotentRepository(new MemoryIdempotentRepository()); // TODO: hazelcast
+		route.setIdempotentRepository(get(context, IdempotentRepository.class, "distributionEnvelopeIdempotentRepository"));
 		route.setInfrastructureResponseFactory(new InfrastructureResponseFactory());
 		
 		context.addRoutes(route);
@@ -183,5 +183,9 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		}
 		
 		context.addRoutes(route);
+	}
+	
+	private <T> T get(final CamelContext context, final Class<T> type, final String name) {
+		return type.cast(context.getRegistry().lookupByName(name));
 	}
 }
