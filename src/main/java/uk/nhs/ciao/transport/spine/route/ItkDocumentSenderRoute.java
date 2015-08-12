@@ -8,6 +8,7 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Header;
 import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
+import org.apache.camel.util.toolbox.AggregationStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,7 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 	
 	private String documentSenderRouteUri;
 	private String distributionEnvelopeSenderUri;
+	private String inProgressDirectoryUri;
 
 	public void setDocumentSenderRouteUri(final String documentSenderRouteUri) {
 		this.documentSenderRouteUri = documentSenderRouteUri;
@@ -35,6 +37,10 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 	
 	public void setDistributionEnvelopeSenderUri(final String distributionEnvelopeSenderUri) {
 		this.distributionEnvelopeSenderUri = distributionEnvelopeSenderUri;
+	}
+	
+	public void setInProgressDirectoryUri(final String inProgressDirectoryUri) {
+		this.inProgressDirectoryUri = inProgressDirectoryUri;
 	}
 	
 	@Override
@@ -52,6 +58,21 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 			.transacted("PROPAGATION_NOT_SUPPORTED")
 			.unmarshal().json(JsonLibrary.Jackson, ParsedDocument.class)
 			.bean(new DistributionEnvelopeBuilder())
+			
+			.multicast(AggregationStrategies.useOriginal())
+				.choice().when().simple("${body.handlingSpec.isInfrastructureAckRequested}")
+					.setHeader(Exchange.FILE_NAME).simple("${header.CamelCorrelationId}/wants-inf-ack")
+					.setBody().constant("")
+					.to(inProgressDirectoryUri)
+				.end()
+			
+				.choice().when().simple("${body.handlingSpec.isBusinessAckRequested}")
+					.setHeader(Exchange.FILE_NAME).simple("${header.CamelCorrelationId}/wants-bus-ack")
+					.setBody().constant("")
+					.to(inProgressDirectoryUri)
+				.end()
+			.end()
+			
 			.to(distributionEnvelopeSenderUri)
 		.end();
 	}

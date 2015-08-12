@@ -60,6 +60,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		
 		route.setDocumentSenderRouteUri("jms:queue:{{itkDocumentSenderQueue}}?destination.consumer.prefetchSize=0");
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
+		route.setInProgressDirectoryUri("file:{{inProgressFolder}}");
 		
 		context.addRoutes(route);
 	}
