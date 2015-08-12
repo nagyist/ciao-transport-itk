@@ -147,7 +147,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	private void addDistributionEnvelopeReceiverRoute(final CamelContext context) throws Exception {
 		final DistributionEnvelopeReceiverRoute route = new DistributionEnvelopeReceiverRoute();
 		
-		route.setDistributionEnvelopeReceiverUri("jms:queue:distribution-envelope-receiver");
+		route.setDistributionEnvelopeReceiverUri("jms:queue:distribution-envelope-receiver?destination.consumer.prefetchSize=0");
 		route.setItkMessageReceiverUri("jms:queue:itk-message-receiver");
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
 		route.setIdempotentRepository(get(context, IdempotentRepository.class, "distributionEnvelopeIdempotentRepository"));
@@ -159,8 +159,8 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	private void addItkMessageReceiverRoute(final CamelContext context) throws Exception {
 		final ItkMessageReceiverRoute route = new ItkMessageReceiverRoute();
 		
-		route.setItkMessageReceiverUri("jms:queue:itk-message-receiver");
-		route.setInProgressDirectoryUri("file:./in-progress"); // TODO: make this configurable
+		route.setItkMessageReceiverUri("jms:queue:itk-message-receiver?destination.consumer.prefetchSize=0");
+		route.setInProgressDirectoryUri("file:{{inProgressFolder}}");
 		
 		context.addRoutes(route);
 	}
