@@ -58,7 +58,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	private void addItkDocumentSenderRoute(final CamelContext context) throws Exception {
 		final ItkDocumentSenderRoute route = new ItkDocumentSenderRoute();
 		
-		route.setDocumentSenderRouteUri("jms:queue:{{documentQueue}}?destination.consumer.prefetchSize=0");
+		route.setDocumentSenderRouteUri("jms:queue:{{itkDocumentSenderQueue}}?destination.consumer.prefetchSize=0");
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
 		
 		context.addRoutes(route);
@@ -68,7 +68,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		final DistributionEnvelopeSenderRoute route = new DistributionEnvelopeSenderRoute();
 		
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
-		route.setMultipartMessageSenderUri("jms:queue:{{trunkRequestQueue}}");
+		route.setMultipartMessageSenderUri("jms:queue:{{multipartMessageSenderQueue}}");
 		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
 		
 		final CIAOConfig config = CamelApplication.getConfig(context);
@@ -106,8 +106,8 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	private void addMultipartMessageSenderRoute(final CamelContext context) throws Exception {
 		final MultipartMessageSenderRoute route = new MultipartMessageSenderRoute();
 		
-		route.setInternalRoutePrefix("trunk");
-		route.setMultipartMessageSenderUri("jms:queue:{{trunkRequestQueue}}?destination.consumer.prefetchSize=0");
+		route.setInternalRoutePrefix("multipart-message-sender");
+		route.setMultipartMessageSenderUri("jms:queue:{{multipartMessageSenderQueue}}?destination.consumer.prefetchSize=0");
 		route.setMultipartMessageDestinationUri("{{spine.toUri}}");
 		route.setEbxmlAckReceiverUri("{{spine.replyUri}}");
 		
@@ -137,7 +137,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		final MultipartMessageReceiverRoute route = new MultipartMessageReceiverRoute();
 		
 		route.setMultipartReceiverUri("direct:multipart-message-receiever");
-		route.setPayloadDestinationUri("jms:queue:distribution-envelope-receiver");
+		route.setPayloadDestinationUri("jms:queue:{{distributionEnvelopeReceiverQueue}}");
 		route.setEbxmlResponseDestinationUri("{{spine.toUri}}");
 		route.setIdempotentRepository(get(context, IdempotentRepository.class, "multipartMessageIdempotentRepository"));
 		
@@ -147,8 +147,8 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	private void addDistributionEnvelopeReceiverRoute(final CamelContext context) throws Exception {
 		final DistributionEnvelopeReceiverRoute route = new DistributionEnvelopeReceiverRoute();
 		
-		route.setDistributionEnvelopeReceiverUri("jms:queue:distribution-envelope-receiver?destination.consumer.prefetchSize=0");
-		route.setItkMessageReceiverUri("jms:queue:itk-message-receiver");
+		route.setDistributionEnvelopeReceiverUri("jms:queue:{{distributionEnvelopeReceiverQueue}}?destination.consumer.prefetchSize=0");
+		route.setItkMessageReceiverUri("jms:queue:{{itkMessageReceiverQueue}}");
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
 		route.setIdempotentRepository(get(context, IdempotentRepository.class, "distributionEnvelopeIdempotentRepository"));
 		route.setInfrastructureResponseFactory(new InfrastructureResponseFactory());
@@ -159,7 +159,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 	private void addItkMessageReceiverRoute(final CamelContext context) throws Exception {
 		final ItkMessageReceiverRoute route = new ItkMessageReceiverRoute();
 		
-		route.setItkMessageReceiverUri("jms:queue:itk-message-receiver?destination.consumer.prefetchSize=0");
+		route.setItkMessageReceiverUri("jms:queue:{{itkMessageReceiverQueue}}?destination.consumer.prefetchSize=0");
 		route.setInProgressDirectoryUri("file:{{inProgressFolder}}");
 		
 		context.addRoutes(route);
