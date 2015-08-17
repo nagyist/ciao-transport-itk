@@ -35,8 +35,7 @@ public class InfrastructureResponseFactory {
 	public DistributionEnvelope createDistributionEnvelope(final DistributionEnvelope envelope, final String payloadBody) {
 		final DistributionEnvelope result = new DistributionEnvelope();
 		
-		// TODO: Check these values
-		result.setService("urn:nhs-itk:services:201005:SendInfrastructureAck-v1-0");
+		result.setService(DistributionEnvelope.SERVICE_SEND_INFRASTRUCTURE_ACK);
 		result.getHandlingSpec().setInteration(DistributionEnvelope.INTERACTION_INFRASTRUCTURE_ACK);
 
 		if (identity != null) {

@@ -29,6 +29,8 @@ public class DistributionEnvelope {
 	public static final String HANDLING_SPEC_INTERACTION = "urn:nhs-itk:ns:201005:interaction";
 	public static final String INTERACTION_INFRASTRUCTURE_ACK = "urn:nhs-itk:interaction:ITKInfrastructureAcknowledgement-v1-0";
 	public static final String INTERACTION_BUSINESS_ACK = "urn:nhs-itk:interaction:ITKBusinessAcknowledgement-v1-0";
+	public static final String SERVICE_SEND_INFRASTRUCTURE_ACK = "urn:nhs-itk:services:201005:SendInfrastructureAck-v1-0";
+	public static final String SERVICE_SEND_BUSINESS_ACK = "urn:nhs-itk:services:201005:SendBusinessAck-v1-0";
 	
 	private String service;
 	private String trackingId;
@@ -94,6 +96,14 @@ public class DistributionEnvelope {
 		return (prototype != null && (original == null || overwrite)) ? new Address(prototype) : original;
 	}
 	
+	public boolean containsInfrastructureAck() {
+		return handlingSpec.isInfrastructureAck() || SERVICE_SEND_INFRASTRUCTURE_ACK.equalsIgnoreCase(service);
+	}
+	
+	public boolean containsBusinessAck() {
+		return handlingSpec.isBusinessAck() || SERVICE_SEND_BUSINESS_ACK.equalsIgnoreCase(service);
+	}
+	
 	public String getService() {
 		return service;
 	}
@@ -101,7 +111,7 @@ public class DistributionEnvelope {
 	public void setService(final String service) {
 		this.service = service;
 	}
-	
+
 	public String getTrackingId() {
 		return trackingId;
 	}

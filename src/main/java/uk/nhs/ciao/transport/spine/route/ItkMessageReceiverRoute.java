@@ -33,7 +33,7 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 	 * <p>
 	 * input only
 	 */
-	public void setItkMessageReceiverUri(String itkMessageReceiverUri) {
+	public void setItkMessageReceiverUri(final String itkMessageReceiverUri) {
 		this.itkMessageReceiverUri = itkMessageReceiverUri;
 	}
 	
@@ -94,16 +94,11 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 		
 			.convertBodyTo(DistributionEnvelope.class)
 			.choice()
-				.when().simple("${body.handlingSpec.infrastructureAck}")
+				.when().simple("${body.containsInfrastructureAck}")
 					.to(getInfrastructureAckHandlerUri())
 				.endChoice()
-				.when().simple("${body.handlingSpec.businessAck}")
+				.when().simple("${body.containsBusinessAck}")
 					.to(getBusinessAckHandlerUri())
-				.endChoice()
-				
-				// TODO: Workaround for missing infrastructure response interaction in TKW
-				.when().simple("${body.service} == 'urn:nhs-itk:services:201005:SendInfrastructureAck-v1-0'")
-					.to(getInfrastructureAckHandlerUri())
 				.endChoice()
 				
 				.when().simple("${body.handlingSpec.getInteration} == null")
