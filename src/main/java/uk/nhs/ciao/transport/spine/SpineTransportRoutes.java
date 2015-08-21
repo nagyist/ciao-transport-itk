@@ -12,6 +12,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
+import uk.nhs.ciao.transport.spine.address.MemorySpineEndpointAddressRepository;
+import uk.nhs.ciao.transport.spine.address.SpineEndpointAddress;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.hl7.HL7Part;
 import uk.nhs.ciao.transport.spine.itk.Address;
@@ -27,8 +29,6 @@ import uk.nhs.ciao.transport.spine.route.ItkMessageReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.MultipartMessageReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.MultipartMessageSenderRoute;
 import uk.nhs.ciao.transport.spine.route.SpineEndpointAddressEnricherRoute;
-import uk.nhs.ciao.transport.spine.sds.MemorySpineEndpointAddressRepository;
-import uk.nhs.ciao.transport.spine.sds.SpineEndpointAddress;
 
 /**
  * Main routes builder for the spine transport

@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.sds;
+package uk.nhs.ciao.transport.spine.address;
 
 /**
  * Resolves/looks-up endpoint address details associated with an interaction
@@ -13,7 +13,7 @@ public interface SpineEndpointAddressRepository {
 	 * @return The associated endpoint address, or <code>null</code> if the endpoint could
 	 * 			not be found
 	 */
-	public SpineEndpointAddress findByODSCode(final String service, final String action, final String odsCode);
+	public SpineEndpointAddress findByODSCode(final String service, final String action, final String odsCode) throws Exception;
 	
 	/**
 	 * Finds the endpoint address associated with an ASID
@@ -24,5 +24,5 @@ public interface SpineEndpointAddressRepository {
 	 * @return The associated endpoint address, or <code>null</code> if the endpoint could
 	 * 			not be found
 	 */
-	public SpineEndpointAddress findByAsid(final String service, final String action, final String asid);
+	public SpineEndpointAddress findByAsid(final String service, final String action, final String asid) throws Exception;
 }

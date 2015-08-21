@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.sds;
+package uk.nhs.ciao.transport.spine.address;
 
 import java.util.Collection;
 import java.util.Map;

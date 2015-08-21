@@ -1,10 +1,10 @@
 package uk.nhs.ciao.transport.spine.hl7;
 
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
+
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
@@ -23,12 +23,7 @@ public class HL7Part {
 	 * <p>
 	 * This is expressed in the local time-zone
 	 */
-	private static final ThreadLocal<DateFormat> DATE_FORMAT = new ThreadLocal<DateFormat>() {
-		@Override
-		protected DateFormat initialValue() {
-			return new SimpleDateFormat("yyyyMMddHHmmss");
-		}
-	};
+	private static final DateTimeFormatter DATE_FORMAT = DateTimeFormat.forPattern("yyyyMMddHHmmss");
 	
 	private String id;
 	private String creationTime;
@@ -72,12 +67,12 @@ public class HL7Part {
 		return creationTime;
 	}
 	
-	public Date getCreationTimeAsDate() throws ParseException {
-		return Strings.isNullOrEmpty(creationTime) ? null : DATE_FORMAT.get().parse(creationTime);
+	public Date getCreationTimeAsDate() {
+		return Strings.isNullOrEmpty(creationTime) ? null : new Date(DATE_FORMAT.parseMillis(creationTime));
 	}
 	
 	public void setCreationTime(final long millis) {
-		creationTime = DATE_FORMAT.get().format(new Date(millis));
+		creationTime = DATE_FORMAT.print(millis);
 	}
 
 	public void setCreationTime(final String creationTime) {

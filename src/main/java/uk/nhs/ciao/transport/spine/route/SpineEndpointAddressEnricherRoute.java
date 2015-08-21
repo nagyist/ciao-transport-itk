@@ -2,8 +2,8 @@ package uk.nhs.ciao.transport.spine.route;
 
 import com.google.common.base.Preconditions;
 
-import uk.nhs.ciao.transport.spine.sds.SpineEndpointAddress;
-import uk.nhs.ciao.transport.spine.sds.SpineEndpointAddressRepository;
+import uk.nhs.ciao.transport.spine.address.SpineEndpointAddress;
+import uk.nhs.ciao.transport.spine.address.SpineEndpointAddressRepository;
 
 /**
  * Creates a service route which enriches {@link SpineEndpointAddress} using

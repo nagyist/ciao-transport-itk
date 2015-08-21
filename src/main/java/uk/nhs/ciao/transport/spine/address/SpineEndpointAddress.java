@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.sds;
+package uk.nhs.ciao.transport.spine.address;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;

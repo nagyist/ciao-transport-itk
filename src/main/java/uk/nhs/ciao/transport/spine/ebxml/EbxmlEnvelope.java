@@ -1,11 +1,10 @@
 package uk.nhs.ciao.transport.spine.ebxml;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
-import java.util.TimeZone;
 import java.util.UUID;
+
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
@@ -35,14 +34,7 @@ public class EbxmlEnvelope {
 	 * <p>
 	 * This is expressed in the UTC time-zone
 	 */
-	private static final ThreadLocal<DateFormat> TIMESTAMP_FORMAT = new ThreadLocal<DateFormat>() {
-		@Override
-		protected DateFormat initialValue() {
-			final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-			dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-			return dateFormat;
-		}
-	};
+	private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZoneUTC();
 	
 	private String fromParty;
 	private String toParty;	
@@ -366,7 +358,7 @@ public class EbxmlEnvelope {
 	}
 	
 	protected String generateTimestamp() {
-		return TIMESTAMP_FORMAT.get().format(new Date());
+		return TIMESTAMP_FORMAT.print(System.currentTimeMillis());
 	}
 
 	public class MessageData {

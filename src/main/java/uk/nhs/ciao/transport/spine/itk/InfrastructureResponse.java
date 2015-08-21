@@ -1,11 +1,10 @@
 package uk.nhs.ciao.transport.spine.itk;
 
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import java.util.TimeZone;
+
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
@@ -17,14 +16,7 @@ public class InfrastructureResponse {
 	 * <p>
 	 * This is expressed in the UTC time-zone
 	 */
-	private static final ThreadLocal<DateFormat> TIMESTAMP_FORMAT = new ThreadLocal<DateFormat>() {
-		@Override
-		protected DateFormat initialValue() {
-			final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-			dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-			return dateFormat;
-		}
-	};
+	private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZoneUTC();
 	
 	public static final String RESULT_OK = "OK";
 	public static final String RESULT_FAILURE = "Failure";
@@ -58,11 +50,11 @@ public class InfrastructureResponse {
 		return timestamp;
 	}
 	
-	public Date getTimestampAsDate() throws ParseException {
+	public Date getTimestampAsDate() {
 		if (Strings.isNullOrEmpty(timestamp)) {
 			return null;
 		} else {
-			return TIMESTAMP_FORMAT.get().parse(timestamp);
+			return new Date(TIMESTAMP_FORMAT.parseMillis(timestamp));
 		}
 	}
 	
@@ -71,8 +63,7 @@ public class InfrastructureResponse {
 	}
 	
 	public void setTimestamp(final long millis) {
-		final Date date = new Date(millis);
-		this.timestamp = TIMESTAMP_FORMAT.get().format(date);
+		this.timestamp = TIMESTAMP_FORMAT.print(millis);
 	}
 	
 	public String getServiceRef() {

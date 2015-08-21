@@ -11,6 +11,7 @@
 	<properties>
 		<ciao.core.version>0.0.1-SNAPSHOT</ciao.core.version>
 		<ciao-docs-parser.version>1.0.0-SNAPSHOT</ciao-docs-parser.version>
+		<ciao-spine-sds.version>1.0.0-SNAPSHOT</ciao-spine-sds.version>
 		
 		<ciao.skipBinArchive>false</ciao.skipBinArchive>
 		<ciao.addClasspath>true</ciao.addClasspath>
@@ -26,6 +27,11 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>ciao-docs-parser-model</artifactId>
+		</dependency>
+		
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>ciao-spine-sds</artifactId>
 		</dependency>
 
 		<!-- For XML configuration / dependency injection -->
@@ -88,6 +94,11 @@
 		    <groupId>org.apache.commons</groupId>
 		    <artifactId>commons-digester3</artifactId>
 		</dependency>
+		
+		<dependency>
+	    	<groupId>joda-time</groupId>
+	    	<artifactId>joda-time</artifactId>
+	    </dependency>
 
 		<!-- logging -->
 		<dependency>
@@ -131,6 +142,12 @@
 				<groupId>${project.groupId}</groupId>
 				<artifactId>ciao-docs-parser-model</artifactId>
 				<version>${ciao-docs-parser.version}</version>
+			</dependency>
+			
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>ciao-spine-sds</artifactId>
+				<version>${ciao-spine-sds.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
