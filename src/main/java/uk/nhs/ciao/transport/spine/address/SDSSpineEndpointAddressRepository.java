@@ -15,6 +15,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 
+/**
+ * A {@link SpineEndpointAddressRepository} backed by LDAP lookups in the {@link SpineDirectoryService}.
+ * <p>
+ * SDS queries may return multiple matching results for accredited systems and/or message handling
+ * services. The behaviour of this repository can be tailored via the associated strategies provided
+ * at construction time.
+ */
 public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRepository {
 	private static Comparator<String> SORT_DATE_STRINGS = Ordering.natural().nullsLast();
 	
