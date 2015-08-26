@@ -7,6 +7,9 @@ import java.util.List;
 
 import javax.naming.NamingException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import uk.nhs.ciao.spine.sds.SpineDirectoryService;
 import uk.nhs.ciao.spine.sds.model.AccreditedSystem;
 import uk.nhs.ciao.spine.sds.model.MessageHandlingService;
@@ -23,6 +26,7 @@ import com.google.common.collect.Ordering;
  * at construction time.
  */
 public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRepository {
+	private static final Logger LOGGER = LoggerFactory.getLogger(SDSSpineEndpointAddressRepository.class);
 	private static Comparator<String> SORT_DATE_STRINGS = Ordering.natural().reverse().nullsLast();
 	
 	private static Comparator<AccreditedSystem> SORT_AS_BY_DATE = new Comparator<AccreditedSystem>() {
@@ -155,8 +159,10 @@ public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRe
 				Collections.sort(messageHandlingServices, comparator);
 			}
 			
-			final List<String> ids = getIds(messageHandlingServices);
-			System.err.println("Found multiple matching MessageHandlingServices: " + ids.size() + " - " + ids);
+			if (LOGGER.isDebugEnabled()) {
+				final List<String> ids = getIds(messageHandlingServices);
+				LOGGER.debug("Found multiple matching MessageHandlingServices: {} - {}" + ids.size(), ids);
+			}
 			
 			return messageHandlingServices.get(0);
 		}
@@ -204,8 +210,10 @@ public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRe
 				Collections.sort(accreditedSystems, comparator);
 			}
 			
-			final List<String> ids = getIds(accreditedSystems);
-			System.err.println("Found multiple matching AccreditedSystems: " + ids.size() + " - " + ids);
+			if (LOGGER.isDebugEnabled()) {
+				final List<String> ids = getIds(accreditedSystems);
+				LOGGER.debug("Found multiple matching AccreditedSystems: {} - {}" + ids.size(), ids);
+			}
 			
 			if (onlyReturnFirst) {
 				final AccreditedSystem accreditedSystem = accreditedSystems.get(0);
