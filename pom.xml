@@ -128,6 +128,12 @@
 			<artifactId>unitils-core</artifactId>
 			<scope>test</scope>
 		</dependency>
+		
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>ciao-spine-sds-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
@@ -147,6 +153,12 @@
 			<dependency>
 				<groupId>${project.groupId}</groupId>
 				<artifactId>ciao-spine-sds</artifactId>
+				<version>${ciao-spine-sds.version}</version>
+			</dependency>
+			
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>ciao-spine-sds-test</artifactId>
 				<version>${ciao-spine-sds.version}</version>
 			</dependency>
 		</dependencies>
