@@ -64,7 +64,7 @@ public class SDSSpineEndpointAddressRepositoryTest {
 	
 	@Test
 	public void testFindByODSCode() throws Exception {
-		// Find by ods code will return two matches - the most recent is taken (asid-2)
+		// Find by ods code will return two AS matches - the most recent is taken (asid-2)
 		final SpineEndpointAddress expected = new SpineEndpointAddress();		
 		expected.setService("service-1");
 		expected.setAction("action-1");
@@ -72,6 +72,25 @@ public class SDSSpineEndpointAddressRepositoryTest {
 		expected.setOdsCode("ods-code-1");
 		expected.setCpaId("cpa-1");
 		expected.setMhsPartyKey("party-key-1");
+		
+		final SpineEndpointAddress actual = findByODSCode(expected);
+		LOGGER.info("Address lookup - expected={}, actual={}", expected, actual);
+
+		Assert.assertNotNull(actual);
+		ReflectionAssert.assertReflectionEquals(expected, actual);
+		Assert.assertEquals(expected, actual);
+	}
+	
+	@Test
+	public void testFindByODSCodeWithMultipleMHS() throws Exception {
+		// Find by ods code will return two MHS matches - the most recent is taken (asid-2)
+		final SpineEndpointAddress expected = new SpineEndpointAddress();		
+		expected.setService("service-1");
+		expected.setAction("action-2");
+		expected.setAsid("asid-4");
+		expected.setOdsCode("ods-code-1");
+		expected.setCpaId("cpa-1");
+		expected.setMhsPartyKey("party-key-2");
 		
 		final SpineEndpointAddress actual = findByODSCode(expected);
 		LOGGER.info("Address lookup - expected={}, actual={}", expected, actual);
