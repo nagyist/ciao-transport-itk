@@ -7,9 +7,9 @@ import org.apache.camel.impl.DefaultCamelContext;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.unitils.reflectionassert.ReflectionAssert;
+
+import uk.nhs.ciao.camel.CamelUtils;
 
 import com.google.common.io.Closeables;
 
@@ -17,8 +17,6 @@ import com.google.common.io.Closeables;
  * Tests for the {@link EbxmlEnvelope} serialization template
  */
 public class EbxmlEnvelopeTemplateTest {
-	private static final Logger LOGGER = LoggerFactory.getLogger(EbxmlEnvelopeParserTest.class);
-	
 	private CamelContext context;
 	private EbxmlEnvelopeParser parser;
 	private EbxmlEnvelopeSerializer serializer;
@@ -34,13 +32,7 @@ public class EbxmlEnvelopeTemplateTest {
 	
 	@After
 	public void tearDown() {
-		if (context != null) {
-			try {
-				context.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop context", e);
-			}
-		}
+		CamelUtils.stopQuietly(context);
 	}
 	
 	@Test

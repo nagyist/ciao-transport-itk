@@ -35,6 +35,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 
 import uk.nhs.ciao.camel.CamelApplicationRunner;
+import uk.nhs.ciao.camel.CamelUtils;
 import uk.nhs.ciao.camel.CamelApplicationRunner.AsyncExecution;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.configuration.impl.MemoryCipProperties;
@@ -110,13 +111,7 @@ public class SpineTransportApplicationTest {
 			return;
 		}
 		
-		if (producerTemplate != null) {
-			try {
-				producerTemplate.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop producerTemplate", e);
-			}
-		}
+		CamelUtils.stopQuietly(producerTemplate);
 		
 		final CamelContext context = getCamelContext();
 		try {

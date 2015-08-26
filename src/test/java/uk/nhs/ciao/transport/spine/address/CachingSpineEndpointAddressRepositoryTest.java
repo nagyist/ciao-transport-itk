@@ -13,16 +13,14 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.unitils.reflectionassert.ReflectionAssert;
+
+import uk.nhs.ciao.camel.CamelUtils;
 
 /**
  * Unit tests for {@link SpineEndpointAddressRepository}
  */
 public class CachingSpineEndpointAddressRepositoryTest {
-	private static final Logger LOGGER = LoggerFactory.getLogger(CachingSpineEndpointAddressRepositoryTest.class);
-	
 	private SpineEndpointAddressRepository backingRepository;
 	private CachingSpineEndpointAddressRepository repository;
 
@@ -63,21 +61,7 @@ public class CachingSpineEndpointAddressRepositoryTest {
 	
 	@After
 	public void tearDown() throws Exception {
-		if (producerTemplate != null) {
-			try {
-				producerTemplate.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop producerTemplate", e);
-			}
-		}
-		
-		if (camelContext != null) {
-			try {
-				camelContext.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop camelContext", e);
-			}
-		}
+		CamelUtils.stopQuietly(producerTemplate, camelContext);
 	}
 	
 	@Test

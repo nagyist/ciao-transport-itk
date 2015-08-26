@@ -15,9 +15,8 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import uk.nhs.ciao.camel.CamelUtils;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
 import uk.nhs.ciao.transport.spine.multipart.ContentType;
@@ -25,8 +24,6 @@ import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.multipart.Part;
 
 public class MultipartMessageReceiverRouteTest {
-	private static final Logger LOGGER = LoggerFactory.getLogger(MultipartMessageReceiverRouteTest.class);
-	
 	private CamelContext context;
 	private ProducerTemplate producerTemplate;
 	
@@ -54,21 +51,7 @@ public class MultipartMessageReceiverRouteTest {
 	
 	@After
 	public void teardown() {
-		if (producerTemplate != null) {
-			try {
-				producerTemplate.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop producerTemplate", e);
-			}
-		}
-		
-		if (context != null) {
-			try {
-				context.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop context", e);
-			}
-		}
+		CamelUtils.stopQuietly(producerTemplate, context);
 	}
 	
 	@Test

@@ -13,6 +13,7 @@ import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.DefaultProducerTemplate;
 import org.apache.camel.impl.SimpleRegistry;
 
+import uk.nhs.ciao.camel.CamelUtils;
 import uk.nhs.ciao.spine.sds.SpineDirectoryService;
 import uk.nhs.ciao.spine.sds.ldap.CamelLdapConnection;
 import uk.nhs.ciao.spine.sds.ldap.DefaultLdapConnection;
@@ -80,13 +81,7 @@ public class SDSExample {
 			final SpineDirectoryService sds = new SpineDirectoryService(connection);
 			new SDSExample(sds).run();
 		} finally {
-			if (camelContext != null) {
-				camelContext.stop();
-			}
-			
-			if (producerTemplate != null) {
-				producerTemplate.stop();
-			}
+			CamelUtils.stopQuietly(camelContext, producerTemplate);
 		}
 		
 		System.out.println("Time: " + (System.currentTimeMillis() - startTime));

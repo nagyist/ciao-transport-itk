@@ -22,6 +22,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.nhs.ciao.camel.CamelUtils;
+
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 
@@ -67,21 +69,7 @@ public class MultipartTypeConverterTest {
 	
 	@After
 	public void teardown() {
-		if (producerTemplate != null) {
-			try {
-				producerTemplate.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop producerTemplate", e);
-			}
-		}
-		
-		if (context != null) {
-			try {
-				context.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop context", e);
-			}
-		}
+		CamelUtils.stopQuietly(producerTemplate, context);
 	}
 	
 	/**

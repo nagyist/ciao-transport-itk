@@ -22,6 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.unitils.reflectionassert.ReflectionAssert;
 
+import uk.nhs.ciao.camel.CamelUtils;
+
 import com.google.common.io.Closeables;
 
 /**
@@ -58,21 +60,7 @@ public class Hl7PartTypeConverterTest {
 	
 	@After
 	public void teardown() {
-		if (producerTemplate != null) {
-			try {
-				producerTemplate.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop producerTemplate", e);
-			}
-		}
-		
-		if (context != null) {
-			try {
-				context.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop context", e);
-			}
-		}
+		CamelUtils.stopQuietly(producerTemplate, context);
 	}
 	
 	@Test

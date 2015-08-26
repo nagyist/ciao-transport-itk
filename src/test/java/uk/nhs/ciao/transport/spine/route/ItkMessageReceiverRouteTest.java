@@ -14,10 +14,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import uk.nhs.ciao.camel.CamelUtils;
 import uk.nhs.ciao.transport.spine.itk.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
@@ -26,8 +25,6 @@ import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse.ErrorInfo;
 
 public class ItkMessageReceiverRouteTest {
-	private static final Logger LOGGER = LoggerFactory.getLogger(ItkMessageReceiverRouteTest.class);
-	
 	private CamelContext context;
 	private ProducerTemplate producerTemplate;
 	
@@ -63,21 +60,7 @@ public class ItkMessageReceiverRouteTest {
 	
 	@After
 	public void teardown() {
-		if (producerTemplate != null) {
-			try {
-				producerTemplate.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop producerTemplate", e);
-			}
-		}
-		
-		if (context != null) {
-			try {
-				context.stop();
-			} catch (Exception e) {
-				LOGGER.warn("Unable to stop context", e);
-			}
-		}
+		CamelUtils.stopQuietly(producerTemplate, context);
 	}
 	
 	@Test
