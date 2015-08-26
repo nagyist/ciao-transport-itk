@@ -23,7 +23,7 @@ import com.google.common.collect.Ordering;
  * at construction time.
  */
 public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRepository {
-	private static Comparator<String> SORT_DATE_STRINGS = Ordering.natural().nullsLast();
+	private static Comparator<String> SORT_DATE_STRINGS = Ordering.natural().reverse().nullsLast();
 	
 	private static Comparator<AccreditedSystem> SORT_AS_BY_DATE = new Comparator<AccreditedSystem>() {
 		@Override
