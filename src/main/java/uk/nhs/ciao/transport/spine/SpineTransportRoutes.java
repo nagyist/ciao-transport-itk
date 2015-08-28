@@ -22,6 +22,7 @@ import uk.nhs.ciao.transport.spine.itk.Identity;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeSenderRoute;
+import uk.nhs.ciao.transport.spine.route.InProgressFolderManagerRoute;
 import uk.nhs.ciao.transport.spine.route.ItkDocumentSenderRoute;
 import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.HttpServerRoute;
@@ -53,6 +54,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		
 		// services
 		addSpineEndpointAddressEnricherRoute(context);
+		addInProgressFolderManagerRoute(context);
 	}
 	
 	private void addItkDocumentSenderRoute(final CamelContext context) throws Exception {
@@ -60,7 +62,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		
 		route.setDocumentSenderRouteUri("jms:queue:{{itkDocumentSenderQueue}}?destination.consumer.prefetchSize=0");
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
-		route.setInProgressDirectoryUri("file:{{inProgressFolder}}");
+		route.setInProgressFolderManagerUri("direct:in-progress-folder-manager");
 		
 		context.addRoutes(route);
 	}
@@ -161,7 +163,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		final ItkMessageReceiverRoute route = new ItkMessageReceiverRoute();
 		
 		route.setItkMessageReceiverUri("jms:queue:{{itkMessageReceiverQueue}}?destination.consumer.prefetchSize=0");
-		route.setInProgressDirectoryUri("file:{{inProgressFolder}}");
+		route.setInProgressFolderManagerUri("direct:in-progress-folder-manager");
 		
 		context.addRoutes(route);
 	}
@@ -182,6 +184,16 @@ public class SpineTransportRoutes implements RoutesBuilder {
 			final List<SpineEndpointAddress> spineEndpointAddresses = mapper.readValue(file, new TypeReference<List<SpineEndpointAddress>>() {});
 			repository.storeAll(spineEndpointAddresses);
 		}
+		
+		context.addRoutes(route);
+	}
+	
+	private void addInProgressFolderManagerRoute(final CamelContext context) throws Exception {
+		final InProgressFolderManagerRoute route = new InProgressFolderManagerRoute();
+		
+		route.setInProgressFolderManagerUri("direct:in-progress-folder-manager");
+		route.setInternalRoutePrefix("in-progress-folder-manager");
+		route.setInProgressFolderRootUri("file:{{inProgressFolder}}");
 		
 		context.addRoutes(route);
 	}

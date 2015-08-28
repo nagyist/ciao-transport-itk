@@ -23,12 +23,13 @@ import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 import uk.nhs.ciao.transport.spine.itk.Identity;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse.ErrorInfo;
+import uk.nhs.ciao.transport.spine.route.InProgressFolderManagerRoute.*;
 
 public class ItkMessageReceiverRouteTest {
 	private CamelContext context;
 	private ProducerTemplate producerTemplate;
 	
-	private MockEndpoint inProgressDirectory;
+	private MockEndpoint inProgressFolderManager;
 	
 	@Before
 	public void setup() throws Exception {
@@ -49,13 +50,13 @@ public class ItkMessageReceiverRouteTest {
 		
 		final ItkMessageReceiverRoute route = new ItkMessageReceiverRoute();
 		route.setItkMessageReceiverUri("direct:itk-message-receiver");
-		route.setInProgressDirectoryUri("mock:in-progress-directory");
+		route.setInProgressFolderManagerUri("mock:in-progress-folder-manager");
 		context.addRoutes(route);
 		
 		context.start();
 		producerTemplate.start();
 		
-		inProgressDirectory = MockEndpoint.resolve(context, "mock:in-progress-directory");
+		inProgressFolderManager = MockEndpoint.resolve(context, "mock:in-progress-folder-manager");
 	}
 	
 	@After
@@ -68,11 +69,16 @@ public class ItkMessageReceiverRouteTest {
 		final InfrastructureResponse response = createInfrastructureResponse(InfrastructureResponse.RESULT_OK);
 		final DistributionEnvelope envelope = createDistributionEnvelope(response);
 
-		inProgressDirectory.expectedHeaderReceived(Exchange.FILE_NAME, "12345/inf-ack");
+		inProgressFolderManager.expectedHeaderReceived(Exchange.FILE_NAME, "12345/inf-ack");
+		
+		inProgressFolderManager.expectedHeaderReceived(Exchange.CORRELATION_ID, "12345");
+		inProgressFolderManager.expectedHeaderReceived(Header.ACTION, Action.STORE);
+		inProgressFolderManager.expectedHeaderReceived(Header.EVENT_TYPE, EventType.MESSAGE_RECEIVED);
+		inProgressFolderManager.expectedHeaderReceived(Exchange.FILE_NAME, "inf-ack");
 		
 		sendDistributionEnvelope(envelope);
 		
-		inProgressDirectory.assertIsSatisfied();
+		inProgressFolderManager.assertIsSatisfied();
 	}
 	
 	@Test
@@ -84,11 +90,14 @@ public class ItkMessageReceiverRouteTest {
 		response.getErrors().add(errorInfo);
 		final DistributionEnvelope envelope = createDistributionEnvelope(response);
 
-		inProgressDirectory.expectedHeaderReceived(Exchange.FILE_NAME, "12345/inf-nack");
+		inProgressFolderManager.expectedHeaderReceived(Exchange.CORRELATION_ID, "12345");
+		inProgressFolderManager.expectedHeaderReceived(Header.ACTION, Action.STORE);
+		inProgressFolderManager.expectedHeaderReceived(Header.EVENT_TYPE, EventType.MESSAGE_RECEIVED);
+		inProgressFolderManager.expectedHeaderReceived(Exchange.FILE_NAME, "inf-nack");
 		
 		sendDistributionEnvelope(envelope);
 		
-		inProgressDirectory.assertIsSatisfied();
+		inProgressFolderManager.assertIsSatisfied();
 	}
 	
 	@Test
@@ -97,12 +106,15 @@ public class ItkMessageReceiverRouteTest {
 				getClass().getResourceAsStream("test-wrapped-busack.xml"));
 		envelope.getHandlingSpec().setBusinessAck(true);
 
-		inProgressDirectory.expectedMessageCount(1);
-		inProgressDirectory.expectedHeaderReceived(Exchange.FILE_NAME, "7D6F23E0-AE1A-11DB-8707-B18E1E0994EF/bus-ack");
+		inProgressFolderManager.expectedMessageCount(1);
+		inProgressFolderManager.expectedHeaderReceived(Exchange.CORRELATION_ID, "7D6F23E0-AE1A-11DB-8707-B18E1E0994EF");
+		inProgressFolderManager.expectedHeaderReceived(Header.ACTION, Action.STORE);
+		inProgressFolderManager.expectedHeaderReceived(Header.EVENT_TYPE, EventType.MESSAGE_RECEIVED);
+		inProgressFolderManager.expectedHeaderReceived(Exchange.FILE_NAME, "bus-ack");
 		
 		sendDistributionEnvelope(envelope);
 		
-		inProgressDirectory.assertIsSatisfied();
+		inProgressFolderManager.assertIsSatisfied();
 	}
 	
 	@Test
@@ -111,12 +123,15 @@ public class ItkMessageReceiverRouteTest {
 				getClass().getResourceAsStream("test-wrapped-busnack.xml"));
 		envelope.getHandlingSpec().setBusinessAck(true);
 
-		inProgressDirectory.expectedMessageCount(1);
-		inProgressDirectory.expectedHeaderReceived(Exchange.FILE_NAME, "7D6F23E0-AE1A-11DB-8707-B18E1E0994EF/bus-nack");
+		inProgressFolderManager.expectedMessageCount(1);
+		inProgressFolderManager.expectedHeaderReceived(Exchange.CORRELATION_ID, "7D6F23E0-AE1A-11DB-8707-B18E1E0994EF");
+		inProgressFolderManager.expectedHeaderReceived(Header.ACTION, Action.STORE);
+		inProgressFolderManager.expectedHeaderReceived(Header.EVENT_TYPE, EventType.MESSAGE_RECEIVED);
+		inProgressFolderManager.expectedHeaderReceived(Exchange.FILE_NAME, "bus-nack");
 		
 		sendDistributionEnvelope(envelope);
 		
-		inProgressDirectory.assertIsSatisfied();
+		inProgressFolderManager.assertIsSatisfied();
 	}
 	
 	private InfrastructureResponse createInfrastructureResponse(final String result) {

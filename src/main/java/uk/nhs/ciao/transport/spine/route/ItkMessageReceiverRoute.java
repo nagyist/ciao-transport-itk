@@ -26,7 +26,7 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ItkMessageReceiverRoute.class);
 	
 	private String itkMessageReceiverUri;
-	private String inProgressDirectoryUri;
+	private String inProgressFolderManagerUri;
 	
 	/**
 	 * URI where incoming ITK messages are received from
@@ -43,13 +43,15 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 	 * directory.
 	 * <p>
 	 * The {@link Exchange#FILE_NAME} header will be populated with a name constructed from
-	 * the correlation id (ITK trackingId) and ack type (inf-ack, inf-nack, bus-ack, bus-nack).
+	 * the ack type (inf-ack, inf-nack, bus-ack, bus-nack).
 	 * The body of the message is the original body of the associated ack/nack.
+	 * <p>
+	 * {@see InProgressFolderManagerRoute} for details of the in-progress folder structure
 	 * <p>
 	 * output only
 	 */
-	public void setInProgressDirectoryUri(final String inProgressDirectoryRef) {
-		this.inProgressDirectoryUri = inProgressDirectoryRef;
+	public void setInProgressFolderManagerUri(final String inProgressFolderManagerUri) {
+		this.inProgressFolderManagerUri = inProgressFolderManagerUri;
 	}
 	
 	
@@ -124,18 +126,24 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 			.setProperty("properties.originalBody").body()
 			.convertBodyTo(InfrastructureResponse.class)
 			.log(LoggingLevel.INFO, LOGGER, "Processing infrastructure response - trackingIdRef: ${body.trackingIdRef}, errors: ${body.errors}")
+			
+			.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
+			.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.STATE))
+			.setHeader(InProgressFolderManagerRoute.Header.EVENT_TYPE, constant(InProgressFolderManagerRoute.EventType.MESSAGE_RECEIVED))
+			.setHeader(Exchange.CORRELATION_ID).simple("${body.trackingIdRef}")
+			
 			.choice()
 				.when().simple("${body.isAck}")
-					.setHeader(Exchange.FILE_NAME).simple("${body.trackingIdRef}/inf-ack")
+					.setHeader(Exchange.FILE_NAME).constant(InProgressFolderManagerRoute.MessageType.INFRASTRUCTURE_ACK)
 				.endChoice()
 				.otherwise()
-					.setHeader(Exchange.FILE_NAME).simple("${body.trackingIdRef}/inf-nack")
+					.setHeader(Exchange.FILE_NAME).constant(InProgressFolderManagerRoute.MessageType.INFRASTRUCTURE_NACK)
 				.endChoice()
 			.end()
 			
 			// Restore the original body
 			.setBody().property("properties.originalBody")
-			.to(inProgressDirectoryUri)			
+			.to(inProgressFolderManagerUri)
 		.end();
 	}
 	
@@ -151,17 +159,22 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 			.convertBodyTo(String.class)
 			.setHeader(Exchange.CORRELATION_ID).xpath("/hl7:BusinessResponseMessage/hl7:acknowledgedBy3/hl7:conveyingTransmission/hl7:id/@root", String.class, namespaces)
 			.log(LoggingLevel.INFO, LOGGER, "Processing business ack - correlationId: ${headers.CamelCorrelationId}")
+			
+			.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
+			.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.STATE))
+			.setHeader(InProgressFolderManagerRoute.Header.EVENT_TYPE, constant(InProgressFolderManagerRoute.EventType.MESSAGE_RECEIVED))
+			
 			.choice()
 				// HL7 types codes AA and CA are ACKS
 				.when().xpath("/hl7:BusinessResponseMessage/hl7:acknowledgedBy3[@typeCode='AA' or @typeCode='CA']", namespaces)
-					.setHeader(Exchange.FILE_NAME).simple("${headers.CamelCorrelationId}/bus-ack")
+					.setHeader(Exchange.FILE_NAME).constant(InProgressFolderManagerRoute.MessageType.BUSINESS_ACK)
 				.endChoice()
 				.otherwise()
-					.setHeader(Exchange.FILE_NAME).simple("${headers.CamelCorrelationId}/bus-nack")
+					.setHeader(Exchange.FILE_NAME).constant(InProgressFolderManagerRoute.MessageType.BUSINESS_NACK)
 				.endChoice()
 			.end()
 			
-			.to(inProgressDirectoryUri)	
+			.to(inProgressFolderManagerUri)	
 		.end();
 	}
 }

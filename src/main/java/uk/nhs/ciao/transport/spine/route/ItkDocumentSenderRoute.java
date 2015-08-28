@@ -2,8 +2,6 @@ package uk.nhs.ciao.transport.spine.route;
 
 import java.util.Map;
 
-import joptsimple.internal.Strings;
-
 import org.apache.camel.Exchange;
 import org.apache.camel.Header;
 import org.apache.camel.model.dataformat.JsonLibrary;
@@ -11,6 +9,8 @@ import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.apache.camel.util.toolbox.AggregationStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
 
 import uk.nhs.ciao.docs.parser.Document;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
@@ -29,7 +29,7 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 	
 	private String documentSenderRouteUri;
 	private String distributionEnvelopeSenderUri;
-	private String inProgressDirectoryUri;
+	private String inProgressFolderManagerUri;
 
 	public void setDocumentSenderRouteUri(final String documentSenderRouteUri) {
 		this.documentSenderRouteUri = documentSenderRouteUri;
@@ -39,8 +39,8 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 		this.distributionEnvelopeSenderUri = distributionEnvelopeSenderUri;
 	}
 	
-	public void setInProgressDirectoryUri(final String inProgressDirectoryUri) {
-		this.inProgressDirectoryUri = inProgressDirectoryUri;
+	public void setInProgressFolderManagerUri(final String inProgressFolderManagerUri) {
+		this.inProgressFolderManagerUri = inProgressFolderManagerUri;
 	}
 	
 	@Override
@@ -61,15 +61,19 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 			
 			.multicast(AggregationStrategies.useOriginal())
 				.choice().when().simple("${body.handlingSpec.isInfrastructureAckRequested}")
-					.setHeader(Exchange.FILE_NAME).simple("${header.CamelCorrelationId}/wants-inf-ack")
+					.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
+					.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.CONTROL))					
+					.setHeader(Exchange.FILE_NAME).constant("wants-inf-ack")
 					.setBody().constant("")
-					.to(inProgressDirectoryUri)
+					.to(inProgressFolderManagerUri)
 				.end()
 			
 				.choice().when().simple("${body.handlingSpec.isBusinessAckRequested}")
-					.setHeader(Exchange.FILE_NAME).simple("${header.CamelCorrelationId}/wants-bus-ack")
+					.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
+					.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.CONTROL))					
+					.setHeader(Exchange.FILE_NAME).constant("wants-bus-ack")
 					.setBody().constant("")
-					.to(inProgressDirectoryUri)
+					.to(inProgressFolderManagerUri)
 				.end()
 			.end()
 			

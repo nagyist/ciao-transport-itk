@@ -249,7 +249,7 @@ public class SpineTransportApplicationTest {
 		
 		final Message message = new DefaultMessage();
 		message.setBody(objectMapper.writeValueAsString(parsedDocument));
-		message.setHeader(HeaderNames.IN_PROGRESS_FOLDER, "./target/in-progress/12345");
+		message.setHeader(Exchange.CORRELATION_ID, "12345");
 		
 		return message;
 	}
