@@ -7,6 +7,7 @@ import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Processor;
+import org.apache.camel.component.http.HttpOperationFailedException;
 import org.apache.camel.component.http4.HttpMethods;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
@@ -30,6 +31,8 @@ import uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressMessageExchange;
 public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MultipartMessageSenderRoute.class);
 	
+	private final Set<String> inprogressIds = Collections.newSetFromMap(Maps.<String, Boolean>newConcurrentMap());
+	private final int aggregatorTimeout = 30000;
 	private String multipartMessageSenderUri;
 	private String multipartMessageDestinationUri;
 	private String ebxmlAckReceiverUri;
@@ -83,17 +86,11 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 			)
 			.transacted("PROPAGATION_NOT_SUPPORTED")
 			
-//			.doTry()
-				.to(getForwardExpressHandlerUrl())
-				.process(new EbxmlAcknowledgementProcessor())
-//			.endDoTry()
-//			.doCatch(HttpOperationFailedException.class)
-//				.process(new HttpErrorHandler())
+			// do all handling in a separate route - on retry all logic will be retried
+			// see http://camel.apache.org/how-do-i-retry-processing-a-message-from-a-certain-point-back-or-an-entire-route.html
+			.to(getForwardExpressHandlerUrl())
 		.end();
 	}
-
-	private final Set<String> inprogressIds = Collections.newSetFromMap(Maps.<String, Boolean>newConcurrentMap());
-	private final int aggregatorTimeout = 30000;
 	
 	/**
 	 * Route to send an HTTP request/response to spine and wait
@@ -108,6 +105,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	private void configureForwardExpressSender() throws Exception {
 		from(getForwardExpressHandlerUrl())
 			.routeId(getInternalRoutePrefix())
+			.errorHandler(noErrorHandler()) // disable error handler (the transaction handler from the caller will be used)
 			.doTry()
 				.setHeader(ForwardExpressMessageExchange.MESSAGE_TYPE, constant(ForwardExpressMessageExchange.REQUEST_MESSAGE))
 				.setHeader(Exchange.HTTP_METHOD, constant(HttpMethods.POST))
@@ -130,6 +128,13 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				// when making a message copy - the out message is copied but the exchange is nulled on the non-replaced message
 				// An addition processor (which does not need to use getIn().getExchange()) seems to resolve the problem
 				.log(LoggingLevel.DEBUG, LOGGER, "Extracted acknowledgment for ${header.CamelCorrelationId}")
+				
+				.process(new EbxmlAcknowledgementProcessor())
+			.endDoTry()
+			.doCatch(HttpOperationFailedException.class)
+				// TODO: check status code + body for SOAPFault and retry behaviour
+				.log(LoggingLevel.DEBUG, "HTTP error received: ${exception}")
+				.handled(false)
 			.endDoTry()
 			.doFinally()
 				.process(new Processor() {
