@@ -89,6 +89,9 @@ public class MultipartMessageSenderRouteTest {
 				final EbxmlEnvelope manifest = body.getParts().get(0).getMandatoryBody(EbxmlEnvelope.class);
 				final EbxmlEnvelope ack = manifest.generateAcknowledgment();
 				sendAsyncResponse(ack);
+				
+				exchange.getOut().setBody("");
+				exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_CODE, 202);
 			}
 		});
 		
@@ -111,6 +114,9 @@ public class MultipartMessageSenderRouteTest {
 				final EbxmlEnvelope deliveryFailure = manifest.generateDeliveryFailureNotification("warning");
 				deliveryFailure.getError().setWarning();
 				sendAsyncResponse(deliveryFailure);
+				
+				exchange.getOut().setBody("");
+				exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_CODE, 202);
 			}
 		});
 		
