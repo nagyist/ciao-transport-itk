@@ -56,6 +56,8 @@ public class MultipartMessageSenderRouteTest {
 		route.setMultipartMessageSenderUri("direct:multipart-message-sender");
 		route.setMultipartMessageDestinationUri("mock:multipart-message-destination");
 		route.setEbxmlAckReceiverUri("seda:multipart-ack-receiver");
+		route.setMaximumRedeliveries(2);
+		route.setRedeliveryDelay(0);
 		
 		context.addRoutes(route);
 		
@@ -93,6 +95,48 @@ public class MultipartMessageSenderRouteTest {
 		sendMultipartMessage(exampleRequest);
 		
 		Assert.assertTrue("Problems: " + problems, problems.isEmpty());
+		messageDestination.assertIsSatisfied();
+	}
+	
+	@Test
+	public void testRequestIsRetriedOnAsyncDeliveryFailureWarning() throws Exception {
+		final MultipartBody exampleRequest = createExampleRequest();
+		
+		messageDestination.expectedMessageCount(3); // 1 initial attempt + 2 retries
+		messageDestination.whenAnyExchangeReceived(new Processor() {
+			@Override
+			public void process(final Exchange exchange) throws Exception {
+				final MultipartBody body = exchange.getIn().getMandatoryBody(MultipartBody.class);
+				final EbxmlEnvelope manifest = body.getParts().get(0).getMandatoryBody(EbxmlEnvelope.class);
+				final EbxmlEnvelope deliveryFailure = manifest.generateDeliveryFailureNotification("warning");
+				deliveryFailure.getError().setWarning();
+				sendAsyncResponse(deliveryFailure);
+			}
+		});
+		
+		sendMultipartMessage(exampleRequest);
+		
+		messageDestination.assertIsSatisfied();
+	}
+	
+	@Test
+	public void testRequestIsNotRetriedOnAsyncDeliveryFailureError() throws Exception {
+		final MultipartBody exampleRequest = createExampleRequest();
+		
+		messageDestination.expectedMessageCount(1); // 1 initial attempt + no retries
+		messageDestination.whenAnyExchangeReceived(new Processor() {
+			@Override
+			public void process(final Exchange exchange) throws Exception {
+				final MultipartBody body = exchange.getIn().getMandatoryBody(MultipartBody.class);
+				final EbxmlEnvelope manifest = body.getParts().get(0).getMandatoryBody(EbxmlEnvelope.class);
+				final EbxmlEnvelope deliveryFailure = manifest.generateDeliveryFailureNotification("error");
+				deliveryFailure.getError().setError();
+				sendAsyncResponse(deliveryFailure);
+			}
+		});
+		
+		sendMultipartMessage(exampleRequest);
+		
 		messageDestination.assertIsSatisfied();
 	}
 	

@@ -36,6 +36,8 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	private String multipartMessageSenderUri;
 	private String multipartMessageDestinationUri;
 	private String ebxmlAckReceiverUri;
+	private int maximumRedeliveries = 2;
+	private int redeliveryDelay = 2000;
 	
 	public void setMultipartMessageSenderUri(final String multipartMessageSenderUri) {
 		this.multipartMessageSenderUri = multipartMessageSenderUri;
@@ -47,6 +49,14 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	
 	public void setEbxmlAckReceiverUri(final String ebxmlAckReceiverUri) {
 		this.ebxmlAckReceiverUri = ebxmlAckReceiverUri;
+	}
+	
+	public void setMaximumRedeliveries(final int maximumRedeliveries) {
+		this.maximumRedeliveries = maximumRedeliveries;
+	}
+	
+	public void setRedeliveryDelay(final int redeliveryDelay) {
+		this.redeliveryDelay = redeliveryDelay;
 	}
 	
 	private String getForwardExpressHandlerUrl() {
@@ -78,9 +88,8 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 			.id("trunk-request-sender")
 			.errorHandler(new TransactionErrorHandlerBuilder()
 				.asyncDelayedRedelivery()
-				.maximumRedeliveries(2)
-				.backOffMultiplier(2)
-				.redeliveryDelay(2000)
+				.maximumRedeliveries(maximumRedeliveries)
+				.redeliveryDelay(redeliveryDelay)
 				.log(LOGGER)
 				.logExhausted(true)
 			)
