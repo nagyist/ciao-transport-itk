@@ -40,7 +40,6 @@ import uk.nhs.ciao.camel.CamelApplicationRunner.AsyncExecution;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.configuration.impl.MemoryCipProperties;
 import uk.nhs.ciao.docs.parser.Document;
-import uk.nhs.ciao.docs.parser.HeaderNames;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
@@ -178,8 +177,7 @@ public class SpineTransportApplicationTest {
 				.setBody().spel("#{body.parts[0].body}")
 				.convertBodyTo(EbxmlEnvelope.class)
 				.setBody().spel("#{body.generateAcknowledgment()}")
-				.setHeader("JMSCorrelationID").simple("${body.messageData.refToMessageId}", String.class)
-				.setHeader(Exchange.CORRELATION_ID).header("JMSCorrelationID")
+				.setHeader(Exchange.CORRELATION_ID).simple("${body.messageData.refToMessageId}", String.class)
 				.convertBodyTo(String.class)
 				.setHeader("SOAPAction", constant("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
 				.to("direct:trunk-reply");

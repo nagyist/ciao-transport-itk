@@ -121,7 +121,7 @@ public class ForwardExpressSenderApplication {
 				from("spine:" + requestRouteId).routeId(requestRouteId))
 				.to("http4://localhost:8123/")
 				.waitForResponse(
-					forwardExpressAckReceiver(ackRouteId, "jms2:topic:document-ebxml-acks", "JMSMessageID", "JMSCorrelationId"),
+					forwardExpressAckReceiver(ackRouteId, "jms2:topic:document-ebxml-acks", "JMSMessageID", Exchange.CORRELATION_ID),
 					forwardExpressMessageAggregator(aggregateRouteId, "direct:" + aggregateRouteId, 30000));
 		}
 	}

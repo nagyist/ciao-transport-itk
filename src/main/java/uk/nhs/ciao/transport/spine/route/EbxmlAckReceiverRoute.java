@@ -28,8 +28,7 @@ public class EbxmlAckReceiverRoute extends BaseRouteBuilder {
 		from(ebxmlAckReceiverUrl)
 			.id("ebxml-ack-receiver")
 			.setProperty("envelope").body(EbxmlEnvelope.class)
-			.setHeader("JMSCorrelationID").simple("${property.envelope.messageData.refToMessageId}", String.class)
-			.setHeader(Exchange.CORRELATION_ID).header("JMSCorrelationID")
+			.setHeader(Exchange.CORRELATION_ID).simple("${property.envelope.messageData.refToMessageId}", String.class)
 			.setExchangePattern(ExchangePattern.InOnly)
 			.to(ebxmlAckDestinationUrl)
 		.end();

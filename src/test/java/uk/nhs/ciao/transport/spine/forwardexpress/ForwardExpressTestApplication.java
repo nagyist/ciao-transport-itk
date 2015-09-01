@@ -197,7 +197,7 @@ public class ForwardExpressTestApplication {
 			
 			final Endpoint endpoint = context.getEndpoint(url);
 			final Exchange exchange = endpoint.createExchange();
-			exchange.getIn().setHeader("JMSCorrelationID", id);
+			exchange.getIn().setHeader(Exchange.CORRELATION_ID, id);
 			exchange.getIn().setBody(type.split("\\|")[1]);
 			producerTemplate.send(endpoint, exchange);
 		}

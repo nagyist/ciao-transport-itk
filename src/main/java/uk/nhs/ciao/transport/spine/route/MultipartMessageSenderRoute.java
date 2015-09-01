@@ -2,6 +2,7 @@ package uk.nhs.ciao.transport.spine.route;
 
 import static uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressSenderRoutes.*;
 
+import org.apache.camel.Exchange;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,7 +102,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 			from(getForwardExpressHandlerUrl()).routeId(requestRouteId))
 			.to(multipartMessageDestinationUri)
 			.waitForResponse(
-				forwardExpressAckReceiver(ackRouteId, ebxmlAckReceiverUri, "JMSMessageID", "JMSCorrelationId"),
+				forwardExpressAckReceiver(ackRouteId, ebxmlAckReceiverUri, "JMSMessageID", Exchange.CORRELATION_ID),
 				forwardExpressMessageAggregator(aggregateRouteId, getForwardExpressAggregatorUrl(), 30000));
 	}
 }

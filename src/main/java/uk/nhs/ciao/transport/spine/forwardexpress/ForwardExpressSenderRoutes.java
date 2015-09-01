@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.Set;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.BuilderSupport;
@@ -64,7 +65,10 @@ public final class ForwardExpressSenderRoutes {
 				.setHeader(Exchange.HTTP_METHOD, support.constant(org.apache.camel.component.http4.HttpMethods.POST))
 				.multicast()
 					.bean(inprogressIds, "add(${header.CamelCorrelationId})")
-					.to(toUri)
+					.pipeline()
+						.setExchangePattern(ExchangePattern.InOut)
+						.to(toUri)
+					.end()
 				.end()
 				.setProperty(ForwardExpressMessageExchange.ACK_FUTURE, support.method(SettableFuture.class, "create"))
 				.to(aggregator.fromUri)
