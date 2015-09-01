@@ -12,6 +12,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.model.ModelCamelContext;
 import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
+import org.apache.camel.util.toolbox.AggregationStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,12 +64,13 @@ public final class ForwardExpressSenderRoutes {
 			return from.doTry()
 				.setHeader(ForwardExpressMessageExchange.MESSAGE_TYPE, support.constant(ForwardExpressMessageExchange.REQUEST_MESSAGE))
 				.setHeader(Exchange.HTTP_METHOD, support.constant(org.apache.camel.component.http4.HttpMethods.POST))
-				.multicast()
+
+				// TODO: Work out how to maintain the original request body - but also examine the out response from the HTTP request-response call
+				.multicast(AggregationStrategies.useOriginal())
 					.bean(inprogressIds, "add(${header.CamelCorrelationId})")
-					.pipeline()
-						.setExchangePattern(ExchangePattern.InOut)
-						.to(toUri)
-					.end()
+					
+					// TODO: Is a pipeline + checking of out message required here?
+					.to(ExchangePattern.InOut, toUri)
 				.end()
 				.setProperty(ForwardExpressMessageExchange.ACK_FUTURE, support.method(SettableFuture.class, "create"))
 				.to(aggregator.fromUri)

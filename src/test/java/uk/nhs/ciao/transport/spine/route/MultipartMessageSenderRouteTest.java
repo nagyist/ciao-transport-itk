@@ -133,7 +133,6 @@ public class MultipartMessageSenderRouteTest {
 		exchange.getIn().setBody(body, String.class); // convert the body
 
 		final EbxmlEnvelope envelope = deserialize(EbxmlEnvelope.class, body.getParts().get(0).getBody(String.class));
-		exchange.getIn().setHeader("JMSMessageID", UUID.randomUUID().toString());
 		exchange.getIn().setHeader(Exchange.CORRELATION_ID, envelope.getMessageData().getMessageId());
 		
 		final ContentType contentType = new ContentType("multipart", "related");
@@ -151,7 +150,7 @@ public class MultipartMessageSenderRouteTest {
 		// Set properties / headers equivalent to the EbxmlAckReceiever
 		exchange.setProperty("envelope", envelope);
 		exchange.getIn().setHeader("JMSMessageID", UUID.randomUUID().toString());
-		exchange.getIn().setHeader(Exchange.CORRELATION_ID, envelope.getMessageData().getRefToMessageId());
+		exchange.getIn().setHeader("JMSCorrelationID", envelope.getMessageData().getRefToMessageId());
 		
 		producerTemplate.send("seda:multipart-ack-receiver", exchange);
 	}

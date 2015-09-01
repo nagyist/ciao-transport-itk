@@ -1,6 +1,5 @@
 package uk.nhs.ciao.transport.spine.route;
 
-import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
@@ -28,7 +27,7 @@ public class EbxmlAckReceiverRoute extends BaseRouteBuilder {
 		from(ebxmlAckReceiverUrl)
 			.id("ebxml-ack-receiver")
 			.setProperty("envelope").body(EbxmlEnvelope.class)
-			.setHeader(Exchange.CORRELATION_ID).simple("${property.envelope.messageData.refToMessageId}", String.class)
+			.setHeader("JMSCorrelationID").simple("${property.envelope.messageData.refToMessageId}", String.class)
 			.setExchangePattern(ExchangePattern.InOnly)
 			.to(ebxmlAckDestinationUrl)
 		.end();

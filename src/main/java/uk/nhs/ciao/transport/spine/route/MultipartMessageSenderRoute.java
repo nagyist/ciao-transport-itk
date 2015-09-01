@@ -102,7 +102,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 			from(getForwardExpressHandlerUrl()).routeId(requestRouteId))
 			.to(multipartMessageDestinationUri)
 			.waitForResponse(
-				forwardExpressAckReceiver(ackRouteId, ebxmlAckReceiverUri, "JMSMessageID", Exchange.CORRELATION_ID),
+				forwardExpressAckReceiver(ackRouteId, ebxmlAckReceiverUri, "JMSMessageID", "JMSCorrelationID"),
 				forwardExpressMessageAggregator(aggregateRouteId, getForwardExpressAggregatorUrl(), 30000));
 	}
 }

@@ -172,15 +172,20 @@ public class SpineTransportApplicationTest {
 			@Override
 			public void configure() throws Exception {
 				// Send an ack whenever a request is received
-				from("seda:trunk-request")
-				.convertBodyTo(MultipartBody.class)
-				.setBody().spel("#{body.parts[0].body}")
-				.convertBodyTo(EbxmlEnvelope.class)
-				.setBody().spel("#{body.generateAcknowledgment()}")
-				.setHeader(Exchange.CORRELATION_ID).simple("${body.messageData.refToMessageId}", String.class)
-				.convertBodyTo(String.class)
-				.setHeader("SOAPAction", constant("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
-				.to("direct:trunk-reply");
+				from("seda:trunk-request")				
+					// async response
+					.convertBodyTo(MultipartBody.class)
+					.setBody().spel("#{body.parts[0].body}")
+					.convertBodyTo(EbxmlEnvelope.class)
+					.setBody().spel("#{body.generateAcknowledgment()}")
+					.setHeader("JMSCorrelationID").simple("${body.messageData.refToMessageId}", String.class)
+					.convertBodyTo(String.class)
+					.setHeader("SOAPAction", constant("urn:oasis:names:tc:ebxml-msg:service/Acknowledgment"))
+					.to("direct:trunk-reply")
+					
+					// request-response body
+					.setBody().constant("")
+				.end();
 				
 				// Monitor the responses and unlock the latch
 				from("direct:trunk-responses")
