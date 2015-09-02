@@ -19,7 +19,6 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.SettableFuture;
 
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
-import uk.nhs.ciao.transport.spine.forwardexpress.EbxmlAcknowledgementProcessor;
 import uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressMessageExchange;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 
@@ -74,12 +73,17 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 		return internalDirectUri("forward-express-aggregator");
 	}
 	
+	private String getEbxmlAckProcessorUrl() {
+		return internalDirectUri("ebxml-ack-processor");
+	}
+	
 	@Override
 	public void configure() throws Exception {
 		configureMultipartMessageSender();
 		configureForwardExpressSender();
 		configureForwardAckReceiver();
 		configureForwardExpressMessageAggregator();
+		configureEbxmlAckProcessor();
 	}
 	
 	/**
@@ -93,7 +97,8 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	private void configureMultipartMessageSender() throws Exception {
 		from(multipartMessageSenderUri)
 			.id("trunk-request-sender")
-			.errorHandler(new TransactionErrorHandlerBuilder().maximumRedeliveries(0))
+			.errorHandler(new TransactionErrorHandlerBuilder()
+				.maximumRedeliveries(0)) // redeliveries are handled by the onException clause
 			.onException(Exception.class)
 				.maximumRedeliveries(maximumRedeliveries)
 				.redeliveryDelay(redeliveryDelay)
@@ -101,7 +106,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				.useOriginalMessage()
 				.handled(true)
 				
-				// Out of attempts - publish a generated failure notification
+				// Out of redelivery attempts - publish a generated failure notification
 				.convertBodyTo(MultipartBody.class)
 				.setBody().spel("#{body.parts[0].body}")
 				.convertBodyTo(EbxmlEnvelope.class)
@@ -128,10 +133,11 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	 * <li>or a timeout occurs while waiting for the ack
 	 * <li>or the ack is received
 	 */
+	@SuppressWarnings("deprecation")
 	private void configureForwardExpressSender() throws Exception {
 		from(getForwardExpressHandlerUrl())
 			.routeId(getInternalRoutePrefix())
-			.errorHandler(noErrorHandler()) // disable error handler (the transaction handler from the caller will be used)
+			.errorHandler(noErrorHandler()) // disable error handler (the transaction handler from the top-level caller will be used)
 			.doTry()
 				.setHeader(ForwardExpressMessageExchange.MESSAGE_TYPE, constant(ForwardExpressMessageExchange.REQUEST_MESSAGE))
 				.setHeader(Exchange.HTTP_METHOD, constant(HttpMethods.POST))
@@ -140,49 +146,23 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				.multicast(AggregationStrategies.useOriginal())
 					.bean(inprogressIds, "add(${header.CamelCorrelationId})")
 					
-					// TODO: Is a pipeline + checking of out message required here?
-					.to(ExchangePattern.InOut, multipartMessageDestinationUri)
+					.doTry()
+						// TODO: Is a pipeline + checking of out message required here?
+						.to(ExchangePattern.InOut, multipartMessageDestinationUri)
+					.doCatch(HttpOperationFailedException.class)
+						// TODO: check status code + body for SOAPFault and retry behaviour
+						.log(LoggingLevel.DEBUG, "HTTP error received: ${exception}")
+						.handled(false)
+					.endDoTry()
+					.end()
 				.end()
 				.setProperty(ForwardExpressMessageExchange.ACK_FUTURE, method(SettableFuture.class, "create"))
 				.to(getForwardExpressAggregatorUrl())
 				.process(new ForwardExpressMessageExchange.WaitForAck(aggregatorTimeout + 1000)) // timeout is slightly higher than the corresponding value in the aggregate
 				.validate().simple("${body.isComplete()}")
-				.transform().simple("${body.getAckBody()}")
-				// If left as the final clause, transform appears to cause problems by
-				// for the next processor in the chain by nulling the exchange on one of the messages
-				// This *appears* to be a bug in how TransformProcessor uses ExchangeHelper.replaceMessage
-				// when making a message copy - the out message is copied but the exchange is nulled on the non-replaced message
-				// An addition processor (which does not need to use getIn().getExchange()) seems to resolve the problem
-				.log(LoggingLevel.DEBUG, LOGGER, "Extracted acknowledgment for ${header.CamelCorrelationId}")
+				.setBody().simple("${body.getAckBody()}")
 				
-				.convertBodyTo(EbxmlEnvelope.class)
-				.choice()
-					.when().simple("${body.errorMessage}")
-						.pipeline()
-							.choice()
-								.when().simple("${body.error.warning}")
-									.log(LoggingLevel.INFO, LOGGER, "ebXml delivery failure (warning) received - refToMessageId: ${body.messageData.refToMessageId} - will retry (if applicable)")
-									.throwException(new Exception("ebXml delivery failure (warning) received - will retry (if applicable)"))
-								.endChoice()
-								.otherwise()
-									.log(LoggingLevel.INFO, LOGGER, "ebXml delivery failure (error) received - refToMessageId: ${body.messageData.refToMessageId} - will not retry")
-									.to(ExchangePattern.InOnly, ebxmlAckDestinationUri)
-									.stop()
-								.endChoice()
-							.end()
-						.end()
-					.endChoice()
-					.otherwise()
-						.log(LoggingLevel.INFO, LOGGER, "ebXml ack received - refToMessageId: ${body.messageData.refToMessageId}")
-						.to(ExchangePattern.InOnly, ebxmlAckDestinationUri)
-					.endChoice()
-				.end()
-				
-			.endDoTry()
-			.doCatch(HttpOperationFailedException.class)
-				// TODO: check status code + body for SOAPFault and retry behaviour
-				.log(LoggingLevel.DEBUG, "HTTP error received: ${exception}")
-				.handled(false)
+				.to(getEbxmlAckProcessorUrl())
 			.endDoTry()
 			.doFinally()
 				.process(new Processor() {
@@ -228,6 +208,59 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				.completionTimeout(aggregatorTimeout)
 			.log("Completed forward-express request-response aggregate: ${header.CamelCorrelationId}")
 			.bean(ForwardExpressMessageExchange.class, "notifyCompletion(${body})")
+		.end();
+	}
+	
+	/**
+	 * <p>
+	 * From ebMS_v2_0.pdf:
+	 * 
+	 * 6.5.7 Failed Message Delivery
+	 * If a message sent with an AckRequested element cannot be delivered, the MSH or process handling the
+	 * message (as in the case of a routing intermediary) SHALL send a delivery failure notification to the From
+	 * Party. The delivery failure notification message is an Error Message with <code>errorCode</code> of
+	 * <code>DeliveryFailure</code> and a <code>severity</code> of:
+	 * <ul>
+	 * <li><code>Error</code> if the party who detected the problem could not transmit the message (e.g. the communications
+	 * transport was not available)
+	 * <li><code>Warning</code> if the message was transmitted, but an Acknowledgment Message was not received. This means
+	 * the message probably was not delivered.
+	 * 
+	 * <p>
+	 * From EIS11.6 (2.5.2):
+	 * <p>
+	 * Should an MHS receive an ebXML ErrorList with a highestSeverity of “Error” it MUST assume that the message in error can not
+	 * be re-presented.  That is, the problem MUST be handled by the sender of the message in error.
+	 * Should an MHS receive an ebXML ErrorList with a highestSeverity of “Warning” it MAY assume that the error is recoverable
+	 * and that the message in error can be re-presented.
+	 */
+	private void configureEbxmlAckProcessor() throws Exception {
+		from(getEbxmlAckProcessorUrl())
+			.id(getInternalRoutePrefix() + "ebxml-ack-processor")
+			.errorHandler(noErrorHandler()) // disable error handler (the transaction handler from the top-level caller will be used)
+			.log(LoggingLevel.DEBUG, LOGGER, "Processing ebXml acknowledgment for ${header.CamelCorrelationId}")
+			.convertBodyTo(EbxmlEnvelope.class)
+			.choice()
+				.when().simple("${body.errorMessage}")
+					.pipeline()
+						.choice()
+							.when().simple("${body.error.warning}")
+								.log(LoggingLevel.INFO, LOGGER, "ebXml delivery failure (warning) received - refToMessageId: ${body.messageData.refToMessageId} - will retry (if applicable)")
+								.throwException(new Exception("ebXml delivery failure (warning) received - will retry (if applicable)"))
+							.endChoice()
+							.otherwise()
+								.log(LoggingLevel.INFO, LOGGER, "ebXml delivery failure (error) received - refToMessageId: ${body.messageData.refToMessageId} - will not retry")
+								.to(ExchangePattern.InOnly, ebxmlAckDestinationUri)
+								.stop()
+							.endChoice()
+						.end()
+					.end()
+				.endChoice()
+				.otherwise()
+					.log(LoggingLevel.INFO, LOGGER, "ebXml ack received - refToMessageId: ${body.messageData.refToMessageId}")
+					.to(ExchangePattern.InOnly, ebxmlAckDestinationUri)
+				.endChoice()
+			.end()
 		.end();
 	}
 }
