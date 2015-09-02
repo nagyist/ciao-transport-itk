@@ -151,12 +151,119 @@ public class MultipartMessageSenderRouteTest {
 				final EbxmlEnvelope deliveryFailure = manifest.generateDeliveryFailureNotification("error");
 				deliveryFailure.getError().setError();
 				sendAsyncResponse(deliveryFailure);
+				
+				exchange.getOut().setBody("");
+				exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_CODE, 202);
 			}
 		});
 		
 		final boolean warning = false;
 		ackDestination.expectedMessageCount(1);
 		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		
+		sendMultipartMessage(exampleRequest);
+		
+		messageDestination.assertIsSatisfied();
+		ackDestination.assertIsSatisfied();
+	}
+	
+	@Test
+	public void testRequestIsRetriedOnHttpError() throws Exception {
+		final MultipartBody exampleRequest = createExampleRequest();
+		
+		messageDestination.expectedMessageCount(3); // 1 initial attempt + 2 retries
+		messageDestination.whenAnyExchangeReceived(new Processor() {
+			@Override
+			public void process(final Exchange exchange) throws Exception {
+				exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_CODE, 400);
+				exchange.getOut().setHeader(Exchange.CONTENT_TYPE, "text/plain");
+				exchange.getOut().setBody("Bad Request");
+			}
+		});
+		
+		final boolean warning = true;
+		ackDestination.expectedMessageCount(1);
+		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		
+		sendMultipartMessage(exampleRequest);
+		
+		messageDestination.assertIsSatisfied();
+		ackDestination.assertIsSatisfied();
+	}
+	
+	@Test
+	public void testRequestIsRetriedOnInvalidSOAPFaultBody() throws Exception {
+		final MultipartBody exampleRequest = createExampleRequest();
+		
+		messageDestination.expectedMessageCount(3); // 1 initial attempt + 2 retries
+		messageDestination.whenAnyExchangeReceived(new Processor() {
+			@Override
+			public void process(final Exchange exchange) throws Exception {
+				exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_CODE, 500);
+				exchange.getOut().setHeader(Exchange.CONTENT_TYPE, "text/xml");
+				exchange.getOut().setBody("<root></root");
+			}
+		});
+		
+		final boolean warning = true;
+		ackDestination.expectedMessageCount(1);
+		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		
+		sendMultipartMessage(exampleRequest);
+		
+		messageDestination.assertIsSatisfied();
+		ackDestination.assertIsSatisfied();
+	}
+	
+	@Test
+	public void testRequestIsRetriedOnSOAPFaultWarning() throws Exception {
+		final MultipartBody exampleRequest = createExampleRequest();
+		
+		messageDestination.expectedMessageCount(3); // 1 initial attempt + 2 retries
+		messageDestination.whenAnyExchangeReceived(new Processor() {
+			@Override
+			public void process(final Exchange exchange) throws Exception {
+				final EbxmlEnvelope envelope = exchange.getIn().getMandatoryBody(MultipartBody.class).getParts().get(0).getMandatoryBody(EbxmlEnvelope.class);
+				final EbxmlEnvelope soapFault = envelope.generateSOAPFault("code", "description");
+				soapFault.getError().setWarning();
+				
+				exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_CODE, 500);
+				exchange.getOut().setHeader(Exchange.CONTENT_TYPE, "text/xml");
+				exchange.getOut().setBody(serialize(soapFault));
+			}
+		});
+		
+		final boolean warning = true;
+		ackDestination.expectedMessageCount(1);
+		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		
+		sendMultipartMessage(exampleRequest);
+		
+		messageDestination.assertIsSatisfied();
+		ackDestination.assertIsSatisfied();
+	}
+	
+	@Test
+	public void testRequestIsNotRetriedOnSOAPFaultError() throws Exception {
+		final MultipartBody exampleRequest = createExampleRequest();
+		
+		messageDestination.expectedMessageCount(1); // 1 initial attempt + no retries
+		messageDestination.whenAnyExchangeReceived(new Processor() {
+			@Override
+			public void process(final Exchange exchange) throws Exception {
+				final EbxmlEnvelope envelope = exchange.getIn().getMandatoryBody(MultipartBody.class).getParts().get(0).getMandatoryBody(EbxmlEnvelope.class);
+				final EbxmlEnvelope soapFault = envelope.generateSOAPFault("code", "description");
+				soapFault.getError().setError();
+				
+				exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_CODE, 500);
+				exchange.getOut().setHeader(Exchange.CONTENT_TYPE, "text/xml");
+				exchange.getOut().setBody(serialize(soapFault));
+			}
+		});
+		
+		final boolean warning = false;
+		ackDestination.expectedMessageCount(1);
+		ackDestination.message(0).predicate(expectSOAPFault(getCorrelationId(exampleRequest), warning));
 		
 		sendMultipartMessage(exampleRequest);
 		
@@ -199,6 +306,24 @@ public class MultipartMessageSenderRouteTest {
 	private String getCorrelationId(final MultipartBody body) {
 		final EbxmlEnvelope envelope = deserialize(EbxmlEnvelope.class, body.getParts().get(0).getBody(String.class));
 		return envelope.getMessageData().getMessageId();
+	}
+	
+	private Predicate expectSOAPFault(final String correlationId, final boolean warning) {
+		return new Predicate() {
+			@Override
+			public boolean matches(final Exchange exchange) {
+				final EbxmlEnvelope envelope = exchange.getIn().getBody(EbxmlEnvelope.class);
+				Assert.assertNotNull("envelope: ", envelope);
+				Assert.assertTrue("expected SOAPFault", envelope.isSOAPFault());
+				if (warning) {
+					Assert.assertTrue("expected warning severity", envelope.getError().isWarning());
+				} else {
+					Assert.assertTrue("expected error severity", envelope.getError().isError());
+				}
+				Assert.assertEquals("RefToMessageId", correlationId, envelope.getMessageData().getRefToMessageId());
+				return true;
+			}
+		};
 	}
 	
 	private Predicate expectDeliveryFailure(final String correlationId, final boolean warning) {

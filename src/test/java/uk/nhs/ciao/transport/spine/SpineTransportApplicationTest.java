@@ -184,6 +184,7 @@ public class SpineTransportApplicationTest {
 					.to("direct:trunk-reply")
 					
 					// request-response body
+					.setHeader(Exchange.HTTP_RESPONSE_CODE, constant(202))
 					.setBody().constant("")
 				.end();
 				

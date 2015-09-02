@@ -1,17 +1,19 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import static org.apache.camel.builder.PredicateBuilder.*;
+
 import java.util.Collections;
 import java.util.Set;
 
+import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Processor;
-import org.apache.camel.component.http.HttpOperationFailedException;
 import org.apache.camel.component.http4.HttpMethods;
+import org.apache.camel.processor.aggregate.UseOriginalAggregationStrategy;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
-import org.apache.camel.util.toolbox.AggregationStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -138,7 +140,6 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	 * <li>or a timeout occurs while waiting for the ack
 	 * <li>or the ack is received
 	 */
-	@SuppressWarnings("deprecation")
 	private void configureForwardExpressSender() throws Exception {
 		from(getForwardExpressHandlerUrl())
 			.routeId(getInternalRoutePrefix())
@@ -147,10 +148,21 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				.setHeader(ForwardExpressMessageExchange.MESSAGE_TYPE, constant(ForwardExpressMessageExchange.REQUEST_MESSAGE))
 				.setHeader(Exchange.HTTP_METHOD, constant(HttpMethods.POST))
 		
-				.multicast(AggregationStrategies.useOriginal())
-					.bean(inprogressIds, "add(${header.CamelCorrelationId})")					
-					.to(getHttpRequestHandlerUrl())
+				.multicast(new UseOriginalAggregationStrategy() {
+					@Override
+					public Exchange aggregate(final Exchange oldExchange, final Exchange newExchange) {
+						// Propagate any fault responses
+						if (newExchange.getIn().isFault() || newExchange.getOut().isFault()) {
+							return newExchange;
+						}
+						
+						return super.aggregate(oldExchange, newExchange);
+					}
+				})
+					.bean(inprogressIds, "add(${header.CamelCorrelationId})")
+					.to(ExchangePattern.InOut, getHttpRequestHandlerUrl())
 				.end()
+				
 				.setProperty(ForwardExpressMessageExchange.ACK_FUTURE, method(SettableFuture.class, "create"))
 				.to(getForwardExpressAggregatorUrl())
 				.process(new ForwardExpressMessageExchange.WaitForAck(aggregatorTimeout + 1000)) // timeout is slightly higher than the corresponding value in the aggregate
@@ -210,19 +222,49 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	 * Sends multipart requests (over HTTP) and processes the associated synchronous responses
 	 * (e.g. no-content success, SOAPError, etc)
 	 */
+	@SuppressWarnings("deprecation")
 	private void configureHttpRequestHandler() throws Exception {
+		final Endpoint endpoint = getContext().getEndpoint(multipartMessageDestinationUri);
+		endpoint.getEndpointConfiguration().setParameter("throwExceptionOnFailure", false);
+		
 		from(getHttpRequestHandlerUrl())
 			.routeId(getInternalRoutePrefix() + "-http-request-handler")
 			.errorHandler(noErrorHandler()) // disable error handler (the transaction handler from the top-level caller will be used)
 			
-			.doTry()
-				.to(ExchangePattern.InOut, multipartMessageDestinationUri)
-			.doCatch(HttpOperationFailedException.class)
-				// TODO: check status code + body for SOAPFault and retry behaviour
-				.log(LoggingLevel.DEBUG, "HTTP error received: ${exception}")
-				.handled(false)
-			.endDoTry()
+			.to(ExchangePattern.InOut, multipartMessageDestinationUri)
+			.choice()
+				.when(and(
+						isGreaterThanOrEqualTo(header(Exchange.HTTP_RESPONSE_CODE), constant(200)),
+						isLessThan(header(Exchange.HTTP_RESPONSE_CODE), constant(300))))
+					// Success
+					.stop()
 			.end()
+			
+			.log(LoggingLevel.INFO, LOGGER, "HTTP error received: ${header." + Exchange.HTTP_RESPONSE_CODE + "}")
+			
+			.choice()
+				.when(isEqualTo(header(Exchange.CONTENT_TYPE), constant("text/xml")))
+					.doTry()
+						.setProperty("original-body").body() // maintain original serialised representation
+						.convertBodyTo(EbxmlEnvelope.class)
+							.choice()
+								.when().simple("${body.isSOAPFault} && ${body.error.error}")
+									.setBody().property("original-body") // revert to original representation
+									.to(ExchangePattern.InOnly, ebxmlAckDestinationUri) // publish the SOAPFault
+									.setFaultBody(body()) // mark as fault to prevent further processing
+									.stop() 
+								.endChoice()
+							.end()
+							.endDoTry()
+					.doCatch(Exception.class)
+						.handled(false)
+						.log(LoggingLevel.INFO, LOGGER, "Could not parse response body as SOAPFault - will retry (if applicable): ${exception}")
+					.endDoTry()
+				.endChoice()
+			.end()
+			
+			// throw exception to queue retry attempts
+			.throwException(new Exception("HTTP request (multipart body) was not successfull - will retry (if applicable)"))
 			
 		.end();
 	}
