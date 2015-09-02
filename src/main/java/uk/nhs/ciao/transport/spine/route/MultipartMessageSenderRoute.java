@@ -69,6 +69,10 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 		return internalDirectUri("forward-express-handler");
 	}
 	
+	private String getHttpRequestHandlerUrl() {
+		return internalDirectUri("http-request-handler");
+	}
+	
 	private String getForwardExpressAggregatorUrl() {
 		return internalDirectUri("forward-express-aggregator");
 	}
@@ -81,6 +85,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	public void configure() throws Exception {
 		configureMultipartMessageSender();
 		configureForwardExpressSender();
+		configureHttpRequestHandler();
 		configureForwardAckReceiver();
 		configureForwardExpressMessageAggregator();
 		configureEbxmlAckProcessor();
@@ -142,19 +147,9 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				.setHeader(ForwardExpressMessageExchange.MESSAGE_TYPE, constant(ForwardExpressMessageExchange.REQUEST_MESSAGE))
 				.setHeader(Exchange.HTTP_METHOD, constant(HttpMethods.POST))
 		
-				// TODO: Work out how to maintain the original request body - but also examine the out response from the HTTP request-response call
 				.multicast(AggregationStrategies.useOriginal())
-					.bean(inprogressIds, "add(${header.CamelCorrelationId})")
-					
-					.doTry()
-						// TODO: Is a pipeline + checking of out message required here?
-						.to(ExchangePattern.InOut, multipartMessageDestinationUri)
-					.doCatch(HttpOperationFailedException.class)
-						// TODO: check status code + body for SOAPFault and retry behaviour
-						.log(LoggingLevel.DEBUG, "HTTP error received: ${exception}")
-						.handled(false)
-					.endDoTry()
-					.end()
+					.bean(inprogressIds, "add(${header.CamelCorrelationId})")					
+					.to(getHttpRequestHandlerUrl())
 				.end()
 				.setProperty(ForwardExpressMessageExchange.ACK_FUTURE, method(SettableFuture.class, "create"))
 				.to(getForwardExpressAggregatorUrl())
@@ -208,6 +203,27 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				.completionTimeout(aggregatorTimeout)
 			.log("Completed forward-express request-response aggregate: ${header.CamelCorrelationId}")
 			.bean(ForwardExpressMessageExchange.class, "notifyCompletion(${body})")
+		.end();
+	}
+	
+	/**
+	 * Sends multipart requests (over HTTP) and processes the associated synchronous responses
+	 * (e.g. no-content success, SOAPError, etc)
+	 */
+	private void configureHttpRequestHandler() throws Exception {
+		from(getHttpRequestHandlerUrl())
+			.routeId(getInternalRoutePrefix() + "-http-request-handler")
+			.errorHandler(noErrorHandler()) // disable error handler (the transaction handler from the top-level caller will be used)
+			
+			.doTry()
+				.to(ExchangePattern.InOut, multipartMessageDestinationUri)
+			.doCatch(HttpOperationFailedException.class)
+				// TODO: check status code + body for SOAPFault and retry behaviour
+				.log(LoggingLevel.DEBUG, "HTTP error received: ${exception}")
+				.handled(false)
+			.endDoTry()
+			.end()
+			
 		.end();
 	}
 	
