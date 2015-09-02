@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
+import org.apache.camel.Predicate;
 import org.apache.camel.Processor;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.component.mock.MockEndpoint;
@@ -38,6 +39,7 @@ public class MultipartMessageSenderRouteTest {
 	private ProducerTemplate producerTemplate;
 	
 	private MockEndpoint messageDestination;
+	private MockEndpoint ackDestination;
 	
 	@Before
 	public void setup() throws Exception {
@@ -56,6 +58,7 @@ public class MultipartMessageSenderRouteTest {
 		route.setMultipartMessageSenderUri("direct:multipart-message-sender");
 		route.setMultipartMessageDestinationUri("mock:multipart-message-destination");
 		route.setEbxmlAckReceiverUri("seda:multipart-ack-receiver");
+		route.setEbxmlAckDestinationUri("mock:ebxml-ack-destination");
 		route.setMaximumRedeliveries(2);
 		route.setRedeliveryDelay(0);
 		
@@ -65,6 +68,7 @@ public class MultipartMessageSenderRouteTest {
 		producerTemplate.start();
 		
 		messageDestination = MockEndpoint.resolve(context, "mock:multipart-message-destination");
+		ackDestination = MockEndpoint.resolve(context, "mock:ebxml-ack-destination");
 	}
 	
 	@After
@@ -95,10 +99,14 @@ public class MultipartMessageSenderRouteTest {
 			}
 		});
 		
+		ackDestination.expectedMessageCount(1);
+		ackDestination.message(0).predicate(expectAcknowledgment(getCorrelationId(exampleRequest)));
+		
 		sendMultipartMessage(exampleRequest);
 		
 		Assert.assertTrue("Problems: " + problems, problems.isEmpty());
 		messageDestination.assertIsSatisfied();
+		ackDestination.assertIsSatisfied();
 	}
 	
 	@Test
@@ -120,9 +128,14 @@ public class MultipartMessageSenderRouteTest {
 			}
 		});
 		
+		final boolean warning = true;
+		ackDestination.expectedMessageCount(1);
+		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		
 		sendMultipartMessage(exampleRequest);
 		
 		messageDestination.assertIsSatisfied();
+		ackDestination.assertIsSatisfied();
 	}
 	
 	@Test
@@ -141,9 +154,14 @@ public class MultipartMessageSenderRouteTest {
 			}
 		});
 		
+		final boolean warning = false;
+		ackDestination.expectedMessageCount(1);
+		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		
 		sendMultipartMessage(exampleRequest);
 		
 		messageDestination.assertIsSatisfied();
+		ackDestination.assertIsSatisfied();
 	}
 	
 	private MultipartBody createExampleRequest() throws Exception {
@@ -178,12 +196,46 @@ public class MultipartMessageSenderRouteTest {
 		return context.getTypeConverter().convertTo(type, body);
 	}
 	
+	private String getCorrelationId(final MultipartBody body) {
+		final EbxmlEnvelope envelope = deserialize(EbxmlEnvelope.class, body.getParts().get(0).getBody(String.class));
+		return envelope.getMessageData().getMessageId();
+	}
+	
+	private Predicate expectDeliveryFailure(final String correlationId, final boolean warning) {
+		return new Predicate() {
+			@Override
+			public boolean matches(final Exchange exchange) {
+				final EbxmlEnvelope envelope = exchange.getIn().getBody(EbxmlEnvelope.class);
+				Assert.assertNotNull("envelope", envelope);
+				Assert.assertTrue("expected delivery failure", envelope.isDeliveryFailure());
+				if (warning) {
+					Assert.assertTrue("expected warning severity", envelope.getError().isWarning());
+				} else {
+					Assert.assertTrue("expected error severity", envelope.getError().isError());
+				}
+				Assert.assertEquals("RefToMessageId", correlationId, envelope.getMessageData().getRefToMessageId());
+				return true;
+			}
+		};
+	}
+	
+	private Predicate expectAcknowledgment(final String correlationId) {
+		return new Predicate() {
+			@Override
+			public boolean matches(final Exchange exchange) {
+				final EbxmlEnvelope envelope = exchange.getIn().getBody(EbxmlEnvelope.class);
+				Assert.assertNotNull("envelope", envelope);
+				Assert.assertTrue("expected acknowledgment", envelope.isAcknowledgment());
+				Assert.assertEquals("RefToMessageId", correlationId, envelope.getMessageData().getRefToMessageId());
+				return true;
+			}
+		};
+	}
+	
 	private void sendMultipartMessage(final MultipartBody body) throws Exception {
 		final Exchange exchange = new DefaultExchange(context);
 		exchange.getIn().setBody(body, String.class); // convert the body
-
-		final EbxmlEnvelope envelope = deserialize(EbxmlEnvelope.class, body.getParts().get(0).getBody(String.class));
-		exchange.getIn().setHeader(Exchange.CORRELATION_ID, envelope.getMessageData().getMessageId());
+		exchange.getIn().setHeader(Exchange.CORRELATION_ID, getCorrelationId(body));
 		
 		final ContentType contentType = new ContentType("multipart", "related");
 		contentType.setBoundary(body.getBoundary());

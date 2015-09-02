@@ -18,8 +18,10 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.SettableFuture;
 
+import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.forwardexpress.EbxmlAcknowledgementProcessor;
 import uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressMessageExchange;
+import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 
 /**
  * Route to send outgoing multipart messages over spine and wait for async acknowledgement
@@ -36,6 +38,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	private String multipartMessageSenderUri;
 	private String multipartMessageDestinationUri;
 	private String ebxmlAckReceiverUri;
+	private String ebxmlAckDestinationUri;
 	private int maximumRedeliveries = 2;
 	private int redeliveryDelay = 2000;
 	
@@ -49,6 +52,10 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	
 	public void setEbxmlAckReceiverUri(final String ebxmlAckReceiverUri) {
 		this.ebxmlAckReceiverUri = ebxmlAckReceiverUri;
+	}
+	
+	public void setEbxmlAckDestinationUri(final String ebxmlAckDestinationUri) {
+		this.ebxmlAckDestinationUri = ebxmlAckDestinationUri;
 	}
 	
 	public void setMaximumRedeliveries(final int maximumRedeliveries) {
@@ -86,21 +93,31 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	private void configureMultipartMessageSender() throws Exception {
 		from(multipartMessageSenderUri)
 			.id("trunk-request-sender")
-			.errorHandler(new TransactionErrorHandlerBuilder()
-				.asyncDelayedRedelivery()
+			.errorHandler(new TransactionErrorHandlerBuilder().maximumRedeliveries(0))
+			.onException(Exception.class)
 				.maximumRedeliveries(maximumRedeliveries)
 				.redeliveryDelay(redeliveryDelay)
-				.log(LOGGER)
 				.logExhausted(true)
-			)
+				.useOriginalMessage()
+				.handled(true)
+				
+				// Out of attempts - publish a generated failure notification
+				.convertBodyTo(MultipartBody.class)
+				.setBody().spel("#{body.parts[0].body}")
+				.convertBodyTo(EbxmlEnvelope.class)
+				.setBody().spel("#{body.generateDeliveryFailureNotification(\"Maximum redelivery attempts exhausted\")}")
+				.to(ExchangePattern.InOnly, ebxmlAckDestinationUri)
+			.end()
 			.transacted("PROPAGATION_NOT_SUPPORTED")
-			
-			// do all handling in a separate route - on retry all logic will be retried
-			// see http://camel.apache.org/how-do-i-retry-processing-a-message-from-a-certain-point-back-or-an-entire-route.html
+
+			/*
+			 * do all handling in a separate route - on retry all logic will be retried
+			 * see http://camel.apache.org/how-do-i-retry-processing-a-message-from-a-certain-point-back-or-an-entire-route.html
+			 */
 			.to(getForwardExpressHandlerUrl())
 		.end();
 	}
-	
+
 	/**
 	 * Route to send an HTTP request/response to spine and wait
 	 * for a related asynchronous ack message.
@@ -138,7 +155,29 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				// An addition processor (which does not need to use getIn().getExchange()) seems to resolve the problem
 				.log(LoggingLevel.DEBUG, LOGGER, "Extracted acknowledgment for ${header.CamelCorrelationId}")
 				
-				.process(new EbxmlAcknowledgementProcessor())
+				.convertBodyTo(EbxmlEnvelope.class)
+				.choice()
+					.when().simple("${body.errorMessage}")
+						.pipeline()
+							.choice()
+								.when().simple("${body.error.warning}")
+									.log(LoggingLevel.INFO, LOGGER, "ebXml delivery failure (warning) received - refToMessageId: ${body.messageData.refToMessageId} - will retry (if applicable)")
+									.throwException(new Exception("ebXml delivery failure (warning) received - will retry (if applicable)"))
+								.endChoice()
+								.otherwise()
+									.log(LoggingLevel.INFO, LOGGER, "ebXml delivery failure (error) received - refToMessageId: ${body.messageData.refToMessageId} - will not retry")
+									.to(ExchangePattern.InOnly, ebxmlAckDestinationUri)
+									.stop()
+								.endChoice()
+							.end()
+						.end()
+					.endChoice()
+					.otherwise()
+						.log(LoggingLevel.INFO, LOGGER, "ebXml ack received - refToMessageId: ${body.messageData.refToMessageId}")
+						.to(ExchangePattern.InOnly, ebxmlAckDestinationUri)
+					.endChoice()
+				.end()
+				
 			.endDoTry()
 			.doCatch(HttpOperationFailedException.class)
 				// TODO: check status code + body for SOAPFault and retry behaviour

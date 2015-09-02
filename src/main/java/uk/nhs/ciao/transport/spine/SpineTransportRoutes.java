@@ -113,6 +113,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		route.setMultipartMessageSenderUri("jms:queue:{{multipartMessageSenderQueue}}?destination.consumer.prefetchSize=0");
 		route.setMultipartMessageDestinationUri("{{spine.toUri}}");
 		route.setEbxmlAckReceiverUri("{{spine.replyUri}}");
+		route.setEbxmlAckDestinationUri("jms:queue:{{multipartMessageResponseQueue}}");
 		
 		context.addRoutes(route);
 	}
