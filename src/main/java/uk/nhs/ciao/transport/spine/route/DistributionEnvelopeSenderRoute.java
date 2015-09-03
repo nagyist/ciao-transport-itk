@@ -1,7 +1,10 @@
 package uk.nhs.ciao.transport.spine.route;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.LoggingLevel;
 import org.apache.camel.Property;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 
@@ -23,8 +26,11 @@ import uk.nhs.ciao.transport.spine.multipart.Part;
  * the multi-part message sender route.
  */
 public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
+	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeSenderRoute.class);
+	
 	private String distributionEnvelopeSenderUri;
 	private String multipartMessageSenderUri;
+	private String ebxmlResponseUri;
 	private String spineEndpointAddressEnricherUrl;
 	
 	// optional properties
@@ -48,6 +54,15 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	 */
 	public void setMultipartMessageSenderUri(final String multipartMessageSenderUri) {
 		this.multipartMessageSenderUri = multipartMessageSenderUri;
+	}
+	
+	/**
+	 * URI where incoming ebXml response messages are received from
+	 * <p>
+	 * input only
+	 */
+	public void setEbxmlResponseUri(final String ebxmlResponseUri) {
+		this.ebxmlResponseUri = ebxmlResponseUri;
 	}
 	
 	/**
@@ -95,6 +110,11 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	
 	@Override
 	public void configure() throws Exception {
+		configureRequestSender();
+		configureResponseReceiver();
+	}
+	
+	private void configureRequestSender() throws Exception {
 		/*
 		 * The output will be a multipart body - individual parts are constructed
 		 * and stored as properties until the body is built in the final stage 
@@ -126,6 +146,13 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 			.convertBodyTo(String.class)
 			
 			.to(multipartMessageSenderUri)
+		.end();
+	}
+	
+	private void configureResponseReceiver() throws Exception {
+		from(ebxmlResponseUri)
+			.convertBodyTo(EbxmlEnvelope.class)
+			.log(LoggingLevel.INFO, LOGGER, "Received ebXml response - RefToMessageId=${body.messageData.refToMessageId}")
 		.end();
 	}
 	

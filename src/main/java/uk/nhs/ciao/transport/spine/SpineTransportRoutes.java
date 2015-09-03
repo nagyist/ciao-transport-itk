@@ -72,6 +72,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
 		route.setMultipartMessageSenderUri("jms:queue:{{multipartMessageSenderQueue}}");
+		route.setEbxmlResponseUri("jms:queue:{{multipartMessageResponseQueue}}");
 		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
 		
 		final CIAOConfig config = CamelApplication.getConfig(context);
@@ -113,7 +114,7 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		route.setMultipartMessageSenderUri("jms:queue:{{multipartMessageSenderQueue}}?destination.consumer.prefetchSize=0");
 		route.setMultipartMessageDestinationUri("{{spine.toUri}}");
 		route.setEbxmlAckReceiverUri("{{spine.replyUri}}");
-		route.setEbxmlAckDestinationUri("jms:queue:{{multipartMessageResponseQueue}}");
+		route.setEbxmlResponseUri("jms:queue:{{multipartMessageResponseQueue}}");
 		
 		context.addRoutes(route);
 	}

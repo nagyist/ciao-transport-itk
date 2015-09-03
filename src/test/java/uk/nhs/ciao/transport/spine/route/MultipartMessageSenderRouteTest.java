@@ -39,7 +39,7 @@ public class MultipartMessageSenderRouteTest {
 	private ProducerTemplate producerTemplate;
 	
 	private MockEndpoint messageDestination;
-	private MockEndpoint ackDestination;
+	private MockEndpoint ebxmlResponseDestination;
 	
 	@Before
 	public void setup() throws Exception {
@@ -58,7 +58,7 @@ public class MultipartMessageSenderRouteTest {
 		route.setMultipartMessageSenderUri("direct:multipart-message-sender");
 		route.setMultipartMessageDestinationUri("mock:multipart-message-destination");
 		route.setEbxmlAckReceiverUri("seda:multipart-ack-receiver");
-		route.setEbxmlAckDestinationUri("mock:ebxml-ack-destination");
+		route.setEbxmlResponseUri("mock:ebxml-response-destination");
 		route.setMaximumRedeliveries(2);
 		route.setRedeliveryDelay(0);
 		route.setAggregatorTimeout(2000);
@@ -69,7 +69,7 @@ public class MultipartMessageSenderRouteTest {
 		producerTemplate.start();
 		
 		messageDestination = MockEndpoint.resolve(context, "mock:multipart-message-destination");
-		ackDestination = MockEndpoint.resolve(context, "mock:ebxml-ack-destination");
+		ebxmlResponseDestination = MockEndpoint.resolve(context, "mock:ebxml-response-destination");
 	}
 	
 	@After
@@ -100,14 +100,14 @@ public class MultipartMessageSenderRouteTest {
 			}
 		});
 		
-		ackDestination.expectedMessageCount(1);
-		ackDestination.message(0).predicate(expectAcknowledgment(getCorrelationId(exampleRequest)));
+		ebxmlResponseDestination.expectedMessageCount(1);
+		ebxmlResponseDestination.message(0).predicate(expectAcknowledgment(getCorrelationId(exampleRequest)));
 		
 		sendMultipartMessage(exampleRequest);
 		
 		Assert.assertTrue("Problems: " + problems, problems.isEmpty());
 		messageDestination.assertIsSatisfied();
-		ackDestination.assertIsSatisfied();
+		ebxmlResponseDestination.assertIsSatisfied();
 	}
 	
 	@Test
@@ -130,13 +130,13 @@ public class MultipartMessageSenderRouteTest {
 		});
 		
 		final boolean warning = true;
-		ackDestination.expectedMessageCount(1);
-		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		ebxmlResponseDestination.expectedMessageCount(1);
+		ebxmlResponseDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
 		
 		sendMultipartMessage(exampleRequest);
 		
 		messageDestination.assertIsSatisfied();
-		ackDestination.assertIsSatisfied();
+		ebxmlResponseDestination.assertIsSatisfied();
 	}
 	
 	@Test
@@ -159,13 +159,13 @@ public class MultipartMessageSenderRouteTest {
 		});
 		
 		final boolean warning = false;
-		ackDestination.expectedMessageCount(1);
-		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		ebxmlResponseDestination.expectedMessageCount(1);
+		ebxmlResponseDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
 		
 		sendMultipartMessage(exampleRequest);
 		
 		messageDestination.assertIsSatisfied();
-		ackDestination.assertIsSatisfied();
+		ebxmlResponseDestination.assertIsSatisfied();
 	}
 	
 	@Test
@@ -183,13 +183,13 @@ public class MultipartMessageSenderRouteTest {
 		});
 		
 		final boolean warning = true;
-		ackDestination.expectedMessageCount(1);
-		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		ebxmlResponseDestination.expectedMessageCount(1);
+		ebxmlResponseDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
 		
 		sendMultipartMessage(exampleRequest);
 		
 		messageDestination.assertIsSatisfied();
-		ackDestination.assertIsSatisfied();
+		ebxmlResponseDestination.assertIsSatisfied();
 	}
 	
 	@Test
@@ -207,13 +207,13 @@ public class MultipartMessageSenderRouteTest {
 		});
 		
 		final boolean warning = true;
-		ackDestination.expectedMessageCount(1);
-		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		ebxmlResponseDestination.expectedMessageCount(1);
+		ebxmlResponseDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
 		
 		sendMultipartMessage(exampleRequest);
 		
 		messageDestination.assertIsSatisfied();
-		ackDestination.assertIsSatisfied();
+		ebxmlResponseDestination.assertIsSatisfied();
 	}
 	
 	@Test
@@ -235,13 +235,13 @@ public class MultipartMessageSenderRouteTest {
 		});
 		
 		final boolean warning = true;
-		ackDestination.expectedMessageCount(1);
-		ackDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		ebxmlResponseDestination.expectedMessageCount(1);
+		ebxmlResponseDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
 		
 		sendMultipartMessage(exampleRequest);
 		
 		messageDestination.assertIsSatisfied();
-		ackDestination.assertIsSatisfied();
+		ebxmlResponseDestination.assertIsSatisfied();
 	}
 	
 	@Test
@@ -263,13 +263,13 @@ public class MultipartMessageSenderRouteTest {
 		});
 		
 		final boolean warning = false;
-		ackDestination.expectedMessageCount(1);
-		ackDestination.message(0).predicate(expectSOAPFault(getCorrelationId(exampleRequest), warning));
+		ebxmlResponseDestination.expectedMessageCount(1);
+		ebxmlResponseDestination.message(0).predicate(expectSOAPFault(getCorrelationId(exampleRequest), warning));
 		
 		sendMultipartMessage(exampleRequest);
 		
 		messageDestination.assertIsSatisfied();
-		ackDestination.assertIsSatisfied();
+		ebxmlResponseDestination.assertIsSatisfied();
 	}
 	
 	private MultipartBody createExampleRequest() throws Exception {
