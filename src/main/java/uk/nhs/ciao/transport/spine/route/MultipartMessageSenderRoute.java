@@ -3,6 +3,8 @@ package uk.nhs.ciao.transport.spine.route;
 import static org.apache.camel.builder.PredicateBuilder.*;
 
 import java.util.Collections;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.camel.Endpoint;
@@ -153,6 +155,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 					public Exchange aggregate(final Exchange oldExchange, final Exchange newExchange) {
 						// Propagate any fault responses
 						if (newExchange.getIn().isFault() || newExchange.getOut().isFault()) {
+							System.out.println(newExchange.getIn().isFault());
 							return newExchange;
 						}
 						
@@ -231,7 +234,25 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 			.routeId(getInternalRoutePrefix() + "-http-request-handler")
 			.errorHandler(noErrorHandler()) // disable error handler (the transaction handler from the top-level caller will be used)
 			
+			.setProperty("request-headers").headers()
 			.to(ExchangePattern.InOut, multipartMessageDestinationUri)
+			
+			
+			// echo original request headers (skipping any already present)
+			.process(new Processor() {
+				@Override
+				public void process(final Exchange exchange) throws Exception {
+					@SuppressWarnings("unchecked")
+					final Map<String, Object> requestHeaders = (Map<String, Object>) exchange.removeProperty("request-headers");
+					final Map<String, Object> responseHeaders = exchange.getIn().getHeaders();
+					for (final Entry<String, Object> entry: requestHeaders.entrySet()) {
+						if (!responseHeaders.containsKey(entry.getKey())) {
+							responseHeaders.put(entry.getKey(), entry.getValue());
+						}
+					}
+				}
+			})
+			
 			.choice()
 				.when(and(
 						isGreaterThanOrEqualTo(header(Exchange.HTTP_RESPONSE_CODE), constant(200)),

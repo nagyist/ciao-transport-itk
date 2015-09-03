@@ -308,19 +308,30 @@ public class MultipartMessageSenderRouteTest {
 		return envelope.getMessageData().getMessageId();
 	}
 	
+	private EbxmlEnvelope assertCommonResponseFields(final Exchange exchange, final String correlationId) {
+		final EbxmlEnvelope envelope = exchange.getIn().getBody(EbxmlEnvelope.class);
+
+		Assert.assertNotNull("envelope: ", envelope);
+		Assert.assertEquals("RefToMessageId", correlationId, envelope.getMessageData().getRefToMessageId());
+		
+		// Check echoed ciao.* headers
+		Assert.assertEquals("conversationId", exchange.getIn().getHeader("ciao.conversationId"));
+		Assert.assertEquals("messageId", exchange.getIn().getHeader("ciao.messageId"));
+		
+		return envelope;		
+	}
+	
 	private Predicate expectSOAPFault(final String correlationId, final boolean warning) {
 		return new Predicate() {
 			@Override
 			public boolean matches(final Exchange exchange) {
-				final EbxmlEnvelope envelope = exchange.getIn().getBody(EbxmlEnvelope.class);
-				Assert.assertNotNull("envelope: ", envelope);
+				final EbxmlEnvelope envelope = assertCommonResponseFields(exchange, correlationId);
 				Assert.assertTrue("expected SOAPFault", envelope.isSOAPFault());
 				if (warning) {
 					Assert.assertTrue("expected warning severity", envelope.getError().isWarning());
 				} else {
 					Assert.assertTrue("expected error severity", envelope.getError().isError());
 				}
-				Assert.assertEquals("RefToMessageId", correlationId, envelope.getMessageData().getRefToMessageId());
 				return true;
 			}
 		};
@@ -330,15 +341,13 @@ public class MultipartMessageSenderRouteTest {
 		return new Predicate() {
 			@Override
 			public boolean matches(final Exchange exchange) {
-				final EbxmlEnvelope envelope = exchange.getIn().getBody(EbxmlEnvelope.class);
-				Assert.assertNotNull("envelope", envelope);
+				final EbxmlEnvelope envelope = assertCommonResponseFields(exchange, correlationId);
 				Assert.assertTrue("expected delivery failure", envelope.isDeliveryFailure());
 				if (warning) {
 					Assert.assertTrue("expected warning severity", envelope.getError().isWarning());
 				} else {
 					Assert.assertTrue("expected error severity", envelope.getError().isError());
 				}
-				Assert.assertEquals("RefToMessageId", correlationId, envelope.getMessageData().getRefToMessageId());
 				return true;
 			}
 		};
@@ -348,8 +357,7 @@ public class MultipartMessageSenderRouteTest {
 		return new Predicate() {
 			@Override
 			public boolean matches(final Exchange exchange) {
-				final EbxmlEnvelope envelope = exchange.getIn().getBody(EbxmlEnvelope.class);
-				Assert.assertNotNull("envelope", envelope);
+				final EbxmlEnvelope envelope = assertCommonResponseFields(exchange, correlationId);
 				Assert.assertTrue("expected acknowledgment", envelope.isAcknowledgment());
 				Assert.assertEquals("RefToMessageId", correlationId, envelope.getMessageData().getRefToMessageId());
 				return true;
@@ -361,6 +369,10 @@ public class MultipartMessageSenderRouteTest {
 		final Exchange exchange = new DefaultExchange(context);
 		exchange.getIn().setBody(body, String.class); // convert the body
 		exchange.getIn().setHeader(Exchange.CORRELATION_ID, getCorrelationId(body));
+		
+		// Headers matching ciao.* will be echoed back in response messages
+		exchange.getIn().setHeader("ciao.conversationId", "conversationId");
+		exchange.getIn().setHeader("ciao.messageId", "messageId");
 		
 		final ContentType contentType = new ContentType("multipart", "related");
 		contentType.setBoundary(body.getBoundary());
