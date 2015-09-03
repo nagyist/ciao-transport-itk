@@ -37,13 +37,13 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MultipartMessageSenderRoute.class);
 	
 	private final Set<String> inprogressIds = Collections.newSetFromMap(Maps.<String, Boolean>newConcurrentMap());
-	private final int aggregatorTimeout = 30000;
 	private String multipartMessageSenderUri;
 	private String multipartMessageDestinationUri;
 	private String ebxmlAckReceiverUri;
 	private String ebxmlAckDestinationUri;
 	private int maximumRedeliveries = 2;
 	private int redeliveryDelay = 2000;
+	private int aggregatorTimeout = 30000;
 	
 	public void setMultipartMessageSenderUri(final String multipartMessageSenderUri) {
 		this.multipartMessageSenderUri = multipartMessageSenderUri;
@@ -67,6 +67,10 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	
 	public void setRedeliveryDelay(final int redeliveryDelay) {
 		this.redeliveryDelay = redeliveryDelay;
+	}
+	
+	public void setAggregatorTimeout(final int aggregatorTimeout) {
+		this.aggregatorTimeout = aggregatorTimeout;
 	}
 	
 	private String getForwardExpressHandlerUrl() {
@@ -155,7 +159,6 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 					public Exchange aggregate(final Exchange oldExchange, final Exchange newExchange) {
 						// Propagate any fault responses
 						if (newExchange.getIn().isFault() || newExchange.getOut().isFault()) {
-							System.out.println(newExchange.getIn().isFault());
 							return newExchange;
 						}
 						
@@ -285,7 +288,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 			.end()
 			
 			// throw exception to queue retry attempts
-			.throwException(new Exception("HTTP request (multipart body) was not successfull - will retry (if applicable)"))
+			.throwException(new Exception("HTTP request (multipart body) was not successful - will retry (if applicable)"))
 			
 		.end();
 	}

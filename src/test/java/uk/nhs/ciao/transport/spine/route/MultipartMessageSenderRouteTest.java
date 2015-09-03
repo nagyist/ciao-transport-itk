@@ -61,6 +61,7 @@ public class MultipartMessageSenderRouteTest {
 		route.setEbxmlAckDestinationUri("mock:ebxml-ack-destination");
 		route.setMaximumRedeliveries(2);
 		route.setRedeliveryDelay(0);
+		route.setAggregatorTimeout(2000);
 		
 		context.addRoutes(route);
 		
