@@ -26,7 +26,7 @@ import com.google.common.base.Strings;
  *   wants-bus-ack - empty file, present if an ITK business ack has been requested
  *   wants-inf-ack - empty file, present if an ITK infrastructure ack has been requested
  * state/
- *   ${timestamp}-${eventType}-${messageType} - file contains the message associated with the event
+ *   ${timestamp}-${messageType}-${eventType} - file contains the message associated with the event
  * </pre>
  * <p>
  * State event types:
@@ -228,7 +228,7 @@ public class InProgressFolderManagerRoute extends BaseRouteBuilder {
 			}
 			
 			final String timestamp = TIMESTAMP_FORMAT.print(System.currentTimeMillis());
-			final String fileName = id + "/state/" + timestamp + "-" + eventType + "-" + originalName;
+			final String fileName = id + "/state/" + timestamp + "-" + originalName + "-" + eventType;
 			message.setHeader(Exchange.FILE_NAME, fileName);
 		}
 	}

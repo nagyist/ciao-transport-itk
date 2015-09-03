@@ -115,6 +115,7 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 		from(distributionEnvelopeResponseUri)
 			.filter().header(ITK_CORRELATION_ID_HEADER)
 				.log(LoggingLevel.INFO, LOGGER, "Received ITK document send notification: ${header." + ITK_CORRELATION_ID_HEADER + "}")
+				.setHeader(Exchange.CORRELATION_ID).header(ITK_CORRELATION_ID_HEADER)
 				.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
 				.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.STATE))
 				.choice()
