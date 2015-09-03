@@ -1,9 +1,12 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import static org.apache.camel.builder.PredicateBuilder.*;
+
 import java.util.Map;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Header;
+import org.apache.camel.LoggingLevel;
 import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.apache.camel.util.toolbox.AggregationStrategies;
@@ -27,8 +30,14 @@ import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ItkDocumentSenderRoute.class);
 	
+	/**
+	 * Header used to maintain the ITK-level correlation ID between message / send notification message pairs
+	 */
+	private static final String ITK_CORRELATION_ID_HEADER = "ciao.itkCorrelationId";
+	
 	private String documentSenderRouteUri;
 	private String distributionEnvelopeSenderUri;
+	private String distributionEnvelopeResponseUri;
 	private String inProgressFolderManagerUri;
 
 	public void setDocumentSenderRouteUri(final String documentSenderRouteUri) {
@@ -39,12 +48,21 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 		this.distributionEnvelopeSenderUri = distributionEnvelopeSenderUri;
 	}
 	
+	public void setDistributionEnvelopeResponseUri(final String distributionEnvelopeResponseUri) {
+		this.distributionEnvelopeResponseUri = distributionEnvelopeResponseUri;
+	}
+	
 	public void setInProgressFolderManagerUri(final String inProgressFolderManagerUri) {
 		this.inProgressFolderManagerUri = inProgressFolderManagerUri;
 	}
 	
 	@Override
 	public void configure() throws Exception {
+		configureRequestSender();
+		configureResponseReceiver();
+	}
+
+	private void configureRequestSender() throws Exception {
 		from(documentSenderRouteUri)
 			.id("trunk-request-builder")
 			.errorHandler(new TransactionErrorHandlerBuilder()
@@ -75,12 +93,44 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 					.setBody().constant("")
 					.to(inProgressFolderManagerUri)
 				.end()
+				
+				.pipeline()
+					.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
+					.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.STATE))
+					.setHeader(InProgressFolderManagerRoute.Header.EVENT_TYPE, constant(InProgressFolderManagerRoute.EventType.MESSAGE_SENDING))
+					.setHeader(Exchange.FILE_NAME).constant(InProgressFolderManagerRoute.MessageType.BUSINESS_MESSAGE)
+					.convertBodyTo(String.class)
+					.to(inProgressFolderManagerUri)
+				.end()
 			.end()
+			
+			// Add correlation ID tracking headers
+			.setHeader(ITK_CORRELATION_ID_HEADER).simple("${body.trackingId}")
 			
 			.to(distributionEnvelopeSenderUri)
 		.end();
 	}
 	
+	private void configureResponseReceiver() {
+		from(distributionEnvelopeResponseUri)
+			.filter().header(ITK_CORRELATION_ID_HEADER)
+				.log(LoggingLevel.INFO, LOGGER, "Received ITK document send notification: ${header." + ITK_CORRELATION_ID_HEADER + "}")
+				.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
+				.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.STATE))
+				.choice()
+					.when(isEqualTo(header("ciao.messageSendNotification"), constant("sent")))
+						.setHeader(InProgressFolderManagerRoute.Header.EVENT_TYPE, constant(InProgressFolderManagerRoute.EventType.MESSAGE_SENT))
+					.otherwise()
+						.setHeader(InProgressFolderManagerRoute.Header.EVENT_TYPE, constant(InProgressFolderManagerRoute.EventType.MESSAGE_SEND_FAILED))
+					.endChoice()
+				.end()
+				.setHeader(Exchange.FILE_NAME).constant(InProgressFolderManagerRoute.MessageType.BUSINESS_MESSAGE)
+				.convertBodyTo(String.class)
+				.to(inProgressFolderManagerUri)
+			.end()
+		.end();
+	}
+
 	// Processor / bean methods
 	// The methods can't live in the route builder - it causes havoc with the debug/tracer logging
 	

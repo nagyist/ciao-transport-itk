@@ -58,7 +58,7 @@ public class MultipartMessageSenderRouteTest {
 		route.setMultipartMessageSenderUri("direct:multipart-message-sender");
 		route.setMultipartMessageDestinationUri("mock:multipart-message-destination");
 		route.setEbxmlAckReceiverUri("seda:multipart-ack-receiver");
-		route.setEbxmlResponseUri("mock:ebxml-response-destination");
+		route.setMultipartMessageResponseUri("mock:ebxml-response-destination");
 		route.setMaximumRedeliveries(2);
 		route.setRedeliveryDelay(0);
 		route.setAggregatorTimeout(2000);

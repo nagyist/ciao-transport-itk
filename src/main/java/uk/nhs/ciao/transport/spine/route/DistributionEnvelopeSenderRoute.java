@@ -29,8 +29,9 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeSenderRoute.class);
 	
 	private String distributionEnvelopeSenderUri;
+	private String distributionEnvelopeResponseUri;
 	private String multipartMessageSenderUri;
-	private String ebxmlResponseUri;
+	private String multipartMessageResponseUri;
 	private String spineEndpointAddressEnricherUrl;
 	
 	// optional properties
@@ -48,6 +49,18 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	}
 	
 	/**
+	 * URI where outgoing responses for sent distribution envelopes messages are published to
+	 * <p>
+	 * The original ebXml message is published as the message body, along with a header describing
+	 * whether the message was successfully sent or not.
+	 * <p>
+	 * output only
+	 */
+	public void setDistributionEnvelopeResponseUri(final String distributionEnvelopeResponseUri) {
+		this.distributionEnvelopeResponseUri = distributionEnvelopeResponseUri;
+	}
+	
+	/**
 	 * URI where outgoing multi-part messages are sent to
 	 * <p>
 	 * output only
@@ -57,12 +70,12 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	}
 	
 	/**
-	 * URI where incoming ebXml response messages are received from
+	 * URI where incoming responses (ebXml format) for sent multi-part messages are received from
 	 * <p>
 	 * input only
 	 */
-	public void setEbxmlResponseUri(final String ebxmlResponseUri) {
-		this.ebxmlResponseUri = ebxmlResponseUri;
+	public void setMultipartMessageResponseUri(final String multipartMessageResponseUri) {
+		this.multipartMessageResponseUri = multipartMessageResponseUri;
 	}
 	
 	/**
@@ -150,9 +163,20 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	}
 	
 	private void configureResponseReceiver() throws Exception {
-		from(ebxmlResponseUri)
+		from(multipartMessageResponseUri)
+			.setProperty("original-body").body() // maintain original serialised form
 			.convertBodyTo(EbxmlEnvelope.class)
 			.log(LoggingLevel.INFO, LOGGER, "Received ebXml response - RefToMessageId=${body.messageData.refToMessageId}")
+			.choice()
+				.when().simple("body.isAcknowledgment")
+					.setHeader("ciao.messageSendNotification", constant("sent"))
+				.otherwise()
+					.setHeader("ciao.messageSendNotification", constant("send-failed"))
+				.endChoice()
+			.end()
+			
+			.setBody().property("original-body") // restore original serialised form
+			.to(distributionEnvelopeResponseUri)
 		.end();
 	}
 	

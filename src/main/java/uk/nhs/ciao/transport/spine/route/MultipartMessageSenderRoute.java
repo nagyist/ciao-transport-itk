@@ -40,7 +40,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 	private String multipartMessageSenderUri;
 	private String multipartMessageDestinationUri;
 	private String ebxmlAckReceiverUri;
-	private String ebxmlResponseUri;
+	private String multipartMessageResponseUri;
 	private int maximumRedeliveries = 2;
 	private int redeliveryDelay = 2000;
 	private int aggregatorTimeout = 30000;
@@ -57,8 +57,8 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 		this.ebxmlAckReceiverUri = ebxmlAckReceiverUri;
 	}
 	
-	public void setEbxmlResponseUri(final String ebxmlResponseUri) {
-		this.ebxmlResponseUri = ebxmlResponseUri;
+	public void setMultipartMessageResponseUri(final String multipartMessageResponseUri) {
+		this.multipartMessageResponseUri = multipartMessageResponseUri;
 	}
 	
 	public void setMaximumRedeliveries(final int maximumRedeliveries) {
@@ -124,7 +124,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				.setBody().spel("#{body.parts[0].body}")
 				.convertBodyTo(EbxmlEnvelope.class)
 				.setBody().spel("#{body.generateDeliveryFailureNotification(\"Maximum redelivery attempts exhausted\")}")
-				.to(ExchangePattern.InOnly, ebxmlResponseUri)
+				.to(ExchangePattern.InOnly, multipartMessageResponseUri)
 			.end()
 			.transacted("PROPAGATION_NOT_SUPPORTED")
 
@@ -274,7 +274,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 							.choice()
 								.when().simple("${body.isSOAPFault} && ${body.error.error}")
 									.setBody().property("original-body") // revert to original representation
-									.to(ExchangePattern.InOnly, ebxmlResponseUri) // publish the SOAPFault
+									.to(ExchangePattern.InOnly, multipartMessageResponseUri) // publish the SOAPFault
 									.setFaultBody(body()) // mark as fault to prevent further processing
 									.stop() 
 								.endChoice()
@@ -332,7 +332,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 							.endChoice()
 							.otherwise()
 								.log(LoggingLevel.INFO, LOGGER, "ebXml delivery failure (error) received - refToMessageId: ${body.messageData.refToMessageId} - will not retry")
-								.to(ExchangePattern.InOnly, ebxmlResponseUri)
+								.to(ExchangePattern.InOnly, multipartMessageResponseUri)
 								.stop()
 							.endChoice()
 						.end()
@@ -340,7 +340,7 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				.endChoice()
 				.otherwise()
 					.log(LoggingLevel.INFO, LOGGER, "ebXml ack received - refToMessageId: ${body.messageData.refToMessageId}")
-					.to(ExchangePattern.InOnly, ebxmlResponseUri)
+					.to(ExchangePattern.InOnly, multipartMessageResponseUri)
 				.endChoice()
 			.end()
 		.end();

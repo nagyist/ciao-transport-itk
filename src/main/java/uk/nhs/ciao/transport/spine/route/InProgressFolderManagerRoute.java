@@ -95,6 +95,7 @@ public class InProgressFolderManagerRoute extends BaseRouteBuilder {
 	 * @see Header#EVENT_TYPE
 	 */
 	public static final class EventType {
+		public static final String MESSAGE_SENDING = "sending";
 		public static final String MESSAGE_SENT = "sent";
 		public static final String MESSAGE_SEND_FAILED = "send-failed";
 		public static final String MESSAGE_RECEIVED = "received";
