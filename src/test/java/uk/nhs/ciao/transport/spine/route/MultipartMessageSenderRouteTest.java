@@ -61,7 +61,7 @@ public class MultipartMessageSenderRouteTest {
 		route.setMultipartMessageResponseUri("mock:ebxml-response-destination");
 		route.setMaximumRedeliveries(2);
 		route.setRedeliveryDelay(0);
-		route.setAggregatorTimeout(2000);
+		route.setAggregatorTimeout(1000);
 		
 		context.addRoutes(route);
 		
@@ -124,6 +124,29 @@ public class MultipartMessageSenderRouteTest {
 				deliveryFailure.getError().setWarning();
 				sendAsyncResponse(deliveryFailure);
 				
+				exchange.getOut().setBody("");
+				exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_CODE, 202);
+			}
+		});
+		
+		final boolean warning = true;
+		ebxmlResponseDestination.expectedMessageCount(1);
+		ebxmlResponseDestination.message(0).predicate(expectDeliveryFailure(getCorrelationId(exampleRequest), warning));
+		
+		sendMultipartMessage(exampleRequest);
+		
+		messageDestination.assertIsSatisfied();
+		ebxmlResponseDestination.assertIsSatisfied();
+	}
+	
+	@Test
+	public void testRequestIsRetriedOnAsyncTimeout() throws Exception {
+		final MultipartBody exampleRequest = createExampleRequest();
+		
+		messageDestination.expectedMessageCount(3); // 1 initial attempt + 2 retries
+		messageDestination.whenAnyExchangeReceived(new Processor() {
+			@Override
+			public void process(final Exchange exchange) throws Exception {
 				exchange.getOut().setBody("");
 				exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_CODE, 202);
 			}
