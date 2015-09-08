@@ -128,7 +128,7 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 			.log(LoggingLevel.INFO, LOGGER, "Processing infrastructure response - trackingIdRef: ${body.trackingIdRef}, errors: ${body.errors}")
 			
 			.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
-			.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.STATE))
+			.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.EVENT))
 			.setHeader(InProgressFolderManagerRoute.Header.EVENT_TYPE, constant(InProgressFolderManagerRoute.EventType.MESSAGE_RECEIVED))
 			.setHeader(Exchange.CORRELATION_ID).simple("${body.trackingIdRef}")
 			
@@ -161,7 +161,7 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 			.log(LoggingLevel.INFO, LOGGER, "Processing business ack - correlationId: ${headers.CamelCorrelationId}")
 			
 			.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
-			.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.STATE))
+			.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.EVENT))
 			.setHeader(InProgressFolderManagerRoute.Header.EVENT_TYPE, constant(InProgressFolderManagerRoute.EventType.MESSAGE_RECEIVED))
 			
 			.choice()

@@ -82,7 +82,7 @@ public class InProgressFolderManagerRoute extends BaseRouteBuilder {
 	 */
 	public static final class FileType {
 		public static final String CONTROL = "control";
-		public static final String STATE = "state";
+		public static final String EVENT = "state";
 		
 		private FileType() {
 			// Suppress default constructor
@@ -129,12 +129,12 @@ public class InProgressFolderManagerRoute extends BaseRouteBuilder {
 		this.inProgressFolderRootUri = inProgressFolderRootUri;
 	}
 	
-	private String getStoreStateFileUri() {
-		return internalDirectUri("store-state-file");
+	private String getStoreEventFileUri() {
+		return internalDirectUri("store-event-file");
 	}
 	
-	private String getStoreStateFileHandlerUri() {
-		return internalDirectUri("store-state-file-handler");
+	private String getStoreEventFileHandlerUri() {
+		return internalDirectUri("store-event-file-handler");
 	}
 	
 	private String getStoreControlFileUri() {
@@ -145,8 +145,8 @@ public class InProgressFolderManagerRoute extends BaseRouteBuilder {
 	public void configure() throws Exception {
 		configureRouter();
 		configureStoreControlFileRoute();
-		configureStoreStateFileRoute();
-		configureStoreStateFileHandlerRoute();
+		configureStoreEventFileRoute();
+		configureStoreEventFileHandlerRoute();
 	}
 	
 	private void configureRouter() throws Exception {
@@ -159,8 +159,8 @@ public class InProgressFolderManagerRoute extends BaseRouteBuilder {
 								.to(getStoreControlFileUri())
 							.endChoice()
 	
-							.when(isEqualTo(header(Header.FILE_TYPE), constant(FileType.STATE)))
-								.to(getStoreStateFileUri())
+							.when(isEqualTo(header(Header.FILE_TYPE), constant(FileType.EVENT)))
+								.to(getStoreEventFileUri())
 							.endChoice()
 						.end()
 					.end()
@@ -178,22 +178,22 @@ public class InProgressFolderManagerRoute extends BaseRouteBuilder {
 		.end();
 	}
 	
-	private void configureStoreStateFileRoute() throws Exception {
-		from(getStoreStateFileUri())
+	private void configureStoreEventFileRoute() throws Exception {
+		from(getStoreEventFileUri())
 			.errorHandler(defaultErrorHandler()
 				.maximumRedeliveries(10)
 				.redeliveryDelay(1))
 				
-			.to(getStoreStateFileHandlerUri())
+			.to(getStoreEventFileHandlerUri())
 		.end();
 	}
 	
-	private void configureStoreStateFileHandlerRoute() throws Exception {
-		from(getStoreStateFileHandlerUri())
+	private void configureStoreEventFileHandlerRoute() throws Exception {
+		from(getStoreEventFileHandlerUri())
 			.errorHandler(noErrorHandler())
 			
-			.bean(new StateFileNameCalculator())
-			.log(LoggingLevel.DEBUG, LOGGER, "Attempting to write to state file: id=${headers.CamelCorrelationId}, fileName=${header.CamelFileName}")
+			.bean(new EventFileNameCalculator())
+			.log(LoggingLevel.DEBUG, LOGGER, "Attempting to write to event file: id=${headers.CamelCorrelationId}, fileName=${header.CamelFileName}")
 			.to(inProgressFolderRootUri + "?fileExist=Fail")
 		.end();
 	}
@@ -214,7 +214,7 @@ public class InProgressFolderManagerRoute extends BaseRouteBuilder {
 		}
 	}
 	
-	public class StateFileNameCalculator {
+	public class EventFileNameCalculator {
 		public void calculateFileName(final Message message) throws Exception {
 			final String originalName = Strings.nullToEmpty(message.getHeader(Exchange.FILE_NAME, String.class));
 			final String id = message.getHeader(Exchange.CORRELATION_ID, String.class);
@@ -228,7 +228,7 @@ public class InProgressFolderManagerRoute extends BaseRouteBuilder {
 			}
 			
 			final String timestamp = TIMESTAMP_FORMAT.print(System.currentTimeMillis());
-			final String fileName = id + "/state/" + timestamp + "-" + originalName + "-" + eventType;
+			final String fileName = id + "/events/" + timestamp + "-" + originalName + "-" + eventType;
 			message.setHeader(Exchange.FILE_NAME, fileName);
 		}
 	}

@@ -96,7 +96,7 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 				
 				.pipeline()
 					.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
-					.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.STATE))
+					.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.EVENT))
 					.setHeader(InProgressFolderManagerRoute.Header.EVENT_TYPE, constant(InProgressFolderManagerRoute.EventType.MESSAGE_SENDING))
 					.setHeader(Exchange.FILE_NAME).constant(InProgressFolderManagerRoute.MessageType.BUSINESS_MESSAGE)
 					.convertBodyTo(String.class)
@@ -117,7 +117,7 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 				.log(LoggingLevel.INFO, LOGGER, "Received ITK document send notification: ${header." + ITK_CORRELATION_ID_HEADER + "}")
 				.setHeader(Exchange.CORRELATION_ID).header(ITK_CORRELATION_ID_HEADER)
 				.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
-				.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.STATE))
+				.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.EVENT))
 				.choice()
 					.when(isEqualTo(header("ciao.messageSendNotification"), constant("sent")))
 						.setHeader(InProgressFolderManagerRoute.Header.EVENT_TYPE, constant(InProgressFolderManagerRoute.EventType.MESSAGE_SENT))
