@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+	
+	<bean id="staticSpineEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.JsonSpineEndpointAddressLoader">
+		<constructor-arg>
+			<bean class="com.fasterxml.jackson.databind.ObjectMapper" />
+		</constructor-arg>
+		
+		<property name="files" value="${addressing.staticFiles}" />
+	</bean>
+	
+	<bean id="sdsSpineEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.SDSSpineEndpointAddressRepository">
+		<constructor-arg>
+			<bean class="uk.nhs.ciao.spine.sds.SpineDirectoryService">
+				<constructor-arg>
+					<bean class="uk.nhs.ciao.spine.sds.ldap.CamelLdapConnection" depends-on="camel">
+						<constructor-arg ref="producerTemplate" />
+						<constructor-arg value="sdsLdapContext" />
+						<property name="pageSize" value="50" />
+					</bean>
+				</constructor-arg>
+			</bean>
+		</constructor-arg>
+	</bean>
+	
+	<bean id="cachingSpineEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.CachingSpineEndpointAddressRepository" depends-on="camel">
+		<constructor-arg ref="producerTemplate" />
+		<constructor-arg value="${addressing.sdsCacheUri}" />
+		<constructor-arg ref="sdsSpineEndpointAddressRepository" />
+	</bean>
+	
+	<bean id="spineEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.LayeredSpineEndpointAddressRepository">
+		<constructor-arg>
+			<list>
+				<ref bean="staticSpineEndpointAddressRepository" />
+				<ref bean="cachingSpineEndpointAddressRepository" />
+			</list>
+		</constructor-arg>
+	</bean>
+	
+</beans>

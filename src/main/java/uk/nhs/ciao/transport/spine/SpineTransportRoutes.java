@@ -1,19 +1,12 @@
 package uk.nhs.ciao.transport.spine;
 
-import java.io.File;
-import java.util.List;
-
 import org.apache.camel.CamelContext;
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.spi.IdempotentRepository;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
-import uk.nhs.ciao.transport.spine.address.MemorySpineEndpointAddressRepository;
-import uk.nhs.ciao.transport.spine.address.SpineEndpointAddress;
+import uk.nhs.ciao.transport.spine.address.SpineEndpointAddressRepository;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.hl7.HL7Part;
 import uk.nhs.ciao.transport.spine.itk.Address;
@@ -177,17 +170,9 @@ public class SpineTransportRoutes implements RoutesBuilder {
 		
 		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
 		
-		// TODO: Work out how to configure this
-		final MemorySpineEndpointAddressRepository repository = new MemorySpineEndpointAddressRepository();
+		final SpineEndpointAddressRepository repository = context.getRegistry().lookupByNameAndType(
+				"spineEndpointAddressRepository", SpineEndpointAddressRepository.class);
 		route.setSpineEndpointAddressRepository(repository);
-		
-		// For now - load the JSON manually (if available)
-		final File file = new File("endpoint-addresses.json");
-		if (file.isFile()) {
-			final ObjectMapper mapper = new ObjectMapper();
-			final List<SpineEndpointAddress> spineEndpointAddresses = mapper.readValue(file, new TypeReference<List<SpineEndpointAddress>>() {});
-			repository.storeAll(spineEndpointAddresses);
-		}
 		
 		context.addRoutes(route);
 	}

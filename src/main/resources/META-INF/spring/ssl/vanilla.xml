@@ -8,4 +8,19 @@
 		<!-- TLS is disabled - an empty context is used -->
 	</bean>
 	
+	<bean id="sdsLdapContext" class="javax.naming.ldap.InitialLdapContext" scope="prototype">
+		<constructor-arg>
+			<props>
+				<prop key="java.naming.factory.initial">com.sun.jndi.ldap.LdapCtxFactory</prop>
+				<prop key="java.naming.provider.url">${sds.url}</prop>
+				<prop key="java.naming.security.authentication">${sds.authentication}</prop>
+				<prop key="java.naming.security.principal">${sds.principal}</prop>
+				<prop key="java.naming.security.credentials">${sds.credentials}</prop>
+				<prop key="com.sun.jndi.ldap.connect.pool">true</prop>
+			</props>
+		</constructor-arg>
+		<constructor-arg>
+			<null />
+		</constructor-arg>
+	</bean>
 </beans>
