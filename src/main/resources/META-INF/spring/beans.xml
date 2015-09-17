@@ -25,9 +25,9 @@
     
     <bean id="spineTransportRoutes" class="uk.nhs.ciao.transport.spine.SpineTransportRoutes" />
     
-	<camelContext xmlns="http://camel.apache.org/schema/spring" id="camel" trace="true" streamCache="true">
+	<camelContext xmlns="http://camel.apache.org/schema/spring" id="camel" trace="${camel.log.trace}" streamCache="true" useMDCLogging="${camel.log.mdc}">
 		<properties>
-			<property key="CamelLogDebugStreams" value="true" />
+			<property key="CamelLogDebugStreams" value="${camel.log.debugStreams}" />
 		</properties>
 		
 		<template id="producerTemplate" camelContextId="camel" />
