@@ -6,6 +6,7 @@ import org.apache.camel.spi.IdempotentRepository;
 
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
+import uk.nhs.ciao.docs.parser.route.InProgressFolderManagerRoute;
 import uk.nhs.ciao.transport.spine.address.SpineEndpointAddressRepository;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.hl7.HL7Part;
@@ -15,7 +16,6 @@ import uk.nhs.ciao.transport.spine.itk.Identity;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.DistributionEnvelopeSenderRoute;
-import uk.nhs.ciao.transport.spine.route.InProgressFolderManagerRoute;
 import uk.nhs.ciao.transport.spine.route.ItkDocumentSenderRoute;
 import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.HttpServerRoute;

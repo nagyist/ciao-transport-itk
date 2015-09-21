@@ -23,7 +23,7 @@ import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
 import uk.nhs.ciao.transport.spine.itk.Identity;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse.ErrorInfo;
-import uk.nhs.ciao.transport.spine.route.InProgressFolderManagerRoute.*;
+import uk.nhs.ciao.docs.parser.route.InProgressFolderManagerRoute.*;
 
 public class ItkMessageReceiverRouteTest {
 	private CamelContext context;

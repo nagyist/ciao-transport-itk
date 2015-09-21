@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 
+import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.transport.spine.address.SpineEndpointAddress;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;

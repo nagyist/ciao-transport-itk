@@ -9,6 +9,7 @@ import org.apache.camel.spi.IdempotentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 
 /**

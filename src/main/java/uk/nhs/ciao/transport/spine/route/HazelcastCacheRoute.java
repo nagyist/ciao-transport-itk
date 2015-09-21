@@ -10,6 +10,8 @@ import org.apache.camel.model.dataformat.JsonLibrary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.nhs.ciao.camel.BaseRouteBuilder;
+
 /**
  * Route which wraps a hazelcast map / cache with type-conversion of values to/from JSON.
  */

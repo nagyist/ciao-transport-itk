@@ -10,6 +10,8 @@ import org.apache.camel.util.toolbox.AggregationStrategies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import uk.nhs.ciao.camel.BaseRouteBuilder;
+
 /**
  * HTTP server for incoming messages
  * <p>

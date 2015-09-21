@@ -2,6 +2,7 @@ package uk.nhs.ciao.transport.spine.route;
 
 import com.google.common.base.Preconditions;
 
+import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.transport.spine.address.SpineEndpointAddress;
 import uk.nhs.ciao.transport.spine.address.SpineEndpointAddressRepository;
 

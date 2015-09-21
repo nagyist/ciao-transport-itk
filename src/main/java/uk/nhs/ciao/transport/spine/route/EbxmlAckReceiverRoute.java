@@ -2,6 +2,7 @@ package uk.nhs.ciao.transport.spine.route;
 
 import org.apache.camel.ExchangePattern;
 
+import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 
 /**
