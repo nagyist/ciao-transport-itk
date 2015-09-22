@@ -1,17 +1,16 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import static org.apache.camel.builder.ExpressionBuilder.append;
 import static org.apache.camel.builder.PredicateBuilder.*;
+import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
 
 import java.util.Map;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Header;
-import org.apache.camel.LoggingLevel;
 import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import org.apache.camel.util.toolbox.AggregationStrategies;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 
@@ -19,6 +18,7 @@ import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.docs.parser.Document;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
 import uk.nhs.ciao.docs.parser.route.InProgressFolderManagerRoute;
+import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.spine.itk.Address;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
@@ -30,7 +30,7 @@ import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
  * <code>distributionEnvelopeSenderUri</code>.
  */
 public class ItkDocumentSenderRoute extends BaseRouteBuilder {
-	private static final Logger LOGGER = LoggerFactory.getLogger(ItkDocumentSenderRoute.class);
+	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(ItkDocumentSenderRoute.class);
 	
 	/**
 	 * Header used to maintain the ITK-level correlation ID between message / send notification message pairs
@@ -72,7 +72,7 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 				.maximumRedeliveries(2)
 				.backOffMultiplier(2)
 				.redeliveryDelay(2000)
-				.log(LOGGER)
+				.log(LOGGER.getLogger())
 				.logExhausted(true)
 			)
 			.transacted("PROPAGATION_NOT_SUPPORTED")
@@ -101,6 +101,14 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 					.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.EVENT))
 					.setHeader(InProgressFolderManagerRoute.Header.EVENT_TYPE, constant(InProgressFolderManagerRoute.EventType.MESSAGE_SENDING))
 					.setHeader(Exchange.FILE_NAME).constant(InProgressFolderManagerRoute.MessageType.BUSINESS_MESSAGE)
+					
+					.process(LOGGER.info(camelLogMsg("Sending ITK document via DistributionEnvelope")
+						.documentId(header(Exchange.CORRELATION_ID))
+						.itkTrackingId("${body.trackingId}")
+						.distributionEnvelopeService("${body.service}")
+						.interactionId("${body.handlingSpec.getInteration}")
+						.eventName(append(append(header(Exchange.FILE_NAME), constant("-")), header(InProgressFolderManagerRoute.Header.EVENT_TYPE)))))
+					
 					.convertBodyTo(String.class)
 					.to(inProgressFolderManagerUri)
 				.end()
@@ -116,7 +124,7 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 	private void configureResponseReceiver() {
 		from(distributionEnvelopeResponseUri)
 			.filter().header(ITK_CORRELATION_ID_HEADER)
-				.log(LoggingLevel.INFO, LOGGER, "Received ITK document send notification: ${header." + ITK_CORRELATION_ID_HEADER + "}")
+				
 				.setHeader(Exchange.CORRELATION_ID).header(ITK_CORRELATION_ID_HEADER)
 				.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
 				.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.EVENT))
@@ -128,6 +136,11 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 					.endChoice()
 				.end()
 				.setHeader(Exchange.FILE_NAME).constant(InProgressFolderManagerRoute.MessageType.BUSINESS_MESSAGE)
+				
+				.process(LOGGER.info(camelLogMsg("Received ITK document send notification")
+						.itkTrackingId(header(ITK_CORRELATION_ID_HEADER))
+						.eventName(append(append(header(Exchange.FILE_NAME), constant("-")), header(InProgressFolderManagerRoute.Header.EVENT_TYPE)))))
+				
 				.convertBodyTo(String.class)
 				.to(inProgressFolderManagerUri)
 			.end()

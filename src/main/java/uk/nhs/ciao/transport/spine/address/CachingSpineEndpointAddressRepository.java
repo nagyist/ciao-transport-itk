@@ -1,13 +1,14 @@
 package uk.nhs.ciao.transport.spine.address;
 
+import static uk.nhs.ciao.logging.CiaoLogMessage.logMsg;
+
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.component.hazelcast.HazelcastConstants;
 import org.apache.camel.impl.DefaultExchange;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import uk.nhs.ciao.logging.CiaoLogger;
 import uk.nhs.ciao.transport.spine.route.HazelcastCacheRoute;
 
 import com.google.common.base.Preconditions;
@@ -22,7 +23,7 @@ import com.google.common.base.Preconditions;
  * @see HazelcastCacheRoute
  */
 public class CachingSpineEndpointAddressRepository implements SpineEndpointAddressRepository {
-	private static final Logger LOGGER = LoggerFactory.getLogger(CachingSpineEndpointAddressRepository.class);
+	private static final CiaoLogger LOGGER = CiaoLogger.getLogger(CachingSpineEndpointAddressRepository.class);
 	
 	private final ProducerTemplate producerTemplate;
 	private final String cacheUri;
@@ -38,15 +39,20 @@ public class CachingSpineEndpointAddressRepository implements SpineEndpointAddre
 	@Override
 	public SpineEndpointAddress findByAsid(final String service, final String action,
 			final String asid) throws Exception {
+		LOGGER.info(logMsg("Searching for SpineEndpointAdddress in cache")
+				.service(service).action(action).asid(asid));
+		
 		final String key = getKey(service, action, "ASID", asid);
 
 		SpineEndpointAddress address = findCachedAddress(key);
 		if (address == null) {
-			LOGGER.debug("Cached SpineEndpointAdddress could not be found - will query backing repository: key={}", key);
+			LOGGER.debug(logMsg("Cached SpineEndpointAdddress could not be found - will query backing repository")
+					.service(service).action(action).asid(asid));
 			address = repository.findByAsid(service, action, asid);
 			cacheAddress(key, address);
 		} else {
-			LOGGER.debug("Found cached SpineEndpointAddress: key={}, value={}", key, address);
+			LOGGER.debug(logMsg("Found cached SpineEndpointAddress")
+					.service(service).action(action).asid(asid).address(address));
 		}
 		
 		return address;
@@ -55,15 +61,20 @@ public class CachingSpineEndpointAddressRepository implements SpineEndpointAddre
 	@Override
 	public SpineEndpointAddress findByODSCode(final String service, final String action,
 			final String odsCode) throws Exception {
+		LOGGER.info(logMsg("Searching for SpineEndpointAdddress in cache")
+				.service(service).action(action).odsCode(odsCode));
+		
 		final String key = getKey(service, action, "ODS", odsCode);
 		
 		SpineEndpointAddress address = findCachedAddress(key);
 		if (address == null) {
-			LOGGER.debug("Cached SpineEndpointAdddress could not be found - will query backing repository: key={}", key);
+			LOGGER.debug(logMsg("Cached SpineEndpointAdddress could not be found - will query backing repository")
+					.service(service).action(action).odsCode(odsCode));
 			address = repository.findByODSCode(service, action, odsCode);
 			cacheAddress(key, address);
 		} else {
-			LOGGER.debug("Found cached SpineEndpointAddress: key={}, value={}", key, address);
+			LOGGER.debug(logMsg("Found cached SpineEndpointAddress")
+					.service(service).action(action).odsCode(odsCode).address(address));
 		}
 		
 		return address;
@@ -73,9 +84,7 @@ public class CachingSpineEndpointAddressRepository implements SpineEndpointAddre
 		return service + ':' + action + '/' + codeType + '/' + code;
 	}
 	
-	private SpineEndpointAddress findCachedAddress(final String key) {
-		LOGGER.debug("Searching for SpineEndpointAdddress in cache: key={}", key);
-		
+	private SpineEndpointAddress findCachedAddress(final String key) {		
 		final Exchange exchange = new DefaultExchange(producerTemplate.getCamelContext());
 		exchange.setPattern(ExchangePattern.InOut);
 		exchange.getIn().setHeader(HazelcastConstants.OPERATION, HazelcastConstants.GET_OPERATION);
@@ -91,7 +100,7 @@ public class CachingSpineEndpointAddressRepository implements SpineEndpointAddre
 			return;
 		}
 		
-		LOGGER.debug("Adding SpineEndpointAdddress to cache: key={}, value={}", key, address);
+		LOGGER.debug(logMsg("Adding SpineEndpointAdddress to cache").key(key).address(address));
 		
 		final Exchange exchange = new DefaultExchange(producerTemplate.getCamelContext());
 		exchange.setPattern(ExchangePattern.InOut);

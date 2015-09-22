@@ -1,5 +1,7 @@
 package uk.nhs.ciao.transport.spine.address;
 
+import static uk.nhs.ciao.logging.CiaoLogMessage.logMsg;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
@@ -7,9 +9,7 @@ import java.util.List;
 
 import javax.naming.NamingException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import uk.nhs.ciao.logging.CiaoLogger;
 import uk.nhs.ciao.spine.sds.SpineDirectoryService;
 import uk.nhs.ciao.spine.sds.model.AccreditedSystem;
 import uk.nhs.ciao.spine.sds.model.MessageHandlingService;
@@ -26,7 +26,7 @@ import com.google.common.collect.Ordering;
  * at construction time.
  */
 public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRepository {
-	private static final Logger LOGGER = LoggerFactory.getLogger(SDSSpineEndpointAddressRepository.class);
+	private static final CiaoLogger LOGGER = CiaoLogger.getLogger(SDSSpineEndpointAddressRepository.class);
 	private static Comparator<String> SORT_DATE_STRINGS = Ordering.natural().reverse().nullsLast();
 	
 	private static Comparator<AccreditedSystem> SORT_AS_BY_DATE = new Comparator<AccreditedSystem>() {
@@ -68,6 +68,10 @@ public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRe
 	public SpineEndpointAddress findByODSCode(final String service, final String action, final String odsCode) throws NamingException, IOException {
 		final String svcIA = service + ":" + action;
 		
+		LOGGER.info(logMsg("Searching for SpineEndpointAdddress in SDS")
+				.service(service).action(action).odsCode(odsCode)
+				.interactionId(svcIA));
+		
 		final List<AccreditedSystem> accreditedSystems = sds.findAccreditedSystems()
 			.withNhsAsSvcIA(svcIA)
 			.withNhsIDCode(odsCode)
@@ -96,6 +100,10 @@ public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRe
 	public SpineEndpointAddress findByAsid(final String service, final String action, final String asid) throws NamingException, IOException {
 		final String svcIA = service + ":" + action;
 	
+		LOGGER.info(logMsg("Searching for SpineEndpointAdddress in SDS")
+				.service(service).action(action).asid(asid)
+				.interactionId(svcIA));
+		
 		final AccreditedSystem accreditedSystem = sds.findAccreditedSystems()
 			.withNhsAsSvcIA(svcIA)
 			.withUniqueIdentifier(asid)
@@ -161,7 +169,7 @@ public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRe
 			
 			if (LOGGER.isDebugEnabled()) {
 				final List<String> ids = getIds(messageHandlingServices);
-				LOGGER.debug("Found multiple matching MessageHandlingServices: {} - {}" + ids.size(), ids);
+				LOGGER.getLogger().debug("Found multiple matching MessageHandlingServices: {} - {}" + ids.size(), ids);
 			}
 			
 			return messageHandlingServices.get(0);
@@ -212,7 +220,7 @@ public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRe
 			
 			if (LOGGER.isDebugEnabled()) {
 				final List<String> ids = getIds(accreditedSystems);
-				LOGGER.debug("Found multiple matching AccreditedSystems: {} - {}" + ids.size(), ids);
+				LOGGER.getLogger().debug("Found multiple matching AccreditedSystems: {} - {}" + ids.size(), ids);
 			}
 			
 			if (onlyReturnFirst) {

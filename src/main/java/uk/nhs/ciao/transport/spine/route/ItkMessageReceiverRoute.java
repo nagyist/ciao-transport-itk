@@ -1,14 +1,15 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import static org.apache.camel.builder.ExpressionBuilder.append;
+import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
+
 import org.apache.camel.Exchange;
-import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.docs.parser.route.InProgressFolderManagerRoute;
+import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
 
@@ -25,7 +26,7 @@ import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
  * lower down the protocol stack before the message is receieved by this route.
  */
 public class ItkMessageReceiverRoute extends BaseRouteBuilder {
-	private static final Logger LOGGER = LoggerFactory.getLogger(ItkMessageReceiverRoute.class);
+	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(ItkMessageReceiverRoute.class);
 	
 	private String itkMessageReceiverUri;
 	private String inProgressFolderManagerUri;
@@ -97,6 +98,12 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 			.transacted("PROPAGATION_REQUIRED")
 		
 			.convertBodyTo(DistributionEnvelope.class)
+			
+			.process(LOGGER.info(camelLogMsg("Determining type of incoming ITK document via DistributionEnvelope")
+				.itkTrackingId("${body.trackingId}")
+				.distributionEnvelopeService("${body.service}")
+				.interactionId("${body.handlingSpec.getInteration}")))
+			
 			.choice()
 				.when().simple("${body.containsInfrastructureAck}")
 					.to(getInfrastructureAckHandlerUri())
@@ -106,10 +113,20 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 				.endChoice()
 				
 				.when().simple("${body.handlingSpec.getInteration} == null")
-					.log(LoggingLevel.WARN, LOGGER, "ITK message interaction not specified on handling spec")
+					.process(LOGGER.warn(camelLogMsg("Unable to process incoming ITK document - interaction is not specified in the DistributionEnvelope handlinng spec")
+						.itkTrackingId("${body.trackingId}")
+						.distributionEnvelopeService("${body.service}")
+						.interactionId("${body.handlingSpec.getInteration}")
+						.eventName("itk-message-missing-interaction")))
+				
 				.endChoice()
+				
 				.otherwise()
-					.log(LoggingLevel.WARN, LOGGER, "Unsupported ITK message interaction: ${body.handlingSpec.getInteration}")
+					.process(LOGGER.warn(camelLogMsg("Unable to process incoming ITK document - interaction is not supported")
+						.itkTrackingId("${body.trackingId}")
+						.distributionEnvelopeService("${body.service}")
+						.interactionId("${body.handlingSpec.getInteration}")
+						.eventName("itk-message-unsupported-interaction")))
 				.endChoice()
 			.end()
 			
@@ -121,13 +138,15 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 	 */
 	private void configureInfrastructureAckHandler() {
 		from(getInfrastructureAckHandlerUri())
+			.setProperty("distributionEnvelopeService", simple("${body.service}"))
+			.setProperty("interactionId", simple("${body.handlingSpec.getInteration}"))
+		
 			.setBody().spel("#{body.getDecodedPayloadBody(body.payloads[0].id)}")
 			.convertBodyTo(String.class)
 
 			// Store the original body for later processing
 			.setProperty("properties.originalBody").body()
 			.convertBodyTo(InfrastructureResponse.class)
-			.log(LoggingLevel.INFO, LOGGER, "Processing infrastructure response - trackingIdRef: ${body.trackingIdRef}, errors: ${body.errors}")
 			
 			.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
 			.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.EVENT))
@@ -143,6 +162,13 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 				.endChoice()
 			.end()
 			
+			.process(LOGGER.info(camelLogMsg("Received incoming ITK infrastructure ack document")
+				.documentId(header(Exchange.CORRELATION_ID))
+				.itkTrackingId(header(Exchange.CORRELATION_ID)) // reference to original tracking id
+				.distributionEnvelopeService(property("distributionEnvelopeService"))
+				.interactionId(property("interactionId"))
+				.eventName(append(append(header(Exchange.FILE_NAME), constant("-")), header(InProgressFolderManagerRoute.Header.EVENT_TYPE)))))
+			
 			// Restore the original body
 			.setBody().property("properties.originalBody")
 			.to(inProgressFolderManagerUri)
@@ -156,11 +182,12 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 		final Namespaces namespaces = new Namespaces("hl7", "urn:hl7-org:v3");
 		
 		from(getBusinessAckHandlerUri())
-			.log(LoggingLevel.INFO, LOGGER, "Got an business ack")
+			.setProperty("distributionEnvelopeService", simple("${body.service}"))
+			.setProperty("interactionId", simple("${body.handlingSpec.getInteration}"))
+		
 			.setBody().spel("#{body.getDecodedPayloadBody(body.payloads[0].id)}")
 			.convertBodyTo(String.class)
 			.setHeader(Exchange.CORRELATION_ID).xpath("/hl7:BusinessResponseMessage/hl7:acknowledgedBy3/hl7:conveyingTransmission/hl7:id/@root", String.class, namespaces)
-			.log(LoggingLevel.INFO, LOGGER, "Processing business ack - correlationId: ${headers.CamelCorrelationId}")
 			
 			.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
 			.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.EVENT))
@@ -175,6 +202,13 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 					.setHeader(Exchange.FILE_NAME).constant(InProgressFolderManagerRoute.MessageType.BUSINESS_NACK)
 				.endChoice()
 			.end()
+			
+			.process(LOGGER.info(camelLogMsg("Received incoming ITK business response document")
+				.documentId(header(Exchange.CORRELATION_ID))
+				.itkTrackingId(header(Exchange.CORRELATION_ID)) // reference to original tracking id
+				.distributionEnvelopeService(property("distributionEnvelopeService"))
+				.interactionId(property("interactionId"))
+				.eventName(append(append(header(Exchange.FILE_NAME), constant("-")), header(InProgressFolderManagerRoute.Header.EVENT_TYPE)))))
 			
 			.to(inProgressFolderManagerUri)	
 		.end();
