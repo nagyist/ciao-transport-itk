@@ -23,7 +23,7 @@ import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
  * <p>
  * Business acks (if requested in the envelope) should be handled at this protocol level -
  * either in this route or in a child of this route. Infrastructure acks are handled
- * lower down the protocol stack before the message is receieved by this route.
+ * lower down the protocol stack before the message is received by this route.
  */
 public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(ItkMessageReceiverRoute.class);

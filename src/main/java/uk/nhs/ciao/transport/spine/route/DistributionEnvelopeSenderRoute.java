@@ -1,14 +1,14 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
+
 import org.apache.camel.Exchange;
-import org.apache.camel.LoggingLevel;
 import org.apache.camel.Property;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
+import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.spine.address.SpineEndpointAddress;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
@@ -27,7 +27,7 @@ import uk.nhs.ciao.transport.spine.multipart.Part;
  * the multi-part message sender route.
  */
 public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
-	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeSenderRoute.class);
+	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(DistributionEnvelopeSenderRoute.class);
 	
 	private String distributionEnvelopeSenderUri;
 	private String distributionEnvelopeResponseUri;
@@ -157,6 +157,20 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 			// Build the multi-part request
 			.bean(new MultipartBodyBuilder())
 			.setHeader(Exchange.CONTENT_TYPE).simple("multipart/related; boundary=\"${body.boundary}\"; type=\"text/xml\"; start=\"${body.parts[0].rawContentId}\"")
+			
+			.process(LOGGER.info(camelLogMsg("Constructed spine multipart message for sending")
+				.documentId(header(Exchange.CORRELATION_ID))
+				.itkTrackingId("${property.distributionEnvelope.trackingId}")
+				.distributionEnvelopeService("${property.distributionEnvelope.service}")
+				.interactionId("${property.distributionEnvelope.handlingSpec.getInteration}")
+				.ebxmlMessageId("${property.ebxmlManifest.messageData.messageId}")
+				.service("${property.ebxmlManifest.service}")
+				.action("${property.ebxmlManifest.action}")
+				.receiverAsid("${property.destination?.asid}")
+				.receiverODSCode("${property.destination?.odsCode}")
+				.receiverMHSPartyKey("${property.ebxmlManifest.toParty}")
+				.eventName("constructed-spine-multipart-message")))
+			
 			.convertBodyTo(String.class)
 			
 			.to(multipartMessageSenderUri)
@@ -167,7 +181,16 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 		from(multipartMessageResponseUri)
 			.setProperty("original-body").body() // maintain original serialised form
 			.convertBodyTo(EbxmlEnvelope.class)
-			.log(LoggingLevel.INFO, LOGGER, "Received ebXml response - RefToMessageId=${body.messageData.refToMessageId}")
+			
+			.process(LOGGER.info(camelLogMsg("Received spine ebXml response message")
+				.documentId(header(Exchange.CORRELATION_ID))
+				.ebxmlMessageId("${body.messageData.messageId}")
+				.ebxmlRefToMessageId("${body.messageData.refToMessageId}")
+				.service("${body.service}")
+				.action("${body.action}")
+				.receiverMHSPartyKey("${body.toParty}")
+				.eventName("received-spine-ebxml-response")))
+			
 			.choice()
 				.when().simple("body.isAcknowledgment")
 					.setHeader("ciao.messageSendNotification", constant("sent"))
