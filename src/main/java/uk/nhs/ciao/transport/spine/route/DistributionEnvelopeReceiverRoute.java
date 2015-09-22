@@ -1,13 +1,13 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
+
 import org.apache.camel.Exchange;
-import org.apache.camel.LoggingLevel;
 import org.apache.camel.spi.IdempotentRepository;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
+import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
 
@@ -22,7 +22,7 @@ import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
  * in the envelope) are the responsibility of another route.
  */
 public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
-	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeReceiverRoute.class);
+	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(DistributionEnvelopeReceiverRoute.class);
 	
 	private String distributionEnvelopeReceiverUri;
 	private String itkMessageReceiverUri;
@@ -118,12 +118,33 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 			.transacted("PROPAGATION_REQUIRED")
 			
 			.convertBodyTo(DistributionEnvelope.class)
-			.log(LoggingLevel.DEBUG, LOGGER, "Converted to distribution envelope: ${body}")
 			.doTry()
+				.process(LOGGER.info(camelLogMsg("Verifying received DistributionEnvelope")
+					.documentId(header(Exchange.CORRELATION_ID))
+					.itkTrackingId("${body.trackingId}")
+					.distributionEnvelopeService("${body.service}")
+					.interactionId("${body.handlingSpec.getInteration}")
+					.eventName("verifying-distribution-envelope")))
+			
 				.process(new DistributionEnvelopeVerifier())
+				
+				.process(LOGGER.info(camelLogMsg("Received DistributionEnvelope has been verified - will publish payload")
+					.documentId(header(Exchange.CORRELATION_ID))
+					.itkTrackingId("${body.trackingId}")
+					.distributionEnvelopeService("${body.service}")
+					.interactionId("${body.handlingSpec.getInteration}")
+					.eventName("verified-distribution-envelope")))
+				
 				.to(getPayloadPublisherUri())
 			.endDoTry()
 			.doCatch(Exception.class)
+				.process(LOGGER.info(camelLogMsg("Received DistributionEnvelope is invalid - will send delivery failure response (if applicable)")
+					.documentId(header(Exchange.CORRELATION_ID))
+					.itkTrackingId("${body.trackingId}")
+					.distributionEnvelopeService("${body.service}")
+					.interactionId("${body.handlingSpec.getInteration}")
+					.eventName("invalid-distribution-envelope")))
+			
 				.to(getDeliveryFailureSenderUri())
 			.end()
 			
@@ -144,7 +165,7 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 			.errorHandler(defaultErrorHandler()
 					.maximumRedeliveries(4)
 					.redeliveryDelay(500)
-					.log(LOGGER)
+					.log(LOGGER.getLogger())
 					.logExhausted(true))
 			.handleFault()
 	
@@ -155,6 +176,13 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 			.skipDuplicate(false)
 				// only publish if not handled already
 				.filter(property(Exchange.DUPLICATE_MESSAGE).isNull())
+					.process(LOGGER.info(camelLogMsg("Publishing DistributionEnvelope payload")
+						.documentId(header(Exchange.CORRELATION_ID))
+						.itkTrackingId("${body.trackingId}")
+						.distributionEnvelopeService("${body.service}")
+						.interactionId("${body.handlingSpec.getInteration}")
+						.eventName("publishing-distribution-envelope-payload")))
+				
 					.to(itkMessageReceiverUri)
 				.end()
 	
@@ -162,12 +190,24 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 				.doTry()
 					// only send if requested (and NOT already an infrastructure response!)
 					.choice().when().simple("${body.handlingSpec.infrastructureAckRequested} && ${body.containsInfrastructureAck} == false")
+						.process(LOGGER.info(camelLogMsg("Sending ITK infrastructure ack for receieved DistributionEnvelope")
+							.documentId(header(Exchange.CORRELATION_ID))
+							.itkTrackingId("${body.trackingId}")
+							.distributionEnvelopeService("${body.service}")
+							.interactionId("${body.handlingSpec.getInteration}")
+							.eventName("sending-distribution-envelope-infrastructure-ack")))
+					
 						.bean(infrastructureResponseFactory, "createAcknowledgmentWithEnvelope")
 						.to(getInfrastructureResponseSenderUri())
 					.endChoice()
 				.endDoTry()
 				.doCatch(Exception.class)
-					.log(LoggingLevel.INFO, LOGGER, "Unable to send ITK infrastructure acknowledgement: ${exception}")
+					.process(LOGGER.warn(camelLogMsg("Unable to send ITK infrastructure ack")
+						.documentId(header(Exchange.CORRELATION_ID))
+						.itkTrackingId("${body.trackingId}")
+						.distributionEnvelopeService("${body.service}")
+						.interactionId("${body.handlingSpec.getInteration}")
+						.eventName("send-distribution-envelope-infrastructure-ack-error")))
 				.end()
 			.end()
 		.end();
@@ -181,12 +221,24 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 			.doTry()
 				// only send if requested (and NOT already an infrastructure response!)
 				.choice().when().simple("${body.handlingSpec.infrastructureAckRequested} && ${body.containsInfrastructureAck} == false")
-				.bean(infrastructureResponseFactory, "createDeliveryFailureWithEnvelope")
-				.to(getInfrastructureResponseSenderUri())
+					.process(LOGGER.info(camelLogMsg("Sending delivery failure infrastructure response for receieved DistributionEnvelope")
+						.documentId(header(Exchange.CORRELATION_ID))
+						.itkTrackingId("${body.trackingId}")
+						.distributionEnvelopeService("${body.service}")
+						.interactionId("${body.handlingSpec.getInteration}")
+						.eventName("sending-distribution-envelope-delivery-failure-response")))
+				
+					.bean(infrastructureResponseFactory, "createDeliveryFailureWithEnvelope")
+					.to(getInfrastructureResponseSenderUri())
 				.endChoice()
 			.endDoTry()
 			.doCatch(Exception.class)
-				.log(LoggingLevel.INFO, LOGGER, "Unable to send ITK infrastructure delivery failure: ${exception}")
+				.process(LOGGER.warn(camelLogMsg("Unable to send delivery failure infrastructure response")
+					.documentId(header(Exchange.CORRELATION_ID))
+					.itkTrackingId("${body.trackingId}")
+					.distributionEnvelopeService("${body.service}")
+					.interactionId("${body.handlingSpec.getInteration}")
+					.eventName("send-distribution-envelope-delivery-failure-response-error")))
 			.end();
 	}
 	
@@ -195,7 +247,6 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 	 * <p>
 	 * Processed in a separate thread via an internal seda route so as not to hold up the main processing flow
 	 */
-	// TODO: does outgoing ack response need retry logic / error hander? this will probably get handled by the outgoing spine component... (refactoring required)
 	private void configureInfrastructureResponseSender() {
 		from(getInfrastructureResponseSenderUri())
 			.convertBodyTo(String.class)

@@ -1,15 +1,14 @@
 package uk.nhs.ciao.transport.spine.route;
 
+import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
 import static uk.nhs.ciao.transport.spine.route.EbxmlManifestVerifier.MANIFEST_PROPERTY;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
-import org.apache.camel.LoggingLevel;
 import org.apache.camel.spi.IdempotentRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
+import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 
 /**
@@ -21,7 +20,7 @@ import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
  * been extracted and stored for later processing.
  */
 public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
-	private static final Logger LOGGER = LoggerFactory.getLogger(MultipartMessageReceiverRoute.class);
+	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(MultipartMessageReceiverRoute.class);
 	private static final String PAYLOAD_PROPERTY = "multipart-payload";
 	
 	private String multipartReceiverUri;
@@ -102,7 +101,10 @@ public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 			.end()
 			
 			.convertBodyTo(MultipartBody.class)
-			.log(LoggingLevel.DEBUG, LOGGER, "Converted to multipart body: ${body}")
+			
+			.process(LOGGER.info(camelLogMsg("Receieved incoming spine multipart message")
+				.eventName("receieved-spine-multipart-message")))
+			
 			.removeHeaders("*")
 			.process(new EbxmlManifestVerifier())
 	
@@ -126,6 +128,14 @@ public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 		from(getPayloadPublisherUri())
 			// On failure - send ebxml delivery failure notification
 			.onCompletion().onFailureOnly()
+				.process(LOGGER.warn(camelLogMsg("Unable to publish spine multipart message")
+						.documentId(header(Exchange.CORRELATION_ID))
+						.ebxmlMessageId("${property.multipart-manifest?.messageData.messageId}")
+						.service("${property.multipart-manifest?.service}")
+						.action("${property.multipart-manifest?.action}")
+						.receiverMHSPartyKey("${property.multipart-manifest?.toParty}")
+						.eventName("publishing-spine-multipart-message-payload-error")))
+			
 				.setBody().property(MANIFEST_PROPERTY)
 				.setBody().spel("#{body.generateDeliveryFailureNotification('Unable to deliver payload')}")
 				.to(ExchangePattern.InOnly, getEbxmlResponseSenderUri())
@@ -139,6 +149,14 @@ public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 			.skipDuplicate(false)
 				// only publish if not handled already
 				.filter(property(Exchange.DUPLICATE_MESSAGE).isNull())
+					.process(LOGGER.warn(camelLogMsg("Publishing spine multipart message payload")
+						.documentId(header(Exchange.CORRELATION_ID))
+						.ebxmlMessageId("${property.multipart-manifest.messageData.messageId}")
+						.service("${property.multipart-manifest.service}")
+						.action("${property.multipart-manifest.action}")
+						.receiverMHSPartyKey("${property.multipart-manifest.toParty}")
+						.eventName("publishing-spine-multipart-message-payload")))
+				
 					.to(ExchangePattern.InOnly, payloadDestinationUri)
 				.end()
 	
@@ -157,6 +175,18 @@ public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 	private void configureEbxmlResponseSender() {
 		from(getEbxmlResponseSenderUri())
 			.doTry()
+				.setProperty("ebxml").body()
+				
+				.process(LOGGER.warn(camelLogMsg("Sending async ebXml response")
+					.documentId(header(Exchange.CORRELATION_ID))
+					.ebxmlMessageId("${property.ebxml.messageData.messageId}")
+					.ebxmlRefToMessageId("${property.ebxml.messageData.refToMessageId}")
+					.service("${property.ebxml.service}")
+					.action("${property.ebxml.action}")
+					.receiverMHSPartyKey("${property.ebxml.toParty}")
+					.soapAction(header("SOAPAction"))
+					.eventName("sending-spine-ebxml-response")))
+				
 				.removeHeaders("*")
 				.setHeader(Exchange.CONTENT_TYPE).constant("text/xml")
 				.setHeader("SOAPAction").simple("${body.service}/${body.action}")
@@ -164,7 +194,15 @@ public class MultipartMessageReceiverRoute extends BaseRouteBuilder {
 				.to(ExchangePattern.InOut, ebxmlResponseDestinationUri)
 			.endDoTry()
 			.doCatch(Exception.class)
-				.log(LoggingLevel.WARN, LOGGER, "Unable to send async ebXml response: ${exception}")
+				.process(LOGGER.warn(camelLogMsg("Unable to send asyn ebXml response")
+					.documentId(header(Exchange.CORRELATION_ID))
+					.ebxmlMessageId("${property.ebxml.messageData.messageId}")
+					.ebxmlRefToMessageId("${property.ebxml.messageData.refToMessageId}")
+					.service("${property.ebxml.service}")
+					.action("${property.ebxml.action}")
+					.receiverMHSPartyKey("${property.ebxml.toParty}")
+					.soapAction(header("SOAPAction"))
+					.eventName("send-spine-ebxml-response-error")))
 			.end()
 		.end();
 	}
