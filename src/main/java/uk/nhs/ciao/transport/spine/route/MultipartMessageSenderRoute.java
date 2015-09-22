@@ -1,6 +1,7 @@
 package uk.nhs.ciao.transport.spine.route;
 
 import static org.apache.camel.builder.PredicateBuilder.*;
+import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
 
 import java.util.Collections;
 import java.util.Map;
@@ -10,19 +11,17 @@ import java.util.Set;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
-import org.apache.camel.LoggingLevel;
 import org.apache.camel.Processor;
 import org.apache.camel.component.http4.HttpMethods;
 import org.apache.camel.processor.aggregate.UseOriginalAggregationStrategy;
 import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.SettableFuture;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
+import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.forwardexpress.ForwardExpressMessageExchange;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
@@ -35,7 +34,7 @@ import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
  * <li>Marks message as success, retry or failure based on the ACK content
  */
 public class MultipartMessageSenderRoute extends BaseRouteBuilder {
-	private static final Logger LOGGER = LoggerFactory.getLogger(MultipartMessageSenderRoute.class);
+	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(MultipartMessageSenderRoute.class);
 	
 	private final Set<String> inprogressIds = Collections.newSetFromMap(Maps.<String, Boolean>newConcurrentMap());
 	private String multipartMessageSenderUri;
@@ -124,6 +123,15 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 				.convertBodyTo(MultipartBody.class)
 				.setBody().spel("#{body.parts[0].body}")
 				.convertBodyTo(EbxmlEnvelope.class)
+				
+				.process(LOGGER.info(camelLogMsg("Out of relivery attempts for spine multipart message - will generate (internal) delivery failure notification")
+					.documentId(header(Exchange.CORRELATION_ID))
+					.ebxmlMessageId("${body.messageData.messageId}")
+					.service("${body.service}")
+					.action("${body.action}")
+					.receiverMHSPartyKey("${body.toParty}")
+					.eventName("spine-multipart-message-redelivery-exhausted")))
+				
 				.setBody().spel("#{body.generateDeliveryFailureNotification(\"Maximum redelivery attempts exhausted\")}")
 				.to(ExchangePattern.InOnly, multipartMessageResponseUri)
 			.end()
@@ -239,6 +247,11 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 			.errorHandler(noErrorHandler()) // disable error handler (the transaction handler from the top-level caller will be used)
 			
 			.setProperty("request-headers").headers()
+			
+			.process(LOGGER.info(camelLogMsg("Sending spine multipart message over HTTP")
+					.documentId(header(Exchange.CORRELATION_ID))
+					.eventName("sending-spine-multipart-message")))
+			
 			.to(ExchangePattern.InOut, multipartMessageDestinationUri)
 			
 			
@@ -265,8 +278,11 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 					.stop()
 			.end()
 			
-			.log(LoggingLevel.INFO, LOGGER, "HTTP error received: ${header." + Exchange.HTTP_RESPONSE_CODE + "}")
-			
+			.process(LOGGER.info(camelLogMsg("Received HTTP error response for spine multipart message")
+					.documentId(header(Exchange.CORRELATION_ID))
+					.set(Exchange.HTTP_RESPONSE_CODE, header(Exchange.HTTP_RESPONSE_CODE))
+					.eventName("spine-multipart-message-error-response")))
+					
 			.choice()
 				.when(isEqualTo(header(Exchange.CONTENT_TYPE), constant("text/xml")))
 					.doTry()
@@ -283,7 +299,11 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 							.endDoTry()
 					.doCatch(Exception.class)
 						.handled(false)
-						.log(LoggingLevel.INFO, LOGGER, "Could not parse response body as SOAPFault - will retry (if applicable): ${exception}")
+						
+						.process(LOGGER.info(camelLogMsg("Could not parse HTTP response body as SOAPFault - will retry (if applicable)")
+							.documentId(header(Exchange.CORRELATION_ID))
+							.set(Exchange.HTTP_RESPONSE_CODE, header(Exchange.HTTP_RESPONSE_CODE))
+							.eventName("invalid-spine-multipart-message-error-response")))
 					.endDoTry()
 				.endChoice()
 			.end()
@@ -321,18 +341,37 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 		from(getEbxmlAckProcessorUrl())
 			.id(getInternalRoutePrefix() + "ebxml-ack-processor")
 			.errorHandler(noErrorHandler()) // disable error handler (the transaction handler from the top-level caller will be used)
-			.log(LoggingLevel.DEBUG, LOGGER, "Processing ebXml acknowledgment for ${header.CamelCorrelationId}")
+			
+			.process(LOGGER.debug(camelLogMsg("Received ebXml acknowledgment")
+					.documentId(header(Exchange.CORRELATION_ID))))
+			
 			.convertBodyTo(EbxmlEnvelope.class)
 			.choice()
 				.when().simple("${body.errorMessage}")
 					.pipeline()
 						.choice()
 							.when().simple("${body.error.warning}")
-								.log(LoggingLevel.INFO, LOGGER, "ebXml delivery failure (warning) received - refToMessageId: ${body.messageData.refToMessageId} - will retry (if applicable)")
-								.throwException(new Exception("ebXml delivery failure (warning) received - will retry (if applicable)"))
+								.process(LOGGER.info(camelLogMsg("ebXml delivery failure (warning) received - will retry (if applicable)")
+									.documentId(header(Exchange.CORRELATION_ID))
+									.ebxmlMessageId("${body.messageData.messageId}")
+									.ebxmlRefToMessageId("${body.messageData.refToMessageId}")
+									.service("${body.service}")
+									.action("${body.action}")
+									.receiverMHSPartyKey("${body.toParty}")
+									.eventName("spine-multipart-message-delivery-warning")))
+								
+								.throwException(new Exception("ebXml delivery failure (error) received - will retry (if applicable)"))
 							.endChoice()
 							.otherwise()
-								.log(LoggingLevel.INFO, LOGGER, "ebXml delivery failure (error) received - refToMessageId: ${body.messageData.refToMessageId} - will not retry")
+								.process(LOGGER.info(camelLogMsg("ebXml delivery failure (warning) received - will not retry")
+									.documentId(header(Exchange.CORRELATION_ID))
+									.ebxmlMessageId("${body.messageData.messageId}")
+									.ebxmlRefToMessageId("${body.messageData.refToMessageId}")
+									.service("${body.service}")
+									.action("${body.action}")
+									.receiverMHSPartyKey("${body.toParty}")
+									.eventName("spine-multipart-message-delivery-error")))
+									
 								.to(ExchangePattern.InOnly, multipartMessageResponseUri)
 								.stop()
 							.endChoice()
@@ -340,7 +379,15 @@ public class MultipartMessageSenderRoute extends BaseRouteBuilder {
 					.end()
 				.endChoice()
 				.otherwise()
-					.log(LoggingLevel.INFO, LOGGER, "ebXml ack received - refToMessageId: ${body.messageData.refToMessageId}")
+					.process(LOGGER.info(camelLogMsg("ebXml ack received")
+						.documentId(header(Exchange.CORRELATION_ID))
+						.ebxmlMessageId("${body.messageData.messageId}")
+						.ebxmlRefToMessageId("${body.messageData.refToMessageId}")
+						.service("${body.service}")
+						.action("${body.action}")
+						.receiverMHSPartyKey("${body.toParty}")
+						.eventName("spine-multipart-message-ack")))
+					
 					.to(ExchangePattern.InOnly, multipartMessageResponseUri)
 				.endChoice()
 			.end()
