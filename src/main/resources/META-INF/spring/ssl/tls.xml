@@ -31,7 +31,7 @@
 		</property>
 	</bean>
 	
-	<bean id="sdsLdapContext" class="uk.nhs.ciao.spine.sds.ldap.SSLInitialLdapContextFactoryBean" scope="prototype">
+	<bean id="sdsLdapContext" class="uk.nhs.ciao.spine.sds.ldap.SSLInitialLdapContextFactory" scope="prototype">
 		<property name="sslContextParameters" ref="spineSSLContextParameters" />
 		<property name="environment">
 			<props>
