@@ -15,6 +15,8 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		final DTSDistributionEnvelopeSenderRoute route = new DTSDistributionEnvelopeSenderRoute();
 		
 		// TODO: Complete this for DTS - code below is from spine route
+//		route.setDTSMessageSenderUri(dtsMessageSenderUri);
+//		route.setDTSMessageSendResponseReceiverUri(dtsMessageSendResponseReceiverUri);
 		
 //		route.setMultipartMessageSenderUri("jms:queue:{{multipartMessageSenderQueue}}");
 //		route.setMultipartMessageResponseUri("jms:queue:{{multipartMessageResponseQueue}}?destination.consumer.prefetchSize=0");
