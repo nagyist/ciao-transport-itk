@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:camel="http://camel.apache.org/schema/spring"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring-2.15.2.xsd">
+	
+	<!-- Configure our JMS provider - in this case ActiveMQ. In a 
+       production environment you will want to change this from
+       the default username and password to something else. The
+       login and password for activemq in servicemix can be found
+       in {servicmixpath}/etc/users.properties
+  	-->
+  	
+  	<bean id="jmsConnectionFactory" class="org.springframework.jms.connection.CachingConnectionFactory">
+  		<constructor-arg>
+		  	<bean class="org.apache.activemq.ActiveMQConnectionFactory">
+		  		<property name="brokerURL" value="${activemq.brokerURL}" />        
+			    <property name="userName" value="${activemq.userName}" />
+			    <property name="password" value="${activemq.password}" />
+		  	</bean>
+	  	</constructor-arg>
+  	</bean>
+  	
+  	<!-- Import config common across all ActiveMQ configurations -->
+	<import resource="classpath*:META-INF/spring/messaging/activemq-common.xml"/>
+</beans>

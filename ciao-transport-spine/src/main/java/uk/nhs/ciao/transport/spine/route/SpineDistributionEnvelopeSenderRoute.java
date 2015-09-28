@@ -7,10 +7,10 @@ import org.apache.camel.Property;
 
 import com.google.common.base.Strings;
 
-import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.itk.envelope.Address;
 import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
+import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeSenderRoute;
 import uk.nhs.ciao.transport.spine.address.SpineEndpointAddress;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
@@ -26,40 +26,16 @@ import uk.nhs.ciao.transport.spine.multipart.Part;
  * a multi-part wrapper) and storing it on a queue for sending by
  * the multi-part message sender route.
  */
-public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
-	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(DistributionEnvelopeSenderRoute.class);
+public class SpineDistributionEnvelopeSenderRoute extends DistributionEnvelopeSenderRoute {
+	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(SpineDistributionEnvelopeSenderRoute.class);
 	
-	private String distributionEnvelopeSenderUri;
-	private String distributionEnvelopeResponseUri;
 	private String multipartMessageSenderUri;
 	private String multipartMessageResponseUri;
 	private String spineEndpointAddressEnricherUrl;
 	
 	// optional properties
-	private DistributionEnvelope prototypeDistributionEnvelope;
 	private EbxmlEnvelope prototypeEbxmlManifest;
 	private HL7Part prototypeHl7Part;
-	
-	/**
-	 * URI where incoming distribution envelope messages are received from
-	 * <p>
-	 * input only
-	 */
-	public void setDistributionEnvelopeSenderUri(final String distributionEnvelopeSenderUri) {
-		this.distributionEnvelopeSenderUri = distributionEnvelopeSenderUri;
-	}
-	
-	/**
-	 * URI where outgoing responses for sent distribution envelopes messages are published to
-	 * <p>
-	 * The original ebXml message is published as the message body, along with a header describing
-	 * whether the message was successfully sent or not.
-	 * <p>
-	 * output only
-	 */
-	public void setDistributionEnvelopeResponseUri(final String distributionEnvelopeResponseUri) {
-		this.distributionEnvelopeResponseUri = distributionEnvelopeResponseUri;
-	}
 	
 	/**
 	 * URI where outgoing multi-part messages are sent to
@@ -84,18 +60,6 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	 */
 	public void setSpineEndpointAddressEnricherUri(final String spineEndpointAddressEnricherUrl) {
 		this.spineEndpointAddressEnricherUrl = spineEndpointAddressEnricherUrl;
-	}
-	
-	/**
-	 * Sets the prototype distribution envelope containing default properties that should
-	 * be added to all envelopes before they are sent.
-	 * <p>
-	 * Non-empty properties on the envelope being sent are not overwritten.
-	 * 
-	 * @param prototype The prototype envelope
-	 */
-	public void setPrototypeDistributionEnvelope(final DistributionEnvelope prototype) {
-		prototypeDistributionEnvelope = prototype;
 	}
 	
 	/**
@@ -133,7 +97,7 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 		 * The output will be a multipart body - individual parts are constructed
 		 * and stored as properties until the body is built in the final stage 
 		 */
-		from(distributionEnvelopeSenderUri)				
+		from(getDistributionEnvelopeSenderUri())				
 			// Configure the distribution envelope
 			.convertBodyTo(DistributionEnvelope.class)
 			.bean(new DistributionEnvelopePopulator())
@@ -200,24 +164,12 @@ public class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 			.end()
 			
 			.setBody().property("original-body") // restore original serialised form
-			.to(distributionEnvelopeResponseUri)
+			.to(getDistributionEnvelopeResponseUri())
 		.end();
 	}
 	
 	// Processor / bean methods
 	// The methods can't live in the route builder - it causes havoc with the debug/tracer logging
-	
-	/**
-	 * Populates the distribution envelope with default properties if they have
-	 * not already been specified in the envelope.
-	 */
-	public class DistributionEnvelopePopulator {
-		public void populateDistributionEnvelope(final DistributionEnvelope envelope) {
-			final boolean overwrite = false;
-			envelope.copyFrom(prototypeDistributionEnvelope, overwrite);
-			envelope.applyDefaults();
-		}
-	}
 	
 	public class DestinationAddressBuilder {
 		public SpineEndpointAddress buildDestinationAdddress(final DistributionEnvelope envelope) {

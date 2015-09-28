@@ -25,6 +25,8 @@
 		<sonar.jacoco.reportPath>${project.basedir}/../target/jacoco.exec</sonar.jacoco.reportPath>
 
 		<ciao.core.version>0.0.1-SNAPSHOT</ciao.core.version>
+		<ciao-spine-sds.version>1.0.0-SNAPSHOT</ciao-spine-sds.version>
+		<ciao-dts.version>1.0.0-SNAPSHOT</ciao-dts.version>
 	</properties>
 
 	<dependencyManagement>
@@ -45,6 +47,24 @@
 				<groupId>${project.groupId}</groupId>
 				<artifactId>ciao-core</artifactId>
 				<version>${ciao.core.version}</version>
+			</dependency>
+		
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>ciao-spine-sds</artifactId>
+				<version>${ciao-spine-sds.version}</version>
+			</dependency>
+			
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>ciao-spine-sds-test</artifactId>
+				<version>${ciao-spine-sds.version}</version>
+			</dependency>
+			
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>ciao-dts</artifactId>
+				<version>${ciao-dts.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

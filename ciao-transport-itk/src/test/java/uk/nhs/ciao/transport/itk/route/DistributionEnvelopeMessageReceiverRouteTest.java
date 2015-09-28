@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.route;
+package uk.nhs.ciao.transport.itk.route;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;

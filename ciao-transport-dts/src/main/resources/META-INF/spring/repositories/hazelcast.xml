@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:camel="http://camel.apache.org/schema/spring"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring-2.15.2.xsd">
+	
+	<bean id="hazelcastInstance" class="com.hazelcast.core.Hazelcast" factory-method="newHazelcastInstance">
+		<constructor-arg>
+			<bean class="com.hazelcast.config.Config">
+				<property name="groupConfig">
+					<bean class="com.hazelcast.config.GroupConfig">
+						<property name="name" value="${hazelcast.group.name}" />
+						<property name="password" value="${hazelcast.group.password}" />
+					</bean>
+				</property>
+				<property name="networkConfig">
+					<bean class="com.hazelcast.config.NetworkConfig">
+						<property name="port" value="${hazelcast.network.port}" />
+						<property name="join">
+							<bean class="com.hazelcast.config.JoinConfig">
+								<property name="multicastConfig">
+									<bean class="com.hazelcast.config.MulticastConfig">
+										<property name="multicastGroup" value="${hazelcast.network.join.multicast.group}" />
+										<property name="multicastPort" value="${hazelcast.network.join.multicast.port}" />
+									</bean>
+								</property>
+							</bean>
+						</property>
+					</bean>
+				</property>
+			</bean>
+		</constructor-arg>
+	</bean>
+	
+	<bean id="distributionEnvelopeIdempotentRepository" class="org.apache.camel.processor.idempotent.hazelcast.HazelcastIdempotentRepository">
+		<constructor-arg ref="hazelcastInstance" />
+		<constructor-arg value="processed-distribution-envelopes" />		
+	</bean>	
+</beans>
