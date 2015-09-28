@@ -1,5 +1,6 @@
 package uk.nhs.ciao.transport.spine.itk;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
@@ -11,8 +12,6 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import javax.xml.bind.DatatypeConverter;
-
-import org.apache.activemq.util.ByteArrayInputStream;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;

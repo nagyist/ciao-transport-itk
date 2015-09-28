@@ -1,5 +1,3 @@
 uk.nhs.ciao.transport.spine.multipart.MultipartTypeConverter
 uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelopeTypeConverter
-uk.nhs.ciao.transport.spine.itk.DistributionEnvelopeTypeConverter
-uk.nhs.ciao.transport.spine.itk.InfrastructureResponseTypeConverter
 uk.nhs.ciao.transport.spine.hl7.HL7PartTypeConverter
