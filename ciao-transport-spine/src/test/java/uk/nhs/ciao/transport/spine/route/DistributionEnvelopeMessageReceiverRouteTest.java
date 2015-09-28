@@ -25,11 +25,11 @@ import org.unitils.reflectionassert.ReflectionAssert;
 import com.google.common.base.Throwables;
 
 import uk.nhs.ciao.camel.CamelUtils;
-import uk.nhs.ciao.transport.spine.itk.Address;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
-import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
-import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
+import uk.nhs.ciao.transport.itk.envelope.Address;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponse;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponseFactory;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope.ManifestItem;
 
 public class DistributionEnvelopeMessageReceiverRouteTest {
 	private CamelContext context;

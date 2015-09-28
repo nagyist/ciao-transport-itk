@@ -1,12 +1,12 @@
-package uk.nhs.ciao.transport.spine.itk;
+package uk.nhs.ciao.transport.itk.envelope;
 
 import org.apache.camel.NoTypeConversionAvailableException;
 import org.apache.camel.TypeConversionException;
 import org.apache.camel.TypeConverter;
 
 import joptsimple.internal.Strings;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
-import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse.ErrorInfo;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope.ManifestItem;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponse.ErrorInfo;
 
 public class InfrastructureResponseFactory {
 	private Identity identity;

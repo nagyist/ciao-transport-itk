@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.itk;
+package uk.nhs.ciao.transport.itk.envelope;
 
 import java.io.InputStream;
 
@@ -19,12 +19,14 @@ import org.slf4j.LoggerFactory;
 import org.unitils.reflectionassert.ReflectionAssert;
 
 import uk.nhs.ciao.camel.CamelUtils;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponse;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponseTypeConverter;
 
 /**
- * Tests for {@link DistributionEnvelopeTypeConverter}
+ * Tests for {@link InfrastructureResponseTypeConverter}
  */
-public class DistributionEnvelopeTypeConverterTest {
-	private static final Logger LOGGER = LoggerFactory.getLogger(DistributionEnvelopeTypeConverterTest.class);
+public class InfrastructureResponseTypeConverterTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(InfrastructureResponseTypeConverterTest.class);
 	
 	private CamelContext context;
 	private ProducerTemplate producerTemplate;
@@ -38,7 +40,7 @@ public class DistributionEnvelopeTypeConverterTest {
 				from("direct:deserialize")
 					.streamCaching()
 					.log(LoggingLevel.INFO, LOGGER, "${body}")
-					.convertBodyTo(DistributionEnvelope.class);
+					.convertBodyTo(InfrastructureResponse.class);
 				
 				from("direct:serialize")
 					.streamCaching()
@@ -58,18 +60,23 @@ public class DistributionEnvelopeTypeConverterTest {
 	}
 	
 	@Test
-	public void testNestedXmlPayload() {
-		assertRoundtrip(getClass().getResourceAsStream("test-xmlpayload.xml"));
+	public void textInfAck() {
+		assertRoundtrip(getClass().getResourceAsStream("test-infack.xml"));
+	}
+	
+	@Test
+	public void textInfNack() {
+		assertRoundtrip(getClass().getResourceAsStream("test-infnack.xml"));
 	}
 	
 	private void assertRoundtrip(final InputStream in) {
-		final DistributionEnvelope expected = context.getTypeConverter().convertTo(DistributionEnvelope.class, in);
+		final InfrastructureResponse expected = context.getTypeConverter().convertTo(InfrastructureResponse.class, in);
 		assertRoundtrip(expected);
 	}
 	
-	private void assertRoundtrip(final DistributionEnvelope expected) {
+	private void assertRoundtrip(final InfrastructureResponse expected) {
 		final String xml = serialize(expected);
-		final DistributionEnvelope actual = deserialize(xml);
+		final InfrastructureResponse actual = deserialize(xml);
 		ReflectionAssert.assertReflectionEquals(expected, actual);
 	}
 	
@@ -77,7 +84,7 @@ public class DistributionEnvelopeTypeConverterTest {
 	 * Converts the envelope to a String by sending into through
 	 * the configured camel route
 	 */
-	private String serialize(final DistributionEnvelope body) {
+	private String serialize(final InfrastructureResponse body) {
 		final Exchange exchange = new DefaultExchange(context);
 		exchange.setPattern(ExchangePattern.InOut);
 		exchange.getIn().setBody(body);
@@ -87,15 +94,15 @@ public class DistributionEnvelopeTypeConverterTest {
 	}
 	
 	/**
-	 * Converts the body to an {@link DistributionEnvelope} by sending into through
+	 * Converts the body to an {@link InfrastructureResponse} by sending into through
 	 * the configured camel route
 	 */
-	private DistributionEnvelope deserialize(final Object body) {
+	private InfrastructureResponse deserialize(final Object body) {
 		final Exchange exchange = new DefaultExchange(context);
 		exchange.setPattern(ExchangePattern.InOut);
 		exchange.getIn().setBody(body);
 		
 		producerTemplate.send("direct:deserialize", exchange);
-		return exchange.getOut().getBody(DistributionEnvelope.class);
+		return exchange.getOut().getBody(InfrastructureResponse.class);
 	}
 }

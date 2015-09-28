@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.route;
+package uk.nhs.ciao.transport.itk.route;
 
 import static org.apache.camel.builder.ExpressionBuilder.append;
 import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
@@ -10,8 +10,8 @@ import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.docs.parser.route.InProgressFolderManagerRoute;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
-import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponse;
 
 /**
  * Routes to handle incoming ITK messages.

@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.itk;
+package uk.nhs.ciao.transport.itk.envelope;
 import static org.apache.camel.builder.PredicateBuilder.*;
 
 import java.io.File;

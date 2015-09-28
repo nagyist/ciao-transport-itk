@@ -1,6 +1,6 @@
 package uk.nhs.ciao.transport.spine.ebxml;
 
-import static uk.nhs.ciao.transport.spine.util.TypeConverterHelper.*;
+import static uk.nhs.ciao.transport.itk.util.TypeConverterHelper.*;
 
 import java.io.IOException;
 import java.io.InputStream;

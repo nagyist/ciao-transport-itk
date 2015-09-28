@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.route;
+package uk.nhs.ciao.transport.itk.route;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
@@ -17,12 +17,13 @@ import org.mockito.Mockito;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import uk.nhs.ciao.camel.CamelUtils;
-import uk.nhs.ciao.transport.spine.itk.Address;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
-import uk.nhs.ciao.transport.spine.itk.Identity;
-import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse;
-import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse.ErrorInfo;
+import uk.nhs.ciao.transport.itk.envelope.Address;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
+import uk.nhs.ciao.transport.itk.envelope.Identity;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponse;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope.ManifestItem;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponse.ErrorInfo;
+import uk.nhs.ciao.transport.itk.route.ItkMessageReceiverRoute;
 import uk.nhs.ciao.docs.parser.route.InProgressFolderManagerRoute.*;
 
 public class ItkMessageReceiverRouteTest {

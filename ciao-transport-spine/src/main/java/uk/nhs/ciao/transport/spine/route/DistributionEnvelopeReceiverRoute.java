@@ -8,8 +8,8 @@ import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
-import uk.nhs.ciao.transport.spine.itk.InfrastructureResponseFactory;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponseFactory;
 
 /**
  * Routes to handle incoming ITK distribution envelopes (from spine payloads).

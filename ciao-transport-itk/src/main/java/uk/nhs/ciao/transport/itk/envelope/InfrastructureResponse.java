@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.itk;
+package uk.nhs.ciao.transport.itk.envelope;
 
 import java.util.Date;
 import java.util.List;

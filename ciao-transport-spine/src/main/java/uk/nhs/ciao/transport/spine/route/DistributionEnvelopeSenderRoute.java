@@ -9,12 +9,12 @@ import com.google.common.base.Strings;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
+import uk.nhs.ciao.transport.itk.envelope.Address;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.address.SpineEndpointAddress;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope.ManifestReference;
 import uk.nhs.ciao.transport.spine.hl7.HL7Part;
-import uk.nhs.ciao.transport.spine.itk.Address;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
 import uk.nhs.ciao.transport.spine.multipart.MultipartBody;
 import uk.nhs.ciao.transport.spine.multipart.Part;
 

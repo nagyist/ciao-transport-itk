@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.util;
+package uk.nhs.ciao.transport.itk.util;
 
 import java.io.InputStream;
 import java.util.HashMap;

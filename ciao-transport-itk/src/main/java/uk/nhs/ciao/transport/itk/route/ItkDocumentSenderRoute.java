@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.route;
+package uk.nhs.ciao.transport.itk.route;
 
 import static org.apache.camel.builder.ExpressionBuilder.append;
 import static org.apache.camel.builder.PredicateBuilder.*;
@@ -19,9 +19,9 @@ import uk.nhs.ciao.docs.parser.Document;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
 import uk.nhs.ciao.docs.parser.route.InProgressFolderManagerRoute;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
-import uk.nhs.ciao.transport.spine.itk.Address;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
+import uk.nhs.ciao.transport.itk.envelope.Address;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope.ManifestItem;
 
 /**
  * Route to send an incoming ITK document

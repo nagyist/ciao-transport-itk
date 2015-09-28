@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.itk;
+package uk.nhs.ciao.transport.itk.envelope;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;

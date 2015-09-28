@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.util;
+package uk.nhs.ciao.transport.itk.util;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.TypeConverter;

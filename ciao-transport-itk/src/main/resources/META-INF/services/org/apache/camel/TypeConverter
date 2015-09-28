@@ -1,2 +1,2 @@
-uk.nhs.ciao.transport.spine.itk.DistributionEnvelopeTypeConverter
-uk.nhs.ciao.transport.spine.itk.InfrastructureResponseTypeConverter
+uk.nhs.ciao.transport.itk.envelope.DistributionEnvelopeTypeConverter
+uk.nhs.ciao.transport.itk.envelope.InfrastructureResponseTypeConverter

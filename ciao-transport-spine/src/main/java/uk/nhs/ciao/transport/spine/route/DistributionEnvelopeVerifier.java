@@ -3,7 +3,7 @@ package uk.nhs.ciao.transport.spine.route;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
 
 /**
  * Processor which verifies that a specified distribution envelope is valid

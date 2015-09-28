@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.itk;
+package uk.nhs.ciao.transport.itk.envelope;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,7 +15,7 @@ import org.apache.commons.digester3.SetNextRule;
 import org.apache.commons.digester3.SetPropertiesRule;
 import org.xml.sax.SAXException;
 
-import uk.nhs.ciao.transport.spine.itk.InfrastructureResponse.ErrorInfo;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponse.ErrorInfo;
 
 /**
  * Parses an ITK infrastructure response document into a corresponding {@link InfrastructureResponse}.

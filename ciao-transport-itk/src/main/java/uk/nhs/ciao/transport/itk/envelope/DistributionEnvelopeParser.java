@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.itk;
+package uk.nhs.ciao.transport.itk.envelope;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,9 +28,9 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.HandlingSpec;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.ManifestItem;
-import uk.nhs.ciao.transport.spine.itk.DistributionEnvelope.Payload;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope.HandlingSpec;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope.ManifestItem;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope.Payload;
 
 /**
  * Parses an ITK distribution envelope document into a corresponding {@link DistributionEnvelope}.
