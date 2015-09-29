@@ -1,10 +1,22 @@
 package uk.nhs.ciao.transport.dts.route;
 
+import static org.apache.camel.builder.PredicateBuilder.*;
 import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
 
-import org.apache.camel.Exchange;
+import java.net.URI;
+import java.util.Map;
+import java.util.regex.Pattern;
 
+import org.apache.camel.Exchange;
+import org.apache.camel.Property;
+import org.apache.camel.util.URISupport;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
+
+import uk.nhs.ciao.dts.AddressType;
 import uk.nhs.ciao.dts.ControlFile;
+import uk.nhs.ciao.dts.MessageType;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
 import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeSenderRoute;
@@ -13,7 +25,14 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(DTSDistributionEnvelopeSenderRoute.class);
 	
 	private String dtsMessageSenderUri;
-	private String dtsMessageSendResponseReceiverUri;
+	private String dtsMessageSendNotificationReceiverUri;
+	private String dtsTemporaryFolder;
+	private String idempotentRepositoryRef;
+	private String inProgressRepositoryRef;
+	
+	// optional properties
+	private ControlFile prototypeControlFile;
+	private String dtsFilePrefix = "";
 	
 	/**
 	 * URI of the DTS outbox
@@ -29,20 +48,70 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	 * <p>
 	 * input only
 	 */
-	public void setDTSMessageSendResponseReceiverUri(final String dtsMessageSendResponseReceiverUri) {
-		this.dtsMessageSendResponseReceiverUri = dtsMessageSendResponseReceiverUri;
+	public void setDTSMessageSendNotificationReceiverUri(final String dtsMessageSendNotificationReceiverUri) {
+		this.dtsMessageSendNotificationReceiverUri = dtsMessageSendNotificationReceiverUri;
+	}
+	
+	/**
+	 * The location of the temporary folder used to initially write files to
+	 * (prior) to atomically moving them to {@link #setDistributionEnvelopeSenderUri(String)}
+	 * <p>
+	 * The temporary folder should exist on the same file system as the send folder so that 
+	 * a file move can be performed.
+	 */
+	public void setDTSTemporaryFolder(final String dtsTemporaryFolder) {
+		this.dtsTemporaryFolder = dtsTemporaryFolder;
+	}
+	
+	/**
+	 * ID of the idempotent repository used to track processed sent notifications
+	 */
+	public void setIdempotentRepositoryRef(final String idempotentRepositoryRef) {
+		this.idempotentRepositoryRef = idempotentRepositoryRef;
+	}
+	
+	/**
+	 * ID of the idempotent repository to use to track in-progress end notifications
+	 */
+	public void setInProgressRepositoryRef(final String inProgressRepositoryRef) {
+		this.inProgressRepositoryRef = inProgressRepositoryRef;
+	}
+	
+	/**
+	 * Sets the prototype control file containing default properties that should
+	 * be added to all control files before they are sent.
+	 * <p>
+	 * Non-empty properties on the control file being sent are not overwritten.
+	 * 
+	 * @param prototype The prototype control file
+	 */
+	public void setPrototypeControlFile(final ControlFile prototype) {
+		prototypeControlFile = prototype;
+	}
+	
+	/**
+	 * A prefix to be added to DTS file names before they are sent to the client.
+	 * <p>
+	 * The DTS documentation recommends <code>${siteid}${APP}</code>:
+	 * <ul>
+	 * <li>siteId: will uniquely identify the client site. The DTS Client userid should be used for this value.</li>
+	 * <li>APP: an optional value used to allow different applications on the platform to use the same client to transfer files.</li>
+	 * </ul>
+	 */
+	public void setDTSFilePrefix(final String dtsFilePrefix) {
+		this.dtsFilePrefix = Strings.nullToEmpty(dtsFilePrefix);
 	}
 	
 	@Override
 	public void configure() throws Exception {
 		configureRequestSender();
-		configureSendResponseReceiver();
+		configureSendNotificationReceiver();
 	}
 	
 	private void configureRequestSender() throws Exception {
 		/*
-		 * The output will be a multipart body - individual parts are constructed
-		 * and stored as properties until the body is built in the final stage 
+		 * The output will be two files: a data file and a control file - individual parts
+		 * are constructed and stored as properties until the bodies are written in the final stage 
 		 */
 		from(getDistributionEnvelopeSenderUri())				
 			// Configure the distribution envelope
@@ -53,16 +122,15 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			// Resolve destination address
 //			.bean(new DestinationAddressBuilder())
 //			.to(spineEndpointAddressEnricherUrl)
-//			.setProperty("destination").body()
+			.setBody().constant("dummmy") // TODO: Configure address resolution
+			.setProperty("destination").body()
 
 			// Configure control file
-//			.bean(new EbxmlManifestBuilder())
-//			.setHeader(Exchange.CORRELATION_ID).simple("${body.messageData.messageId}")
-//			.setHeader("SOAPAction").simple("${body.service}/${body.action}")
-//			.setProperty("ebxmlManifest").body()
+			.bean(new ControlFileBuilder())
+			.setProperty("controlFile").body()
 			
 			.process(LOGGER.info(camelLogMsg("Constructed DTS message for sending")
-				.documentId(header(Exchange.CORRELATION_ID)) // TODO - where will this come from? The thread is not blocked like on the spine transport
+				.documentId(header(Exchange.CORRELATION_ID))
 				.itkTrackingId("${property.distributionEnvelope.trackingId}")
 				.distributionEnvelopeService("${property.distributionEnvelope.service}")
 				.interactionId("${property.distributionEnvelope.handlingSpec.getInteration}")
@@ -74,33 +142,88 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 //				.receiverMHSPartyKey("${property.ebxmlManifest.toParty}")
 				.eventName("constructed-dts-message")))
 			
+			// write files through a temporary folder (to avoid the client process reading files before they are fully written)
+			.setHeader("tempPrefix").constant(dtsTemporaryFolder)
+				
+			// first write the data file
+			.setBody().property("distributionEnvelope")
 			.convertBodyTo(String.class)
+			.setHeader(Exchange.FILE_NAME).simple(dtsFilePrefix + "${property.distributionEnvelope.trackingId}.dat")
+			.to(dtsMessageSenderUri)
 			
-			// write data file, then control file
-			// write through a temporary folder (to avoid the client process reading files before they are fully written)
-			
+			// then write the control file
+			.setBody().property("controlFile")
+			.convertBodyTo(String.class)
+			.setHeader(Exchange.FILE_NAME).simple(dtsFilePrefix + "${property.distributionEnvelope.trackingId}.ctl")
 			.to(dtsMessageSenderUri)
 		.end();
 	}
 	
-	private void configureSendResponseReceiver() throws Exception {
-		from(dtsMessageSendResponseReceiverUri)
-			// only process each file once - use an idempotent repository
+	private void configureSendNotificationReceiver() throws Exception {
+		// Additional configuration parameters are appended to the endpoint URI
+		final Map<String, Object> endpointParams = Maps.newLinkedHashMap();
+		
+		// only process files intended for this application
+		if (!Strings.isNullOrEmpty(dtsFilePrefix)) {
+			endpointParams.put("include", Pattern.quote(dtsFilePrefix) + ".+");
+		}
+		
+		// only process each file once
+		endpointParams.put("idempotent", true);
+		endpointParams.put("idempotentRepository", "#" + idempotentRepositoryRef);
+		endpointParams.put("inProgressRepository", "#" + inProgressRepositoryRef);
+		endpointParams.put("readLock", "idempotent");
+		
+		// delete after processing
+		// TODO: Should these be moved to another directory instead of delete?
+		endpointParams.put("delete", true);
+		
+		// Cleanup the repository after processing / delete
+		// The readLockRemoveOnCommit option is not available in this version of camel
+		// The backing repository will need additional configuration to expunge old entries
+		// If using hazelcast the backing map can be configured with a max time to live for each key
+//		endpointParams.put("readLockRemoveOnCommit", true);
+		
+		from(URISupport.createRemainingURI(URI.create(dtsMessageSendNotificationReceiverUri), endpointParams).toString())
+			.choice()
+				.when(not(endsWith(header(Exchange.FILE_NAME), constant(".ctl"))))
+					/*
+					 * only interested in processing control files
+					 * this is not handled in the main consumer include parameter because
+					 * the files still need housekeeping to be applied (move/delete etc)
+					 */
+					.stop()
+				.endChoice()
+			.end()
 		
 			.setProperty("original-body").body() // maintain original serialised form
 			.convertBodyTo(ControlFile.class)
+
+			.choice()
+				.when().simple("${body.statusRecord?.event} != ${type:uk.nhs.ciao.dts.Event.TRANSFER}")
+					// only interested in TRANSFER events
+					.stop()
+				.endChoice()
+			.end()
+			
+			.setHeader(Exchange.CORRELATION_ID).simple("${body.localId}")
 			
 			.process(LOGGER.info(camelLogMsg("Received DTS message send notification")
 				.documentId(header(Exchange.CORRELATION_ID))
+				.itkTrackingId("${body.localId}")
 //				.ebxmlMessageId("${body.messageData.messageId}")
 //				.ebxmlRefToMessageId("${body.messageData.refToMessageId}")
 //				.service("${body.service}")
 //				.action("${body.action}")
 //				.receiverMHSPartyKey("${body.toParty}")
 				.eventName("received-dts-sent-response")))
-			
+					
 			.choice()
-				.when().simple("body.isAcknowledgment")
+				.when().simple("${body.statusRecord?.status} == ${type:uk.nhs.ciao.dts.StatusRecord.SUCCESS}")
+					/*
+					 * TODO: Check the spec to confirm this - it looks as if statusCode == "00" may be a better check
+					 * SUCCESS might also be returned on statusCode == "05" -> Transfer error - retry!
+					 */
 					.setHeader("ciao.messageSendNotification", constant("sent"))
 				.otherwise()
 					.setHeader("ciao.messageSendNotification", constant("send-failed"))
@@ -110,5 +233,35 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			.setBody().property("original-body") // restore original serialised form
 			.to(getDistributionEnvelopeResponseUri())
 		.end();
+	}
+	
+	// Processor / bean methods
+	// The methods can't live in the route builder - it causes havoc with the debug/tracer logging
+	
+	/**
+	 * Builds a ControlFile for the specified DistributionEnvelope
+	 */
+	public class ControlFileBuilder {
+		public ControlFile buildControlFile(@Property("distributionEnvelope") final DistributionEnvelope envelope,
+				@Property("destination") final String destination) {
+			final ControlFile controlFile = new ControlFile();
+			
+			controlFile.setMessageType(MessageType.Data);
+			controlFile.setAddressType(AddressType.DTS);
+			
+			if (!Strings.isNullOrEmpty(destination)) {
+				controlFile.setToDTS(destination);
+			}
+
+			controlFile.setLocalId(envelope.getTrackingId()); 
+			controlFile.setWorkflowId(""); // TODO: workflow ID may be different for business messages and acks
+			
+			// Apply defaults from the prototype
+			final boolean overwrite = false;
+			controlFile.copyFrom(prototypeControlFile, overwrite);
+			controlFile.applyDefaults();
+			
+			return controlFile;
+		}
 	}
 }
