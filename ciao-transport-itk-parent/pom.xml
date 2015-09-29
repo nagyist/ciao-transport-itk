@@ -16,6 +16,7 @@
 	<modules>
 		<module>../ciao-transport-itk</module>
 		<module>../ciao-transport-spine</module>
+		<module>../ciao-transport-dts</module>
 	</modules>
 
 	<properties>
