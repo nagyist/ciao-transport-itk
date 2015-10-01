@@ -25,13 +25,16 @@
 		</constructor-arg>
 	</bean>
 	
-	<bean id="cachingSpineEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.CachingSpineEndpointAddressRepository" depends-on="camel">
+	<bean id="cachingSpineEndpointAddressRepository" class="uk.nhs.ciao.transport.itk.address.CachingEndpointAddressRepository" depends-on="camel">
+		<constructor-arg>
+			<bean class="uk.nhs.ciao.transport.spine.address.SpineEndpointAddressHelper" />
+		</constructor-arg>
 		<constructor-arg ref="producerTemplate" />
 		<constructor-arg value="${addressing.sdsCacheUri}" />
 		<constructor-arg ref="sdsSpineEndpointAddressRepository" />
 	</bean>
 	
-	<bean id="spineEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.LayeredSpineEndpointAddressRepository">
+	<bean id="spineEndpointAddressRepository" class="uk.nhs.ciao.transport.itk.address.LayeredEndpointAddressRepository">
 		<constructor-arg>
 			<list>
 				<ref bean="staticSpineEndpointAddressRepository" />

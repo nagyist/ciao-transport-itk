@@ -5,7 +5,11 @@ import org.apache.camel.spi.IdempotentRepository;
 
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.transport.itk.ITKTransportRoutes;
-import uk.nhs.ciao.transport.spine.address.SpineEndpointAddressRepository;
+import uk.nhs.ciao.transport.itk.address.EndpointAddressRepository;
+import uk.nhs.ciao.transport.itk.route.EndpointAddressEnricherRoute;
+import uk.nhs.ciao.transport.spine.address.SpineEndpointAddress;
+import uk.nhs.ciao.transport.spine.address.SpineEndpointAddressHelper;
+import uk.nhs.ciao.transport.spine.address.SpineEndpointAddressIdentifier;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.hl7.HL7Part;
 import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
@@ -13,7 +17,6 @@ import uk.nhs.ciao.transport.spine.route.HttpServerRoute;
 import uk.nhs.ciao.transport.spine.route.MultipartMessageReceiverRoute;
 import uk.nhs.ciao.transport.spine.route.MultipartMessageSenderRoute;
 import uk.nhs.ciao.transport.spine.route.SpineDistributionEnvelopeSenderRoute;
-import uk.nhs.ciao.transport.spine.route.SpineEndpointAddressEnricherRoute;
 
 /**
  * Main routes builder for the spine transport
@@ -103,13 +106,17 @@ public class SpineTransportRoutes extends ITKTransportRoutes {
 	}
 	
 	private void addSpineEndpointAddressEnricherRoute(final CamelContext context) throws Exception {
-		final SpineEndpointAddressEnricherRoute route = new SpineEndpointAddressEnricherRoute();
+		final EndpointAddressEnricherRoute<SpineEndpointAddressIdentifier, SpineEndpointAddress> route =
+				new EndpointAddressEnricherRoute<SpineEndpointAddressIdentifier, SpineEndpointAddress>();
 		
 		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
 		
-		final SpineEndpointAddressRepository repository = context.getRegistry().lookupByNameAndType(
-				"spineEndpointAddressRepository", SpineEndpointAddressRepository.class);
-		route.setSpineEndpointAddressRepository(repository);
+		@SuppressWarnings("unchecked")
+		final EndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress> repository =
+				context.getRegistry().lookupByNameAndType("spineEndpointAddressRepository", EndpointAddressRepository.class);
+		
+		route.setHelper(new SpineEndpointAddressHelper());
+		route.setEndpointAddressRepository(repository);
 		
 		context.addRoutes(route);
 	}

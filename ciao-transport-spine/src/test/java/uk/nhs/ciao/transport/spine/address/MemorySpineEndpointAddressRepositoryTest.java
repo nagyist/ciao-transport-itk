@@ -6,18 +6,21 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import uk.nhs.ciao.transport.itk.address.MemoryEndpointAddressRepository;
+
 /**
  * Unit tests for {@link MemorySpineEndpointAddressRepository}
  */
 public class MemorySpineEndpointAddressRepositoryTest {
-	private MemorySpineEndpointAddressRepository repository;
+	private MemoryEndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress> repository;
 	
 	private SpineEndpointAddress address1;
 	private SpineEndpointAddress address2;
 	
 	@Before
 	public void setup() {
-		repository = new MemorySpineEndpointAddressRepository();
+		final SpineEndpointAddressHelper helper = new SpineEndpointAddressHelper();
+		repository = new MemoryEndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress>(helper);
 		address1 = new SpineEndpointAddress();
 		address1.setService("service");
 		address1.setAction("action");
@@ -36,14 +39,16 @@ public class MemorySpineEndpointAddressRepositoryTest {
 	@Test
 	public void testFindByAsid() {
 		final SpineEndpointAddress expected = address1;
-		final SpineEndpointAddress actual = repository.findByAsid("service", "action", "code");
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byAsid("service", "action", "code");
+		final SpineEndpointAddress actual = repository.findAddress(id);
 		Assert.assertEquals(expected, actual);
 	}
 	
 	@Test
 	public void testFindByODSCode() {
 		final SpineEndpointAddress expected = address2;
-		final SpineEndpointAddress actual = repository.findByODSCode("service", "action", "code");
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byODSCode("service", "action", "code");
+		final SpineEndpointAddress actual = repository.findAddress(id);
 		Assert.assertEquals(expected, actual);
 	}
 }

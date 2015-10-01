@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.address;
+package uk.nhs.ciao.transport.itk.address;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -7,23 +7,26 @@ import java.util.List;
 
 import org.springframework.beans.factory.FactoryBean;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 
-public class JsonSpineEndpointAddressLoader implements FactoryBean<MemorySpineEndpointAddressRepository> {
-    private final ObjectMapper objectMapper;
+public class JsonEndpointAddressLoader<ID, A> implements FactoryBean<MemoryEndpointAddressRepository<ID, A>> {
+	private final ObjectMapper objectMapper;
+	private final EndpointAddressHelper<ID, A> helper;
+    
     private final List<File> files = Lists.newArrayList();
 	
-	public JsonSpineEndpointAddressLoader(final ObjectMapper objectMapper) {
+	public JsonEndpointAddressLoader(final ObjectMapper objectMapper,
+			final EndpointAddressHelper<ID, A> helper) {
 		this.objectMapper = Preconditions.checkNotNull(objectMapper);
+		this.helper = Preconditions.checkNotNull(helper);
 	}
-	
+		
 	@Override
 	public Class<?> getObjectType() {
-		return MemorySpineEndpointAddressRepository.class;
+		return MemoryEndpointAddressRepository.class;
 	}
 	
 	@Override
@@ -37,10 +40,8 @@ public class JsonSpineEndpointAddressLoader implements FactoryBean<MemorySpineEn
 	}
 	
 	@Override
-	public MemorySpineEndpointAddressRepository getObject() throws Exception {
-		final MemorySpineEndpointAddressRepository repository = new MemorySpineEndpointAddressRepository();
-		
-		final TypeReference<List<SpineEndpointAddress>> typeReference = new TypeReference<List<SpineEndpointAddress>>() {};
+	public MemoryEndpointAddressRepository<ID, A> getObject() throws Exception {
+		final MemoryEndpointAddressRepository<ID, A> repository = new MemoryEndpointAddressRepository<ID, A>(helper);
 		
 		for (final File file: files) {
 			if (file == null) {
@@ -49,7 +50,7 @@ public class JsonSpineEndpointAddressLoader implements FactoryBean<MemorySpineEn
 			
 			final InputStream in = new FileInputStream(file);
 			try {
-				final List<SpineEndpointAddress> addresses = objectMapper.readValue(in, typeReference);
+				final List<A> addresses = objectMapper.readValue(in, helper.getAddressListTypeReference());
 				repository.storeAll(addresses);
 			} finally {
 				Closeables.closeQuietly(in);

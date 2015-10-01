@@ -16,13 +16,16 @@ import org.mockito.Mockito;
 import org.unitils.reflectionassert.ReflectionAssert;
 
 import uk.nhs.ciao.camel.CamelUtils;
+import uk.nhs.ciao.transport.itk.address.CachingEndpointAddressRepository;
+import uk.nhs.ciao.transport.itk.address.EndpointAddressRepository;
 
 /**
  * Unit tests for {@link SpineEndpointAddressRepository}
  */
 public class CachingSpineEndpointAddressRepositoryTest {
-	private SpineEndpointAddressRepository backingRepository;
-	private CachingSpineEndpointAddressRepository repository;
+	private SpineEndpointAddressHelper helper;
+	private EndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress> backingRepository;
+	private CachingEndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress> repository;
 
 	private CamelContext camelContext;
 	private ProducerTemplate producerTemplate;
@@ -34,6 +37,7 @@ public class CachingSpineEndpointAddressRepositoryTest {
 	private String odsCode;
 	private SpineEndpointAddress address;
 	
+	@SuppressWarnings("unchecked")
 	@Before
 	public void setup() throws Exception {
 		camelContext = new DefaultCamelContext();
@@ -43,9 +47,11 @@ public class CachingSpineEndpointAddressRepositoryTest {
 		producerTemplate.start();
 		
 		final String cacheUri = "mock:cache";
-		endpoint = MockEndpoint.resolve(camelContext, cacheUri);		
-		backingRepository = Mockito.mock(SpineEndpointAddressRepository.class);
-		repository = new CachingSpineEndpointAddressRepository(producerTemplate, cacheUri, backingRepository);
+		endpoint = MockEndpoint.resolve(camelContext, cacheUri);	
+		helper = new SpineEndpointAddressHelper();
+		backingRepository = Mockito.mock(EndpointAddressRepository.class);
+		repository = new CachingEndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress>(
+				helper, producerTemplate, cacheUri, backingRepository);
 		
 		service = "service";
 		action = "action";
@@ -66,42 +72,45 @@ public class CachingSpineEndpointAddressRepositoryTest {
 	
 	@Test
 	public void testFindByAsidChecksBackingRepository() throws Exception {
-		Mockito.when(backingRepository.findByAsid(service, action, asid))
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byAsid(service, action, asid);
+		Mockito.when(backingRepository.findAddress(id))
 			.thenReturn(address);
 		endpoint.expectedBodiesReceived(null, address);
 		
-		final SpineEndpointAddress actual = repository.findByAsid(service, action, asid);
+		final SpineEndpointAddress actual = repository.findAddress(id);
 
 		ReflectionAssert.assertReflectionEquals(address, actual);
-		Mockito.verify(backingRepository).findByAsid(service, action, asid);
+		Mockito.verify(backingRepository).findAddress(id);
 		Mockito.verifyNoMoreInteractions(backingRepository);
 		endpoint.assertIsSatisfied(0);
 	}
 	
 	@Test
 	public void testFindByODSCodeChecksBackingRepository() throws Exception {
-		Mockito.when(backingRepository.findByODSCode(service, action, odsCode))
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byODSCode(service, action, odsCode);
+		Mockito.when(backingRepository.findAddress(id))
 			.thenReturn(address);
 		endpoint.expectedBodiesReceived(null, address);
 		
-		final SpineEndpointAddress actual = repository.findByODSCode(service, action, odsCode);
+		final SpineEndpointAddress actual = repository.findAddress(id);
 		
 		ReflectionAssert.assertReflectionEquals(address, actual);
-		Mockito.verify(backingRepository).findByODSCode(service, action, odsCode);
+		Mockito.verify(backingRepository).findAddress(id);
 		Mockito.verifyNoMoreInteractions(backingRepository);
 		endpoint.assertIsSatisfied(0);
 	}
 	
 	@Test
 	public void testFindByAsidReturnsCachedAddress() throws Exception {
-		Mockito.when(backingRepository.findByAsid(service, action, asid))
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byAsid(service, action, asid);
+		Mockito.when(backingRepository.findAddress(id))
 			.thenReturn(address);
 		endpoint.expectedBodiesReceived(null, address);
 		
 		// Caches the entry
-		SpineEndpointAddress actual = repository.findByAsid(service, action, asid);
+		SpineEndpointAddress actual = repository.findAddress(id);
 		ReflectionAssert.assertReflectionEquals(address, actual);
-		Mockito.verify(backingRepository).findByAsid(service, action, asid);
+		Mockito.verify(backingRepository).findAddress(id);
 		Mockito.verifyNoMoreInteractions(backingRepository);
 		
 		endpoint.reset();
@@ -115,21 +124,22 @@ public class CachingSpineEndpointAddressRepositoryTest {
 		});
 		
 		// Uses the entry
-		actual = repository.findByAsid(service, action, asid);
+		actual = repository.findAddress(id);
 		Mockito.verifyNoMoreInteractions(backingRepository);
 		endpoint.assertIsSatisfied(0);
 	}
 	
 	@Test
 	public void testFindByODSCodeReturnsCachedAddress() throws Exception {
-		Mockito.when(backingRepository.findByODSCode(service, action, odsCode))
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byODSCode(service, action, odsCode);
+		Mockito.when(backingRepository.findAddress(id))
 			.thenReturn(address);
 		endpoint.expectedBodiesReceived(null, address);
 		
 		// Caches the entry
-		SpineEndpointAddress actual = repository.findByODSCode(service, action, odsCode);
+		SpineEndpointAddress actual = repository.findAddress(id);
 		ReflectionAssert.assertReflectionEquals(address, actual);
-		Mockito.verify(backingRepository).findByODSCode(service, action, odsCode);
+		Mockito.verify(backingRepository).findAddress(id);
 		Mockito.verifyNoMoreInteractions(backingRepository);
 		
 		endpoint.reset();
@@ -143,16 +153,15 @@ public class CachingSpineEndpointAddressRepositoryTest {
 		});
 		
 		// Uses the entry
-		actual = repository.findByODSCode(service, action, odsCode);
+		actual = repository.findAddress(id);
 		Mockito.verifyNoMoreInteractions(backingRepository);
 		endpoint.assertIsSatisfied(0);
 	}
 	
 	@Test
 	public void testFindByAsidReturnsNullWhenAddressIsNotFound() throws Exception {
-		endpoint.expectedBodyReceived().constant(null);
-		
-		final SpineEndpointAddress actual = repository.findByAsid(service, action, "does-not-exist");
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byAsid(service, action, "does-not-exist");
+		final SpineEndpointAddress actual = repository.findAddress(id);
 		Assert.assertNull(actual);
 		
 		endpoint.assertIsSatisfied(0);
@@ -162,7 +171,8 @@ public class CachingSpineEndpointAddressRepositoryTest {
 	public void testFindByODSCodeReturnsNullWhenAddressIsNotFound() throws Exception {
 		endpoint.expectedBodyReceived().constant(null);
 		
-		final SpineEndpointAddress actual = repository.findByODSCode(service, action, "does-not-exist");
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byODSCode(service, action, "does-not-exist");
+		final SpineEndpointAddress actual = repository.findAddress(id);
 		Assert.assertNull(actual);
 		
 		endpoint.assertIsSatisfied(0);

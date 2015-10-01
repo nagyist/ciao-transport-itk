@@ -13,6 +13,7 @@ import uk.nhs.ciao.logging.CiaoLogger;
 import uk.nhs.ciao.spine.sds.SpineDirectoryService;
 import uk.nhs.ciao.spine.sds.model.AccreditedSystem;
 import uk.nhs.ciao.spine.sds.model.MessageHandlingService;
+import uk.nhs.ciao.transport.itk.address.EndpointAddressRepository;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -25,7 +26,7 @@ import com.google.common.collect.Ordering;
  * services. The behaviour of this repository can be tailored via the associated strategies provided
  * at construction time.
  */
-public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRepository {
+public class SDSSpineEndpointAddressRepository implements EndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress> {
 	private static final CiaoLogger LOGGER = CiaoLogger.getLogger(SDSSpineEndpointAddressRepository.class);
 	private static Comparator<String> SORT_DATE_STRINGS = Ordering.natural().reverse().nullsLast();
 	
@@ -65,6 +66,22 @@ public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRe
 	}
 	
 	@Override
+	public SpineEndpointAddress findAddress(final SpineEndpointAddressIdentifier identifier) throws Exception {
+		Preconditions.checkNotNull(identifier);
+		
+		SpineEndpointAddress address = null;
+		switch (identifier.getCodeType()) {
+		case ODS:
+			address = findByODSCode(identifier.getService(), identifier.getAction(), identifier.getODSCode());
+			break;
+		case ASID:
+			address = findByAsid(identifier.getService(), identifier.getAction(), identifier.getAsid());
+			break;
+		}
+		
+		return address;
+	}
+	
 	public SpineEndpointAddress findByODSCode(final String service, final String action, final String odsCode) throws NamingException, IOException {
 		final String svcIA = service + ":" + action;
 		
@@ -96,7 +113,6 @@ public class SDSSpineEndpointAddressRepository implements SpineEndpointAddressRe
 		return null;
 	}
 	
-	@Override
 	public SpineEndpointAddress findByAsid(final String service, final String action, final String asid) throws NamingException, IOException {
 		final String svcIA = service + ":" + action;
 	

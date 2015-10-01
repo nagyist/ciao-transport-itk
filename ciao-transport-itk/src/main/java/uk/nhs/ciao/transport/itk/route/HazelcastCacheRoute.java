@@ -1,4 +1,4 @@
-package uk.nhs.ciao.transport.spine.route;
+package uk.nhs.ciao.transport.itk.route;
 
 import static org.apache.camel.builder.PredicateBuilder.*;
 import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;

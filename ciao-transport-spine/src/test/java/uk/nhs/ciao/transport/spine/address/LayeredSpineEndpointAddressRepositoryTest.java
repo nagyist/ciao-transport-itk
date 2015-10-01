@@ -7,27 +7,31 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import uk.nhs.ciao.transport.itk.address.EndpointAddressRepository;
+import uk.nhs.ciao.transport.itk.address.LayeredEndpointAddressRepository;
+
 /**
  * Unit tests for {@link LayeredSpineEndpointAddressRepository
  */
 public class LayeredSpineEndpointAddressRepositoryTest {
-	private LayeredSpineEndpointAddressRepository repository;
-	private SpineEndpointAddressRepository delegate1;
-	private SpineEndpointAddressRepository delegate2;
-	private SpineEndpointAddressRepository delegate3;
+	private LayeredEndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress> repository;
+	private EndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress> delegate1;
+	private EndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress> delegate2;
+	private EndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress> delegate3;
 
 	private String service;
 	private String action;
 	private String asid;
 	private String odsCode;
 	
+	@SuppressWarnings("unchecked")
 	@Before
 	public void setup() {
-		delegate1 = Mockito.mock(SpineEndpointAddressRepository.class);
-		delegate2 = Mockito.mock(SpineEndpointAddressRepository.class);
-		delegate3 = Mockito.mock(SpineEndpointAddressRepository.class);
+		delegate1 = Mockito.mock(EndpointAddressRepository.class);
+		delegate2 = Mockito.mock(EndpointAddressRepository.class);
+		delegate3 = Mockito.mock(EndpointAddressRepository.class);
 		
-		repository = new LayeredSpineEndpointAddressRepository(
+		repository = new LayeredEndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress>(
 				Arrays.asList(delegate1, delegate2));
 		repository.addRepository(delegate3);
 		
@@ -39,71 +43,77 @@ public class LayeredSpineEndpointAddressRepositoryTest {
 	
 	@Test
 	public void findByAsidChecksAllDelegates() throws Exception {
-		final SpineEndpointAddress actual = repository.findByAsid(service, action, asid);
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byAsid(service, action, asid);
+		final SpineEndpointAddress actual = repository.findAddress(id);
 		Assert.assertNull(actual);
-		Mockito.verify(delegate1).findByAsid(service, action, asid);
-		Mockito.verify(delegate2).findByAsid(service, action, asid);
-		Mockito.verify(delegate3).findByAsid(service, action, asid);
+		Mockito.verify(delegate1).findAddress(id);
+		Mockito.verify(delegate2).findAddress(id);
+		Mockito.verify(delegate3).findAddress(id);
 	}
 	
 	@Test
 	public void findByODSCodeChecksAllDelegates() throws Exception {
-		final SpineEndpointAddress actual = repository.findByODSCode(service, action, odsCode);
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byODSCode(service, action, odsCode);
+		final SpineEndpointAddress actual = repository.findAddress(id);
 		Assert.assertNull(actual);
-		Mockito.verify(delegate1).findByODSCode(service, action, odsCode);
-		Mockito.verify(delegate2).findByODSCode(service, action, odsCode);
-		Mockito.verify(delegate3).findByODSCode(service, action, odsCode);
+		Mockito.verify(delegate1).findAddress(id);
+		Mockito.verify(delegate2).findAddress(id);
+		Mockito.verify(delegate3).findAddress(id);
 	}
 	
 	@Test
 	public void findByAsidReturnsFirstNonNullResult() throws Exception {
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byAsid(service, action, asid);
 		final SpineEndpointAddress expected = new SpineEndpointAddress();
-		Mockito.when(delegate2.findByAsid(service, action, asid)).thenReturn(expected);
+		Mockito.when(delegate2.findAddress(id)).thenReturn(expected);
 
-		final SpineEndpointAddress actual = repository.findByAsid(service, action, asid);
+		final SpineEndpointAddress actual = repository.findAddress(id);
 		Assert.assertSame(expected, actual);
 		
-		Mockito.verify(delegate1).findByAsid(service, action, asid);
-		Mockito.verify(delegate2).findByAsid(service, action, asid);
+		Mockito.verify(delegate1).findAddress(id);
+		Mockito.verify(delegate2).findAddress(id);
 		Mockito.verifyZeroInteractions(delegate3);
 	}
 	
 	@Test
 	public void findByAsidStopsOnFirstException() throws Exception {
-		Mockito.when(delegate2.findByAsid(service, action, asid)).thenThrow(new Exception());
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byAsid(service, action, asid);
+		Mockito.when(delegate2.findAddress(id)).thenThrow(new Exception());
 		try {
-			repository.findByAsid(service, action, asid);
+			repository.findAddress(id);
 			Assert.fail("Expected exception");
 		} catch (Exception e) {
-			Mockito.verify(delegate1).findByAsid(service, action, asid);
-			Mockito.verify(delegate2).findByAsid(service, action, asid);
+			Mockito.verify(delegate1).findAddress(id);
+			Mockito.verify(delegate2).findAddress(id);
 			Mockito.verifyZeroInteractions(delegate3);
 		}
 	}
 	
 	@Test
 	public void findByODSCodeStopsOnFirstException() throws Exception {
-		Mockito.when(delegate2.findByODSCode(service, action, odsCode)).thenThrow(new Exception());
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byODSCode(service, action, odsCode);
+		Mockito.when(delegate2.findAddress(id)).thenThrow(new Exception());
 		try {
-			repository.findByODSCode(service, action, odsCode);
+			repository.findAddress(id);
 			Assert.fail("Expected exception");
 		} catch (Exception e) {
-			Mockito.verify(delegate1).findByODSCode(service, action, odsCode);
-			Mockito.verify(delegate2).findByODSCode(service, action, odsCode);
+			Mockito.verify(delegate1).findAddress(id);
+			Mockito.verify(delegate2).findAddress(id);
 			Mockito.verifyZeroInteractions(delegate3);
 		}
 	}
 	
 	@Test
 	public void findByODSCCodeReturnsFirstNonNullResult() throws Exception {
+		final SpineEndpointAddressIdentifier id = SpineEndpointAddressIdentifier.byODSCode(service, action, odsCode);
 		final SpineEndpointAddress expected = new SpineEndpointAddress();
-		Mockito.when(delegate2.findByODSCode(service, action, odsCode)).thenReturn(expected);
+		Mockito.when(delegate2.findAddress(id)).thenReturn(expected);
 
-		final SpineEndpointAddress actual = repository.findByODSCode(service, action, odsCode);
+		final SpineEndpointAddress actual = repository.findAddress(id);
 		Assert.assertSame(expected, actual);
 		
-		Mockito.verify(delegate1).findByODSCode(service, action, odsCode);
-		Mockito.verify(delegate2).findByODSCode(service, action, odsCode);
+		Mockito.verify(delegate1).findAddress(id);
+		Mockito.verify(delegate2).findAddress(id);
 		Mockito.verifyZeroInteractions(delegate3);
 	}
 }

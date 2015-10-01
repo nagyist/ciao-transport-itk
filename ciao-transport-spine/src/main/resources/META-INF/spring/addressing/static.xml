@@ -3,9 +3,12 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
 	
-	<bean id="spineEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.JsonSpineEndpointAddressLoader">
+	<bean id="spineEndpointAddressRepository" class="uk.nhs.ciao.transport.itk.address.JsonEndpointAddressLoader">
 		<constructor-arg>
 			<bean class="com.fasterxml.jackson.databind.ObjectMapper" />
+		</constructor-arg>
+		<constructor-arg>
+			<bean class="uk.nhs.ciao.transport.spine.address.SpineEndpointAddressHelper" />
 		</constructor-arg>
 		
 		<property name="files" value="${addressing.staticFiles}" />
