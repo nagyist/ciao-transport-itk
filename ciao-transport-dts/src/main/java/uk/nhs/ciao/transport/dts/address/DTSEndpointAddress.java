@@ -9,8 +9,7 @@ import com.google.common.base.Objects;
 public class DTSEndpointAddress {
 	private String workflowId;
 	private String odsCode;
-	
-	// TODO: Add additional properties -> DTS mailbox etc
+	private String dtsMailbox;
 	
 	public DTSEndpointAddress() {
 		// NOOP
@@ -22,6 +21,7 @@ public class DTSEndpointAddress {
 	public DTSEndpointAddress(final DTSEndpointAddress copy) {
 		workflowId = copy.workflowId;
 		odsCode = copy.odsCode;
+		dtsMailbox = copy.dtsMailbox;
 	}
 
 	public String getWorkflowId() {
@@ -40,11 +40,20 @@ public class DTSEndpointAddress {
 		this.odsCode = odsCode;
 	}
 	
+	public String getDtsMailbox() {
+		return dtsMailbox;
+	}
+	
+	public void setDtsMailbox(final String dtsMailbox) {
+		this.dtsMailbox = dtsMailbox;
+	}
+	
 	@Override
 	public String toString() {
 		return MoreObjects.toStringHelper(this)
 			.add("workflowId", workflowId)
 			.add("odsCode", odsCode)
+			.add("dtsMailbox", dtsMailbox)
 			.toString();
 	}
 	
@@ -54,6 +63,7 @@ public class DTSEndpointAddress {
 		int result = 1;
 		result = prime * result + ((workflowId == null) ? 0 : workflowId.hashCode());
 		result = prime * result + ((odsCode == null) ? 0 : odsCode.hashCode());
+		result = prime * result + ((dtsMailbox == null) ? 0 : dtsMailbox.hashCode());
 		return result;
 	}
 
@@ -67,6 +77,7 @@ public class DTSEndpointAddress {
 		
 		final DTSEndpointAddress other = (DTSEndpointAddress) obj;
 		return Objects.equal(workflowId, other.workflowId)
-				&& Objects.equal(odsCode, other.odsCode);
+				&& Objects.equal(odsCode, other.odsCode)
+				&& Objects.equal(dtsMailbox, other.dtsMailbox);
 	}	
 }

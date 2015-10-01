@@ -26,8 +26,7 @@ public class DTSEndpointAddressIdentifier {
 	}
 
 	public void addToLog(final CiaoLogMessage logMsg) {
-		// TODO: Add workflow as CIAO logger parameter
-//		logMsg.workflowId(workflowId);
+		logMsg.workflowId(workflowId);
 		logMsg.odsCode(odsCode);
 	}
 
