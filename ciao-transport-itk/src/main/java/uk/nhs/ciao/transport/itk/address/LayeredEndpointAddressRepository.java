@@ -9,6 +9,9 @@ import com.google.common.collect.Lists;
  * {@link EndpointAddressRepository} backed by multiple delegate repositories.
  * <p>
  * Addresses are found by trying each delegate in turn until a match is returned.
+ * 
+ * @param <ID> The type of address id
+ * @param <A> The type of addresses handled by this class
  */
 public class LayeredEndpointAddressRepository<ID, A> implements EndpointAddressRepository<ID, A> {
 	private final List<EndpointAddressRepository<ID, A>> repositories;

@@ -1,7 +1,7 @@
 package uk.nhs.ciao.transport.itk.address;
 
 /**
- * Resolves/looks-up endpoint address details associated with an interaction
+ * Resolves/looks-up endpoint address details associated with a given address identifier
  * 
  * @param <ID> The type of address identifiers this repository can resolve
  * @param <A> The type of addresses made available by the repository
