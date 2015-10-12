@@ -2,7 +2,10 @@ package uk.nhs.ciao.transport.dts;
 
 import org.apache.camel.CamelContext;
 
+import com.google.common.base.Strings;
+
 import uk.nhs.ciao.configuration.CIAOConfig;
+import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddressHelper;
 import uk.nhs.ciao.transport.dts.route.DTSDistributionEnvelopeSenderRoute;
 import uk.nhs.ciao.transport.itk.ITKTransportRoutes;
@@ -15,22 +18,15 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 			final CamelContext context, final CIAOConfig config) throws Exception {
 		final DTSDistributionEnvelopeSenderRoute route = new DTSDistributionEnvelopeSenderRoute();
 		
-		// TODO: Complete this for DTS - code below is from spine route
-//		route.setDTSMessageSenderUri(dtsMessageSenderUri);
-//		route.setDTSMessageSendResponseReceiverUri(dtsMessageSendResponseReceiverUri);
+		route.setDTSMessageSenderUri("file://{{dts.rootFolder}}/OUT");
+		route.setDTSMessageSendNotificationReceiverUri("file://{{dts.rootFolder}}/SENT");
+		route.setDTSTemporaryFolder("{{dts.temporaryFolder}}");
+		route.setDTSFilePrefix(Strings.nullToEmpty(config.getConfigValue("dts.filePrefix")));
 		
-//		route.setMultipartMessageSenderUri("jms:queue:{{multipartMessageSenderQueue}}");
-//		route.setMultipartMessageResponseUri("jms:queue:{{multipartMessageResponseQueue}}?destination.consumer.prefetchSize=0");
-		
-//		final EbxmlEnvelope ebxmlPrototype = new EbxmlEnvelope();
-//		ebxmlPrototype.setService(config.getConfigValue("senderService"));
-//		ebxmlPrototype.setAction(config.getConfigValue("senderAction"));
-//		ebxmlPrototype.setFromParty(config.getConfigValue("senderPartyId"));
-//		route.setPrototypeEbxmlManifest(ebxmlPrototype);
-//		
-//		final HL7Part hl7Prototype = new HL7Part();
-//		hl7Prototype.setSenderAsid(config.getConfigValue("senderAsid"));
-//		route.setPrototypeHl7Part(hl7Prototype);
+		final ControlFile prototype = new ControlFile();
+		prototype.setWorkflowId(config.getConfigValue("dts.workflowId"));
+		prototype.setFromDTS(config.getConfigValue("dts.senderMailbox"));
+		route.setPrototypeControlFile(prototype);
 		
 		return route;
 	}
