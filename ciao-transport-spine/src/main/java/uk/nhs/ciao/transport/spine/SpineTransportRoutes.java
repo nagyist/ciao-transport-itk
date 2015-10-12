@@ -5,11 +5,8 @@ import org.apache.camel.spi.IdempotentRepository;
 
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.transport.itk.ITKTransportRoutes;
-import uk.nhs.ciao.transport.itk.address.EndpointAddressRepository;
-import uk.nhs.ciao.transport.itk.route.EndpointAddressEnricherRoute;
-import uk.nhs.ciao.transport.spine.address.SpineEndpointAddress;
+import uk.nhs.ciao.transport.itk.address.EndpointAddressHelper;
 import uk.nhs.ciao.transport.spine.address.SpineEndpointAddressHelper;
-import uk.nhs.ciao.transport.spine.address.SpineEndpointAddressIdentifier;
 import uk.nhs.ciao.transport.spine.ebxml.EbxmlEnvelope;
 import uk.nhs.ciao.transport.spine.hl7.HL7Part;
 import uk.nhs.ciao.transport.spine.route.EbxmlAckReceiverRoute;
@@ -36,9 +33,6 @@ public class SpineTransportRoutes extends ITKTransportRoutes {
 		addHttpServerRoute(context);
 		addEbxmlAckReceieverRoute(context);
 		addMultipartMessageReceiverRoute(context);
-		
-		// services
-		addSpineEndpointAddressEnricherRoute(context);
 	}
 	
 	@Override
@@ -48,7 +42,7 @@ public class SpineTransportRoutes extends ITKTransportRoutes {
 		
 		route.setMultipartMessageSenderUri("jms:queue:{{multipartMessageSenderQueue}}");
 		route.setMultipartMessageResponseUri("jms:queue:{{multipartMessageResponseQueue}}?destination.consumer.prefetchSize=0");
-		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
+		route.setEndpointAddressEnricherUri(getEndpointAddressEnricherUri());
 		
 		final EbxmlEnvelope ebxmlPrototype = new EbxmlEnvelope();
 		ebxmlPrototype.setService(config.getConfigValue("senderService"));
@@ -105,19 +99,8 @@ public class SpineTransportRoutes extends ITKTransportRoutes {
 		context.addRoutes(route);
 	}
 	
-	private void addSpineEndpointAddressEnricherRoute(final CamelContext context) throws Exception {
-		final EndpointAddressEnricherRoute<SpineEndpointAddressIdentifier, SpineEndpointAddress> route =
-				new EndpointAddressEnricherRoute<SpineEndpointAddressIdentifier, SpineEndpointAddress>();
-		
-		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
-		
-		@SuppressWarnings("unchecked")
-		final EndpointAddressRepository<SpineEndpointAddressIdentifier, SpineEndpointAddress> repository =
-				context.getRegistry().lookupByNameAndType("spineEndpointAddressRepository", EndpointAddressRepository.class);
-		
-		route.setHelper(new SpineEndpointAddressHelper());
-		route.setEndpointAddressRepository(repository);
-		
-		context.addRoutes(route);
+	@Override
+	protected EndpointAddressHelper<?, ?> createEndpointAddressHelper() {
+		return new SpineEndpointAddressHelper();
 	}
 }

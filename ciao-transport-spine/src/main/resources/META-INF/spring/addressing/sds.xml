@@ -3,7 +3,7 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
 	
-	<bean id="staticSpineEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.JsonSpineEndpointAddressLoader">
+	<bean id="staticEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.JsonSpineEndpointAddressLoader">
 		<constructor-arg>
 			<bean class="com.fasterxml.jackson.databind.ObjectMapper" />
 		</constructor-arg>
@@ -11,7 +11,7 @@
 		<property name="files" value="${addressing.staticFiles}" />
 	</bean>
 	
-	<bean id="sdsSpineEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.SDSSpineEndpointAddressRepository">
+	<bean id="sdsEndpointAddressRepository" class="uk.nhs.ciao.transport.spine.address.SDSSpineEndpointAddressRepository">
 		<constructor-arg>
 			<bean class="uk.nhs.ciao.spine.sds.SpineDirectoryService">
 				<constructor-arg>
@@ -25,20 +25,20 @@
 		</constructor-arg>
 	</bean>
 	
-	<bean id="cachingSpineEndpointAddressRepository" class="uk.nhs.ciao.transport.itk.address.CachingEndpointAddressRepository" depends-on="camel">
+	<bean id="cachingEndpointAddressRepository" class="uk.nhs.ciao.transport.itk.address.CachingEndpointAddressRepository" depends-on="camel">
 		<constructor-arg>
 			<bean class="uk.nhs.ciao.transport.spine.address.SpineEndpointAddressHelper" />
 		</constructor-arg>
 		<constructor-arg ref="producerTemplate" />
 		<constructor-arg value="${addressing.sdsCacheUri}" />
-		<constructor-arg ref="sdsSpineEndpointAddressRepository" />
+		<constructor-arg ref="sdsEndpointAddressRepository" />
 	</bean>
 	
-	<bean id="spineEndpointAddressRepository" class="uk.nhs.ciao.transport.itk.address.LayeredEndpointAddressRepository">
+	<bean id="endpointAddressRepository" class="uk.nhs.ciao.transport.itk.address.LayeredEndpointAddressRepository">
 		<constructor-arg>
 			<list>
-				<ref bean="staticSpineEndpointAddressRepository" />
-				<ref bean="cachingSpineEndpointAddressRepository" />
+				<ref bean="staticEndpointAddressRepository" />
+				<ref bean="cachingEndpointAddressRepository" />
 			</list>
 		</constructor-arg>
 	</bean>

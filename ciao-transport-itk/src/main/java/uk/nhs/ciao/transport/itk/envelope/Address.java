@@ -10,12 +10,21 @@ public class Address {
 	public static final String ASID_TYPE = "1.2.826.0.1285.0.2.0.107";
 	
 	/**
+	 * URI is a DTS mailboxId - no additional parsing is required on the URI
+	 */
+	public static final String DTS_TYPE = "2.16.840.1.113883.2.1.3.2.4.21.1";
+	
+	/**
 	 * URI starts with {@link #ODS_URI_PREFIX} - the next colon delimited segment
 	 * is the ODS code. The URI may contain additional segments which do not
 	 * form part of the ODS code.
 	 */
-	public static final String ITK_ADDRESS_TYPE = "2.16.840.1.113883.2.1.3.2.4.18.22";
-	public static final String DEFAULT_TYPE = ITK_ADDRESS_TYPE;
+	public static final String ODS_TYPE = "2.16.840.1.113883.2.1.3.2.4.18.22";
+	
+	/**
+	 * If not specified, the default address type is {@link #ODS_TYPE}
+	 */
+	public static final String DEFAULT_TYPE = ODS_TYPE;
 	
 	private static final String ODS_URI_PREFIX = "urn:nhs-uk:addressing:ods:";
 	private String type;
@@ -59,15 +68,19 @@ public class Address {
 	}
 	
 	public boolean isDefaultType() {
-		return Strings.isNullOrEmpty(type) || DEFAULT_TYPE.equals(type);
+		return isODS();
 	}
 	
 	public boolean isODS() {
-		return isDefaultType();
+		return Strings.isNullOrEmpty(type) || ODS_TYPE.equals(type);
 	}
 	
 	public boolean isASID() {
 		return ASID_TYPE.equals(type);
+	}
+	
+	public boolean isDTS() {
+		return DTS_TYPE.equals(type);
 	}
 	
 	public void setODSCode(final String odsCode) {

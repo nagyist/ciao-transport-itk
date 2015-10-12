@@ -31,7 +31,7 @@ public class SpineDistributionEnvelopeSenderRoute extends DistributionEnvelopeSe
 	
 	private String multipartMessageSenderUri;
 	private String multipartMessageResponseUri;
-	private String spineEndpointAddressEnricherUrl;
+	private String endpointAddressEnricherUrl;
 	
 	// optional properties
 	private EbxmlEnvelope prototypeEbxmlManifest;
@@ -58,8 +58,8 @@ public class SpineDistributionEnvelopeSenderRoute extends DistributionEnvelopeSe
 	/**
 	 * URI of service used to enrich destination endpoint address details
 	 */
-	public void setSpineEndpointAddressEnricherUri(final String spineEndpointAddressEnricherUrl) {
-		this.spineEndpointAddressEnricherUrl = spineEndpointAddressEnricherUrl;
+	public void setEndpointAddressEnricherUri(final String endpointAddressEnricherUrl) {
+		this.endpointAddressEnricherUrl = endpointAddressEnricherUrl;
 	}
 	
 	/**
@@ -105,7 +105,7 @@ public class SpineDistributionEnvelopeSenderRoute extends DistributionEnvelopeSe
 			
 			// Resolve destination address
 			.bean(new DestinationAddressBuilder())
-			.to(spineEndpointAddressEnricherUrl)
+			.to(endpointAddressEnricherUrl)
 			.setProperty("destination").body()
 
 			// Configure ebxml manifest

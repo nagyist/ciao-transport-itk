@@ -11,12 +11,12 @@ import uk.nhs.ciao.transport.itk.address.EndpointAddressRepository;
  * the specified {@link EndpointAddressRepository}.
  */
 public class EndpointAddressEnricherRoute<ID, A> extends BaseRouteBuilder {
-	private String spineEndpointAddressEnricherUrl;
+	private String endpointAddressEnricherUrl;
 	private EndpointAddressRepository<ID, A> endpointAddressRepository;
 	private EndpointAddressHelper<ID, A> helper;
 	
-	public void setSpineEndpointAddressEnricherUri(final String spineEndpointAddressEnricherUrl) {
-		this.spineEndpointAddressEnricherUrl = spineEndpointAddressEnricherUrl;
+	public void setEndpointAddressEnricherUri(final String endpointAddressEnricherUrl) {
+		this.endpointAddressEnricherUrl = endpointAddressEnricherUrl;
 	}
 	
 	public void setEndpointAddressRepository(final EndpointAddressRepository<ID, A> endpointAddressRepository) {
@@ -29,10 +29,10 @@ public class EndpointAddressEnricherRoute<ID, A> extends BaseRouteBuilder {
 	
 	@Override
 	public void configure() throws Exception {
-		Preconditions.checkNotNull(endpointAddressRepository, "spineEndpointAddressRepository is required");
+		Preconditions.checkNotNull(endpointAddressRepository, "endpointAddressEnricherUrl is required");
 		Preconditions.checkNotNull(helper, "helper is required");
 		
-		from(spineEndpointAddressEnricherUrl)
+		from(endpointAddressEnricherUrl)
 			.convertBodyTo(helper.getAddressType())
 			.bean(new EndpointAddressEnricher())
 		.end();

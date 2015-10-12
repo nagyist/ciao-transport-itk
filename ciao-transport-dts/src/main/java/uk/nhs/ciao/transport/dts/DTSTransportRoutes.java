@@ -3,12 +3,13 @@ package uk.nhs.ciao.transport.dts;
 import org.apache.camel.CamelContext;
 
 import uk.nhs.ciao.configuration.CIAOConfig;
+import uk.nhs.ciao.transport.dts.address.DTSEndpointAddressHelper;
 import uk.nhs.ciao.transport.dts.route.DTSDistributionEnvelopeSenderRoute;
 import uk.nhs.ciao.transport.itk.ITKTransportRoutes;
+import uk.nhs.ciao.transport.itk.address.EndpointAddressHelper;
 import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeSenderRoute;
 
 public class DTSTransportRoutes extends ITKTransportRoutes {
-	
 	@Override
 	protected DistributionEnvelopeSenderRoute createDistributionEnvelopeSenderRoute(
 			final CamelContext context, final CIAOConfig config) throws Exception {
@@ -20,7 +21,7 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		
 //		route.setMultipartMessageSenderUri("jms:queue:{{multipartMessageSenderQueue}}");
 //		route.setMultipartMessageResponseUri("jms:queue:{{multipartMessageResponseQueue}}?destination.consumer.prefetchSize=0");
-//		route.setSpineEndpointAddressEnricherUri("direct:spine-endpoint-address-enricher");
+		route.setEndpointAddressEnricherUri(getEndpointAddressEnricherUri());
 		
 //		final EbxmlEnvelope ebxmlPrototype = new EbxmlEnvelope();
 //		ebxmlPrototype.setService(config.getConfigValue("senderService"));
@@ -33,5 +34,10 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 //		route.setPrototypeHl7Part(hl7Prototype);
 		
 		return route;
+	}
+	
+	@Override
+	protected EndpointAddressHelper<?, ?> createEndpointAddressHelper() {
+		return new DTSEndpointAddressHelper();
 	}
 }

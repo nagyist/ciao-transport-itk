@@ -18,6 +18,8 @@ import uk.nhs.ciao.dts.AddressType;
 import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.dts.MessageType;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
+import uk.nhs.ciao.transport.dts.address.DTSEndpointAddress;
+import uk.nhs.ciao.transport.itk.envelope.Address;
 import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
 import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeSenderRoute;
 
@@ -26,6 +28,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	
 	private String dtsMessageSenderUri;
 	private String dtsMessageSendNotificationReceiverUri;
+	private String endpointAddressEnricherUrl;
 	private String dtsTemporaryFolder;
 	private String idempotentRepositoryRef;
 	private String inProgressRepositoryRef;
@@ -50,6 +53,13 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	 */
 	public void setDTSMessageSendNotificationReceiverUri(final String dtsMessageSendNotificationReceiverUri) {
 		this.dtsMessageSendNotificationReceiverUri = dtsMessageSendNotificationReceiverUri;
+	}
+	
+	/**
+	 * URI of service used to enrich destination endpoint address details
+	 */
+	public void setEndpointAddressEnricherUri(final String endpointAddressEnricherUrl) {
+		this.endpointAddressEnricherUrl = endpointAddressEnricherUrl;
 	}
 	
 	/**
@@ -120,9 +130,12 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			.setProperty("distributionEnvelope").body()
 			
 			// Resolve destination address
-//			.bean(new DestinationAddressBuilder())
-//			.to(spineEndpointAddressEnricherUrl)
-			.setBody().constant("dummmy") // TODO: Configure address resolution
+			.bean(new DestinationAddressBuilder())
+			.choice()
+				.when().simple("${getDtsMailbox} == null")
+					.to(endpointAddressEnricherUrl)
+				.endChoice()
+			.end()
 			.setProperty("destination").body()
 
 			// Configure control file
@@ -238,23 +251,44 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	// Processor / bean methods
 	// The methods can't live in the route builder - it causes havoc with the debug/tracer logging
 	
+	public class DestinationAddressBuilder {
+		public DTSEndpointAddress buildDestinationAdddress(final DistributionEnvelope envelope) {
+			final DTSEndpointAddress destination = new DTSEndpointAddress();
+			
+			final Address address = envelope.getAddresses().get(0);
+			if (address.isDTS()) {
+				destination.setDtsMailbox(address.getUri());
+			} else if (address.isODS()) {
+				destination.setOdsCode(address.getODSCode());
+			}
+			
+			// TODO: workflow ID may be different for business messages and acks
+			// 1) Propagate/resolve from incoming workflowId header [not implemented yet] (when sending response messages)
+			// 2) Fall-back to prototype control file otherwise
+			if (prototypeControlFile != null) {
+				destination.setWorkflowId(prototypeControlFile.getWorkflowId());
+			}
+			
+			return destination;
+		}
+	}
+	
 	/**
 	 * Builds a ControlFile for the specified DistributionEnvelope
 	 */
 	public class ControlFileBuilder {
 		public ControlFile buildControlFile(@Property("distributionEnvelope") final DistributionEnvelope envelope,
-				@Property("destination") final String destination) {
+				@Property("destination") final DTSEndpointAddress destination) {
 			final ControlFile controlFile = new ControlFile();
 			
 			controlFile.setMessageType(MessageType.Data);
 			controlFile.setAddressType(AddressType.DTS);
 			
-			if (!Strings.isNullOrEmpty(destination)) {
-				controlFile.setToDTS(destination);
+			if (!Strings.isNullOrEmpty(destination.getDtsMailbox())) {
+				controlFile.setToDTS(destination.getDtsMailbox());
 			}
 
 			controlFile.setLocalId(envelope.getTrackingId()); 
-			controlFile.setWorkflowId(""); // TODO: workflow ID may be different for business messages and acks
 			
 			// Apply defaults from the prototype
 			final boolean overwrite = false;

@@ -7,12 +7,15 @@ import org.apache.camel.spi.IdempotentRepository;
 import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.docs.parser.route.InProgressFolderManagerRoute;
+import uk.nhs.ciao.transport.itk.address.EndpointAddressHelper;
+import uk.nhs.ciao.transport.itk.address.EndpointAddressRepository;
 import uk.nhs.ciao.transport.itk.envelope.Address;
 import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
 import uk.nhs.ciao.transport.itk.envelope.Identity;
 import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponseFactory;
 import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeReceiverRoute;
 import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeSenderRoute;
+import uk.nhs.ciao.transport.itk.route.EndpointAddressEnricherRoute;
 import uk.nhs.ciao.transport.itk.route.ItkDocumentSenderRoute;
 import uk.nhs.ciao.transport.itk.route.ItkMessageReceiverRoute;
 
@@ -29,6 +32,7 @@ public abstract class ITKTransportRoutes  implements RoutesBuilder {
 		
 		// services
 		addInProgressFolderManagerRoute(context);
+		addEndpointAddressEnricherRoute(context);
 	}
 	
 	private void addItkDocumentSenderRoute(final CamelContext context) throws Exception {
@@ -102,6 +106,27 @@ public abstract class ITKTransportRoutes  implements RoutesBuilder {
 		route.setInProgressFolderRootUri("file:{{inProgressFolder}}");
 		
 		context.addRoutes(route);
+	}
+	
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	private void addEndpointAddressEnricherRoute(final CamelContext context) throws Exception {
+		final EndpointAddressEnricherRoute route = new EndpointAddressEnricherRoute();
+		
+		route.setEndpointAddressEnricherUri(getEndpointAddressEnricherUri());
+		
+		final EndpointAddressRepository repository =
+				context.getRegistry().lookupByNameAndType("endpointAddressRepository", EndpointAddressRepository.class);
+		
+		route.setHelper(createEndpointAddressHelper());
+		route.setEndpointAddressRepository(repository);
+		
+		context.addRoutes(route);
+	}
+	
+	protected abstract EndpointAddressHelper<?, ?> createEndpointAddressHelper();
+	
+	protected String getEndpointAddressEnricherUri() {
+		return "direct:endpoint-address-enricher";
 	}
 	
 	protected <T> T get(final CamelContext context, final Class<T> type, final String name) {
