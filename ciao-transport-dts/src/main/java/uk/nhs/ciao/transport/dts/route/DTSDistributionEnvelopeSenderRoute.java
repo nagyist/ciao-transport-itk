@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Property;
+import org.apache.camel.spi.IdempotentRepository;
 import org.apache.camel.util.URISupport;
 
 import com.google.common.base.Strings;
@@ -29,8 +30,8 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	private String dtsMessageSenderUri;
 	private String dtsMessageSendNotificationReceiverUri;
 	private String dtsTemporaryFolder;
-	private String idempotentRepositoryRef;
-	private String inProgressRepositoryRef;
+	private IdempotentRepository<?> idempotentRepository;
+	private IdempotentRepository<?> inProgressRepository;
 	
 	// optional properties
 	private ControlFile prototypeControlFile;
@@ -66,17 +67,17 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	}
 	
 	/**
-	 * ID of the idempotent repository used to track processed sent notifications
+	 * Idempotent repository used to track processed sent notifications
 	 */
-	public void setIdempotentRepositoryRef(final String idempotentRepositoryRef) {
-		this.idempotentRepositoryRef = idempotentRepositoryRef;
+	public void setIdempotentRepository(final IdempotentRepository<?> idempotentRepository) {
+		this.idempotentRepository = idempotentRepository;
 	}
 	
 	/**
-	 * ID of the idempotent repository to use to track in-progress end notifications
+	 * Idempotent repository to use to track in-progress end notifications
 	 */
-	public void setInProgressRepositoryRef(final String inProgressRepositoryRef) {
-		this.inProgressRepositoryRef = inProgressRepositoryRef;
+	public void setInProgressRepository(final IdempotentRepository<?> inProgressRepository) {
+		this.inProgressRepository = inProgressRepository;
 	}
 	
 	/**
@@ -175,8 +176,8 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 		
 		// only process each file once
 		endpointParams.put("idempotent", true);
-		endpointParams.put("idempotentRepository", "#" + idempotentRepositoryRef);
-		endpointParams.put("inProgressRepository", "#" + inProgressRepositoryRef);
+		endpointParams.put("idempotentRepository", idempotentRepository);
+		endpointParams.put("inProgressRepository", inProgressRepository);
 		endpointParams.put("readLock", "idempotent");
 		
 		// delete after processing

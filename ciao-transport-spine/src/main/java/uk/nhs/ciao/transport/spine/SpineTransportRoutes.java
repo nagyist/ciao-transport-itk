@@ -91,7 +91,7 @@ public class SpineTransportRoutes extends ITKTransportRoutes {
 		final MultipartMessageReceiverRoute route = new MultipartMessageReceiverRoute();
 		
 		route.setMultipartReceiverUri("direct:multipart-message-receiever");
-		route.setPayloadDestinationUri("jms:queue:{{distributionEnvelopeReceiverQueue}}");
+		route.setPayloadDestinationUri(getDistributionEnvelopeReceiverUri());
 		route.setEbxmlResponseDestinationUri("{{spine.toUri}}");
 		route.setIdempotentRepository(get(context, IdempotentRepository.class, "multipartMessageIdempotentRepository"));
 		

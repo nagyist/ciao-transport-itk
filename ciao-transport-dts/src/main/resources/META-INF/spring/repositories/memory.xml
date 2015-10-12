@@ -5,4 +5,10 @@
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring-2.15.2.xsd">
 	
 	<bean id="distributionEnvelopeIdempotentRepository" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository" />
+	
+	<!-- DTS -->
+	<bean id="dtsSentIdempotentRepository" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository" />
+	<bean id="dtsSentInProgressRepository" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository" />
+	<bean id="dtsReceiverIdempotentRepository" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository" />
+	<bean id="dtsReceiverInProgressRepository" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository" />
 </beans>

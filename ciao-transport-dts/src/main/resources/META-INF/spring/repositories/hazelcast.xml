@@ -35,5 +35,27 @@
 	<bean id="distributionEnvelopeIdempotentRepository" class="org.apache.camel.processor.idempotent.hazelcast.HazelcastIdempotentRepository">
 		<constructor-arg ref="hazelcastInstance" />
 		<constructor-arg value="processed-distribution-envelopes" />		
-	</bean>	
+	</bean>
+	
+	<!-- DTS -->
+	
+	<bean id="dtsSentIdempotentRepository" class="org.apache.camel.processor.idempotent.hazelcast.HazelcastIdempotentRepository">
+		<constructor-arg ref="hazelcastInstance" />
+		<constructor-arg value="dts-sent-messages" />		
+	</bean>
+	
+	<bean id="dtsSentInProgressRepository" class="org.apache.camel.processor.idempotent.hazelcast.HazelcastIdempotentRepository">
+		<constructor-arg ref="hazelcastInstance" />
+		<constructor-arg value="dts-in-progress-sent-messages" />		
+	</bean>
+	
+	<bean id="dtsReceiverIdempotentRepository" class="org.apache.camel.processor.idempotent.hazelcast.HazelcastIdempotentRepository">
+		<constructor-arg ref="hazelcastInstance" />
+		<constructor-arg value="dts-received-messages" />		
+	</bean>
+	
+	<bean id="dtsReceiverInProgressRepository" class="org.apache.camel.processor.idempotent.hazelcast.HazelcastIdempotentRepository">
+		<constructor-arg ref="hazelcastInstance" />
+		<constructor-arg value="dts-in-progress-received-messages" />		
+	</bean>
 </beans>
