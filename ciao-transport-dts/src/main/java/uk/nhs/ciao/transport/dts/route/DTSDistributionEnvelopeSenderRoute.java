@@ -28,7 +28,6 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	
 	private String dtsMessageSenderUri;
 	private String dtsMessageSendNotificationReceiverUri;
-	private String endpointAddressEnricherUrl;
 	private String dtsTemporaryFolder;
 	private String idempotentRepositoryRef;
 	private String inProgressRepositoryRef;
@@ -53,13 +52,6 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	 */
 	public void setDTSMessageSendNotificationReceiverUri(final String dtsMessageSendNotificationReceiverUri) {
 		this.dtsMessageSendNotificationReceiverUri = dtsMessageSendNotificationReceiverUri;
-	}
-	
-	/**
-	 * URI of service used to enrich destination endpoint address details
-	 */
-	public void setEndpointAddressEnricherUri(final String endpointAddressEnricherUrl) {
-		this.endpointAddressEnricherUrl = endpointAddressEnricherUrl;
 	}
 	
 	/**
@@ -133,7 +125,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			.bean(new DestinationAddressBuilder())
 			.choice()
 				.when().simple("${getDtsMailbox} == null")
-					.to(endpointAddressEnricherUrl)
+					.to(getEndpointAddressEnricherUri())
 				.endChoice()
 			.end()
 			.setProperty("destination").body()

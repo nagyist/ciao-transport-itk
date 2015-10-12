@@ -12,6 +12,7 @@ import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
 public abstract class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	private String distributionEnvelopeSenderUri;
 	private String distributionEnvelopeResponseUri;
+	private String endpointAddressEnricherUri;
 	
 	// optional properties
 	private DistributionEnvelope prototypeDistributionEnvelope;
@@ -38,6 +39,13 @@ public abstract class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	}
 	
 	/**
+	 * URI of service used to enrich destination endpoint address details
+	 */
+	public void setEndpointAddressEnricherUri(final String endpointAddressEnricherUri) {
+		this.endpointAddressEnricherUri = endpointAddressEnricherUri;
+	}
+	
+	/**
 	 * Sets the prototype distribution envelope containing default properties that should
 	 * be added to all envelopes before they are sent.
 	 * <p>
@@ -55,6 +63,10 @@ public abstract class DistributionEnvelopeSenderRoute extends BaseRouteBuilder {
 	
 	public String getDistributionEnvelopeSenderUri() {
 		return distributionEnvelopeSenderUri;
+	}
+	
+	public String getEndpointAddressEnricherUri() {
+		return endpointAddressEnricherUri;
 	}
 	
 	public DistributionEnvelope getPrototypeDistributionEnvelope() {

@@ -55,6 +55,7 @@ public abstract class ITKTransportRoutes  implements RoutesBuilder {
 		
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
 		route.setDistributionEnvelopeResponseUri("direct:distribution-envelope-response");
+		route.setEndpointAddressEnricherUri("direct:endpoint-address-enricher");
 
 		final DistributionEnvelope distributionEnvelopePrototype = new DistributionEnvelope();
 		distributionEnvelopePrototype.setService(config.getConfigValue("senderItkService"));
@@ -112,7 +113,7 @@ public abstract class ITKTransportRoutes  implements RoutesBuilder {
 	private void addEndpointAddressEnricherRoute(final CamelContext context) throws Exception {
 		final EndpointAddressEnricherRoute route = new EndpointAddressEnricherRoute();
 		
-		route.setEndpointAddressEnricherUri(getEndpointAddressEnricherUri());
+		route.setEndpointAddressEnricherUri("direct:endpoint-address-enricher");
 		
 		final EndpointAddressRepository repository =
 				context.getRegistry().lookupByNameAndType("endpointAddressRepository", EndpointAddressRepository.class);
@@ -124,10 +125,6 @@ public abstract class ITKTransportRoutes  implements RoutesBuilder {
 	}
 	
 	protected abstract EndpointAddressHelper<?, ?> createEndpointAddressHelper();
-	
-	protected String getEndpointAddressEnricherUri() {
-		return "direct:endpoint-address-enricher";
-	}
 	
 	protected <T> T get(final CamelContext context, final Class<T> type, final String name) {
 		return type.cast(context.getRegistry().lookupByName(name));

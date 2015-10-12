@@ -42,7 +42,6 @@ public class SpineTransportRoutes extends ITKTransportRoutes {
 		
 		route.setMultipartMessageSenderUri("jms:queue:{{multipartMessageSenderQueue}}");
 		route.setMultipartMessageResponseUri("jms:queue:{{multipartMessageResponseQueue}}?destination.consumer.prefetchSize=0");
-		route.setEndpointAddressEnricherUri(getEndpointAddressEnricherUri());
 		
 		final EbxmlEnvelope ebxmlPrototype = new EbxmlEnvelope();
 		ebxmlPrototype.setService(config.getConfigValue("senderService"));
