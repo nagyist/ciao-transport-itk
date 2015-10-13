@@ -20,6 +20,7 @@ import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.dts.MessageType;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddress;
+import uk.nhs.ciao.transport.dts.sequence.IdSequence;
 import uk.nhs.ciao.transport.itk.envelope.Address;
 import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
 import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeSenderRoute;
@@ -32,6 +33,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	private String dtsTemporaryFolder;
 	private IdempotentRepository<?> idempotentRepository;
 	private IdempotentRepository<?> inProgressRepository;
+	private IdSequence idSequence;
 	
 	// optional properties
 	private ControlFile prototypeControlFile;
@@ -78,6 +80,13 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	 */
 	public void setInProgressRepository(final IdempotentRepository<?> inProgressRepository) {
 		this.inProgressRepository = inProgressRepository;
+	}
+	
+	/**
+	 * Sequence for generating DTS transaction IDs
+	 */
+	public void setIdSequence(final IdSequence idSequence) {
+		this.idSequence = idSequence;
 	}
 	
 	/**
@@ -151,26 +160,19 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			// write files through a temporary folder (to avoid the client process reading files before they are fully written)
 			.setHeader("tempPrefix").constant(dtsTemporaryFolder)
 			
-			/*
-			 * TODO: file names need to include 'sequence_id' defined in the DTS client interface as:
-			 * <p>
-			 * The sequence identifier will be unique for each transaction.
-			 * Sequence numbers will be 8 digits starting at 00000001 through to 99999999.
-			 * After 99999999 the sequence will start again at 00000001.
-			 * <p>
-			 * This counter will need to be common across all the nodes in the cluster
-			 */
+			// Obtain an id for the DTS transaction
+			.setProperty("dtsTransactionId").method(idSequence, "nextId")
 			
 			// first write the data file
 			.setBody().property("distributionEnvelope")
 			.convertBodyTo(String.class)
-			.setHeader(Exchange.FILE_NAME).simple(dtsFilePrefix + "${property.distributionEnvelope.trackingId}.dat")
+			.setHeader(Exchange.FILE_NAME).simple(dtsFilePrefix + "${property.dtsTransactionId}.dat")
 			.to(dtsMessageSenderUri)
 			
 			// then write the control file
 			.setBody().property("controlFile")
 			.convertBodyTo(String.class)
-			.setHeader(Exchange.FILE_NAME).simple(dtsFilePrefix + "${property.distributionEnvelope.trackingId}.ctl")
+			.setHeader(Exchange.FILE_NAME).simple(dtsFilePrefix + "${property.dtsTransactionId}.ctl")
 			.to(dtsMessageSenderUri)
 		.end();
 	}

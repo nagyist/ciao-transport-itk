@@ -28,6 +28,19 @@
 						</property>
 					</bean>
 				</property>
+				<property name="servicesConfig">
+					<bean class="com.hazelcast.config.ServicesConfig">
+						<property name="serviceConfigs">
+							<list>
+								<bean class="com.hazelcast.config.ServiceConfig">
+									<property name="name" value="ciao:dts:idSequenceService" />
+									<property name="enabled" value="true" />
+									<property name="className" value="uk.nhs.ciao.transport.dts.sequence.HazelcastIdSequenceService" /> 
+								</bean>
+							</list>
+						</property>
+					</bean>
+				</property>
 			</bean>
 		</constructor-arg>
 	</bean>
@@ -57,5 +70,10 @@
 	<bean id="dtsReceiverInProgressRepository" class="org.apache.camel.processor.idempotent.hazelcast.HazelcastIdempotentRepository">
 		<constructor-arg ref="hazelcastInstance" />
 		<constructor-arg value="dts-in-progress-received-messages" />		
+	</bean>
+	
+	<bean id="dtsIdSequence" class="uk.nhs.ciao.transport.dts.sequence.HazelcastIdSequenceFactory">
+		<constructor-arg ref="hazelcastInstance" />
+		<constructor-arg value="DTS_ID_SEED" />
 	</bean>
 </beans>

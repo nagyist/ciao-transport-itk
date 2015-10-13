@@ -11,4 +11,6 @@
 	<bean id="dtsSentInProgressRepository" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository" />
 	<bean id="dtsReceiverIdempotentRepository" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository" />
 	<bean id="dtsReceiverInProgressRepository" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository" />
+	
+	<bean id="dtsIdSequence" class="uk.nhs.ciao.transport.dts.sequence.AtomicIdSequence" />
 </beans>
