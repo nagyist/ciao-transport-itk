@@ -150,7 +150,17 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			
 			// write files through a temporary folder (to avoid the client process reading files before they are fully written)
 			.setHeader("tempPrefix").constant(dtsTemporaryFolder)
-				
+			
+			/*
+			 * TODO: file names need to include 'sequence_id' defined in the DTS client interface as:
+			 * <p>
+			 * The sequence identifier will be unique for each transaction.
+			 * Sequence numbers will be 8 digits starting at 00000001 through to 99999999.
+			 * After 99999999 the sequence will start again at 00000001.
+			 * <p>
+			 * This counter will need to be common across all the nodes in the cluster
+			 */
+			
 			// first write the data file
 			.setBody().property("distributionEnvelope")
 			.convertBodyTo(String.class)
