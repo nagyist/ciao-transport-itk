@@ -1,36 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
 	xmlns:camel="http://camel.apache.org/schema/spring"
+	xmlns:hz="http://www.hazelcast.com/schema/spring"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring-2.15.2.xsd">
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring-2.15.2.xsd
+		http://www.hazelcast.com/schema/spring https://www.hazelcast.com/schema/spring/hazelcast-spring-3.0.xsd">
 	
-	<bean id="hazelcastInstance" class="com.hazelcast.core.Hazelcast" factory-method="newHazelcastInstance">
-		<constructor-arg>
-			<bean class="com.hazelcast.config.Config">
-				<property name="groupConfig">
-					<bean class="com.hazelcast.config.GroupConfig">
-						<property name="name" value="${hazelcast.group.name}" />
-						<property name="password" value="${hazelcast.group.password}" />
-					</bean>
-				</property>
-				<property name="networkConfig">
-					<bean class="com.hazelcast.config.NetworkConfig">
-						<property name="port" value="${hazelcast.network.port}" />
-						<property name="join">
-							<bean class="com.hazelcast.config.JoinConfig">
-								<property name="multicastConfig">
-									<bean class="com.hazelcast.config.MulticastConfig">
-										<property name="multicastGroup" value="${hazelcast.network.join.multicast.group}" />
-										<property name="multicastPort" value="${hazelcast.network.join.multicast.port}" />
-									</bean>
-								</property>
-							</bean>
-						</property>
-					</bean>
-				</property>
-			</bean>
-		</constructor-arg>
-	</bean>
+	<hz:hazelcast id="hazelcastInstance">
+		<hz:config>
+			<hz:group name="${hazelcast.group.name}" password="${hazelcast.group.password}" />
+			<hz:network port="${hazelcast.network.port}">
+				<hz:join>
+					<hz:multicast multicast-group="${hazelcast.network.join.multicast.group}" multicast-port="${hazelcast.network.join.multicast.port}" />
+				</hz:join>
+			</hz:network>
+		</hz:config>
+	</hz:hazelcast>
 	
 	<bean id="multipartMessageIdempotentRepository" class="org.apache.camel.processor.idempotent.hazelcast.HazelcastIdempotentRepository">
 		<constructor-arg ref="hazelcastInstance" />
