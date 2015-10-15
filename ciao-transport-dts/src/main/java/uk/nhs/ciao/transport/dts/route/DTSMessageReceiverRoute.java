@@ -78,8 +78,9 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		
 		// only process each file once
 		uri.set("idempotent", true)
-			.set("idempotentRepository", idempotentRepository) // TODO: This can't work - needs ID!
-			.set("inProgressRepository", inProgressRepository) // TODO: This can't work - needs ID!
+			// TODO: This can't work - needs ID!
+//			.set("idempotentRepository", idempotentRepository)
+//			.set("inProgressRepository", inProgressRepository)
 			.set("readLock", "idempotent");
 		
 		// delete after processing
