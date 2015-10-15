@@ -1,9 +1,13 @@
 package uk.nhs.ciao.transport.dts;
 
+import java.util.Set;
+
 import org.apache.camel.CamelContext;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
 
+import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddressHelper;
@@ -50,6 +54,7 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 	}
 	
 	private void addDTSMessageReceiverRoute(final CamelContext context) throws Exception {
+		final CIAOConfig config = CamelApplication.getConfig(context);
 		final DTSMessageReceiverRoute route = new DTSMessageReceiverRoute();
 		
 		route.setDTSMessageReceiverUri("file://{{dts.rootFolder}}/IN");
@@ -57,6 +62,15 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		route.setPayloadDestinationUri(getDistributionEnvelopeReceiverUri());
 		route.setIdempotentRepositoryId("dtsReceiverIdempotentRepository");
 		route.setInProgressRepositoryId("dtsReceiverInProgressRepository");
+		
+		final Set<String> workflowIds = Sets.newHashSet();
+		for (final String workflowId: config.getConfigValue("dts.receiverWorkflowIds").split(",")) {
+			if (!workflowId.trim().isEmpty()) {
+				workflowIds.add(workflowId);
+			}
+		}
+		
+		route.setWorflowIds(workflowIds);
 		
 		context.addRoutes(route);
 	}
