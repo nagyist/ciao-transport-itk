@@ -46,10 +46,11 @@ public class DTSIncomingFileExample extends RouteBuilder {
 			.log("Found control file: ${header.CamelFileName}")
 			
 			.setHeader("controlFileName").header(Exchange.FILE_NAME)
+			.setHeader(DTSDataFilePoller.HEADER_FOLDER_NAME).header(Exchange.FILE_PARENT)
 			.setHeader(DTSDataFilePoller.HEADER_FILE_NAME, ExpressionBuilder.regexReplaceAll(simple("${header.CamelFileName}"),
 					"(..*)\\.ctl", "$1.dat"))
 			
-			.process(new DTSDataFilePoller(executorService, "./target/example", 200, 5 * 20))
+			.process(new DTSDataFilePoller(executorService, 200, 5 * 20))
 		.end();
 	}
 }

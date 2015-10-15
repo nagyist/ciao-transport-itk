@@ -26,6 +26,11 @@ public class DTSDataFilePoller implements AsyncProcessor {
 	/**
 	 * Header containing the name of the file to find
 	 */
+	public static final String HEADER_FOLDER_NAME = "dtsFolderName";
+	
+	/**
+	 * Header containing the name of the file to find
+	 */
 	public static final String HEADER_FILE_NAME = "dataFileName";
 	
 	/**
@@ -34,7 +39,6 @@ public class DTSDataFilePoller implements AsyncProcessor {
 	public static final String HEADER_FILE = "dataFile";
 	
 	private final ScheduledExecutorService executorService;
-	private final File folder;
 	private final long pollingInterval;
 	private final int maxAttempts;
 	
@@ -42,27 +46,12 @@ public class DTSDataFilePoller implements AsyncProcessor {
 	 * Constructs a new poller
 	 * 
 	 * @param executorService Service used for async execution
-	 * @param folder The parent folder
 	 * @param pollingInterval Time to wait between poll attempts (in millis)
 	 * @param maxAttempts Maximum polling attempts to try
 	 */
-	public DTSDataFilePoller(final ScheduledExecutorService executorService, final String folder,
-			final long pollingInterval, final int maxAttempts) {
-		this(executorService, new File(folder), pollingInterval, maxAttempts);
-	}
-	
-	/**
-	 * Constructs a new poller
-	 * 
-	 * @param executorService Service used for async execution
-	 * @param folder The parent folder
-	 * @param pollingInterval Time to wait between poll attempts (in millis)
-	 * @param maxAttempts Maximum polling attempts to try
-	 */
-	public DTSDataFilePoller(final ScheduledExecutorService executorService, final File folder,
+	public DTSDataFilePoller(final ScheduledExecutorService executorService,
 			final long pollingInterval, final int maxAttempts) {
 		this.executorService = Preconditions.checkNotNull(executorService, "executorService");
-		this.folder = Preconditions.checkNotNull(folder, "folder");
 		this.pollingInterval = pollingInterval;
 		this.maxAttempts = maxAttempts;
 		
@@ -88,6 +77,7 @@ public class DTSDataFilePoller implements AsyncProcessor {
 	 */
 	@Override
 	public boolean process(final Exchange exchange, final AsyncCallback callback) {
+		final File folder = exchange.getIn().getHeader(HEADER_FOLDER_NAME, File.class);
 		final String fileName = exchange.getIn().getHeader(HEADER_FILE_NAME, String.class);
 		final File file = new File(folder, fileName);
 		

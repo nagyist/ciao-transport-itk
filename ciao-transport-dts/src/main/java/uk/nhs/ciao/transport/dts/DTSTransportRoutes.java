@@ -53,6 +53,7 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		final DTSMessageReceiverRoute route = new DTSMessageReceiverRoute();
 		
 		route.setDTSMessageReceiverUri("file://{{dts.rootFolder}}/IN");
+		route.setErrorFolder("{{dts.errorFolder}}");
 		route.setPayloadDestinationUri(getDistributionEnvelopeReceiverUri());
 		route.setIdempotentRepositoryId("dtsReceiverIdempotentRepository");
 		route.setInProgressRepositoryId("dtsReceiverInProgressRepository");
