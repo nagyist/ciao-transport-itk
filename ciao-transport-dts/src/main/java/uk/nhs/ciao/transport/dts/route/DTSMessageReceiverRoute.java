@@ -2,8 +2,6 @@ package uk.nhs.ciao.transport.dts.route;
 
 import java.util.regex.Pattern;
 
-import org.apache.camel.spi.IdempotentRepository;
-
 import com.google.common.base.Strings;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
@@ -15,8 +13,8 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	
 	private String dtsMessageReceiverUri;
 	private String payloadDestinationUri;
-	private IdempotentRepository<?> idempotentRepository;
-	private IdempotentRepository<?> inProgressRepository;
+	private String idempotentRepositoryId;
+	private String inProgressRepositoryId;
 	
 	// optional properties
 	private String dtsFilePrefix = "";
@@ -40,17 +38,17 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	}
 	
 	/**
-	 * Idempotent repository used to track incoming messages
+	 * Identifier of idempotent repository used to track incoming messages
 	 */
-	public void setIdempotentRepository(final IdempotentRepository<?> idempotentRepository) {
-		this.idempotentRepository = idempotentRepository;
+	public void setIdempotentRepositoryId(final String idempotentRepositoryId) {
+		this.idempotentRepositoryId = idempotentRepositoryId;
 	}
 	
 	/**
-	 * Idempotent repository to use to track in-progress incoming messages
+	 * Identifier of idempotent repository to use to track in-progress incoming messages
 	 */
-	public void setInProgressRepository(final IdempotentRepository<?> inProgressRepository) {
-		this.inProgressRepository = inProgressRepository;
+	public void setInProgressRepositoryId(final String inProgressRepositoryId) {
+		this.inProgressRepositoryId = inProgressRepositoryId;
 	}
 	
 	/**
@@ -78,9 +76,8 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		
 		// only process each file once
 		uri.set("idempotent", true)
-			// TODO: This can't work - needs ID!
-//			.set("idempotentRepository", idempotentRepository)
-//			.set("inProgressRepository", inProgressRepository)
+			.set("idempotentRepository", "#" + idempotentRepositoryId)
+			.set("inProgressRepository", "#" + inProgressRepositoryId)
 			.set("readLock", "idempotent");
 		
 		// delete after processing

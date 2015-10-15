@@ -1,7 +1,6 @@
 package uk.nhs.ciao.transport.dts;
 
 import org.apache.camel.CamelContext;
-import org.apache.camel.spi.IdempotentRepository;
 
 import com.google.common.base.Strings;
 
@@ -33,8 +32,8 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		route.setDTSMessageSendNotificationReceiverUri("file://{{dts.rootFolder}}/SENT");
 		route.setDTSTemporaryFolder("{{dts.temporaryFolder}}");
 		route.setDTSFilePrefix(Strings.nullToEmpty(config.getConfigValue("dts.filePrefix")));
-		route.setIdempotentRepository(get(context, IdempotentRepository.class, "dtsSentIdempotentRepository"));
-		route.setInProgressRepository(get(context, IdempotentRepository.class, "dtsSentInProgressRepository"));
+		route.setIdempotentRepositoryId("dtsSentIdempotentRepository");
+		route.setInProgressRepositoryId("dtsSentInProgressRepository");
 		route.setIdSequence(get(context, IdSequence.class, "dtsIdSequence"));
 		
 		final ControlFile prototype = new ControlFile();
@@ -55,8 +54,8 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		
 		route.setDTSMessageReceiverUri("file://{{dts.rootFolder}}/IN");
 		route.setPayloadDestinationUri(getDistributionEnvelopeReceiverUri());
-		route.setIdempotentRepository(get(context, IdempotentRepository.class, "dtsReceiverIdempotentRepository"));
-		route.setInProgressRepository(get(context, IdempotentRepository.class, "dtsReceiverInProgressRepository"));
+		route.setIdempotentRepositoryId("dtsReceiverIdempotentRepository");
+		route.setInProgressRepositoryId("dtsReceiverInProgressRepository");
 		
 		context.addRoutes(route);
 	}
