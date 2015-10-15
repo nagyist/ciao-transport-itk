@@ -3,14 +3,12 @@ package uk.nhs.ciao.transport.dts.route;
 import static org.apache.camel.builder.PredicateBuilder.*;
 import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
 
-import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Property;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
 
 import uk.nhs.ciao.camel.URIBuilder;
 import uk.nhs.ciao.dts.AddressType;
@@ -18,7 +16,7 @@ import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.dts.MessageType;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddress;
-import uk.nhs.ciao.transport.dts.sequence.IdSequence;
+import uk.nhs.ciao.transport.dts.sequence.IdGenerator;
 import uk.nhs.ciao.transport.itk.envelope.Address;
 import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
 import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeSenderRoute;
@@ -31,7 +29,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	private String dtsTemporaryFolder;
 	private String idempotentRepositoryId;
 	private String inProgressRepositoryId;
-	private IdSequence idSequence;
+	private IdGenerator idGenerator;
 	
 	// optional properties
 	private ControlFile prototypeControlFile;
@@ -81,10 +79,10 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	}
 	
 	/**
-	 * Sequence for generating DTS transaction IDs
+	 * Generator for generating DTS transaction IDs
 	 */
-	public void setIdSequence(final IdSequence idSequence) {
-		this.idSequence = idSequence;
+	public void setIdGenerator(final IdGenerator idGenerator) {
+		this.idGenerator = idGenerator;
 	}
 	
 	/**
@@ -159,7 +157,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			.setHeader("tempPrefix").constant(dtsTemporaryFolder)
 			
 			// Obtain an id for the DTS transaction
-			.setProperty("dtsTransactionId").method(idSequence, "nextId")
+			.setProperty("dtsTransactionId").method(idGenerator, "generateId")
 			
 			// first write the data file
 			.setBody().property("distributionEnvelope")
@@ -177,7 +175,6 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	
 	private void configureSendNotificationReceiver() throws Exception {
 		// Additional configuration parameters are appended to the endpoint URI
-		final Map<String, Object> endpointParams = Maps.newLinkedHashMap();
 		final URIBuilder uri = new URIBuilder(dtsMessageSendNotificationReceiverUri);
 		
 		// only process files intended for this application

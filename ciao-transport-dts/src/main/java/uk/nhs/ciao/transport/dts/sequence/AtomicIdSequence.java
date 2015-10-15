@@ -3,11 +3,11 @@ package uk.nhs.ciao.transport.dts.sequence;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Implementation of {@link IdSequence} backed by an {@link AtomicLong}.
+ * Implementation of {@link DTSIdSequence} backed by an {@link AtomicLong}.
  * <p>
  * Instances of this class are not suitable for clustered deployments.
  */
-public class AtomicIdSequence extends IdSequence {
+public class AtomicIdSequence extends DTSIdSequence {
 	private final AtomicLong counter;
 	
 	public AtomicIdSequence() {

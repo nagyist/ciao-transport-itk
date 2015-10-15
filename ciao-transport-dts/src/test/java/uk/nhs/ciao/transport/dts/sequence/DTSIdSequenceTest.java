@@ -9,31 +9,31 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 /**
- * Unit tests for {@link IdSequence}
+ * Unit tests for {@link DTSIdSequence}
  */
-public class IdSequenceTest {
-	private IdSequence idSequence;
+public class DTSIdSequenceTest {
+	private DTSIdSequence idSequence;
 	
 	@Before
 	public void setup() {
-		idSequence = mock(IdSequence.class, Mockito.CALLS_REAL_METHODS);
+		idSequence = mock(DTSIdSequence.class, Mockito.CALLS_REAL_METHODS);
 	}
 	
 	@Test
 	public void testInitialId() {
 		when(idSequence.incrementCounter()).thenReturn(0L);
-		assertEquals("00000001", idSequence.nextId());
+		assertEquals("00000001", idSequence.generateId());
 	}
 	
 	@Test
 	public void testLastId() {
 		when(idSequence.incrementCounter()).thenReturn(99999998L);
-		Assert.assertEquals("99999999", idSequence.nextId());
+		Assert.assertEquals("99999999", idSequence.generateId());
 	}
 	
 	@Test
 	public void testWrapAround() {
 		when(idSequence.incrementCounter()).thenReturn(99999999L);
-		Assert.assertEquals("00000001", idSequence.nextId());
+		Assert.assertEquals("00000001", idSequence.generateId());
 	}
 }

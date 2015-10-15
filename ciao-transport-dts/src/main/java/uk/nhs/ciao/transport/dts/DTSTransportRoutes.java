@@ -9,7 +9,7 @@ import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddressHelper;
 import uk.nhs.ciao.transport.dts.route.DTSDistributionEnvelopeSenderRoute;
 import uk.nhs.ciao.transport.dts.route.DTSMessageReceiverRoute;
-import uk.nhs.ciao.transport.dts.sequence.IdSequence;
+import uk.nhs.ciao.transport.dts.sequence.IdGenerator;
 import uk.nhs.ciao.transport.itk.ITKTransportRoutes;
 import uk.nhs.ciao.transport.itk.address.EndpointAddressHelper;
 import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeSenderRoute;
@@ -34,7 +34,7 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		route.setDTSFilePrefix(Strings.nullToEmpty(config.getConfigValue("dts.filePrefix")));
 		route.setIdempotentRepositoryId("dtsSentIdempotentRepository");
 		route.setInProgressRepositoryId("dtsSentInProgressRepository");
-		route.setIdSequence(get(context, IdSequence.class, "dtsIdSequence"));
+		route.setIdGenerator(get(context, IdGenerator.class, "dtsIdGenerator"));
 		
 		final ControlFile prototype = new ControlFile();
 		prototype.setWorkflowId(config.getConfigValue("dts.workflowId"));

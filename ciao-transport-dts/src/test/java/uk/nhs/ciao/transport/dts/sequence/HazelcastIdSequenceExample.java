@@ -25,7 +25,7 @@ public class HazelcastIdSequenceExample {
 		String next = null;
 		final Random random = new Random();
 		for (int index = 0; index < 10000000; index++) {
-			next = sequence.nextId();
+			next = sequence.generateId();
 			if (index % 10000 == 0) {
 				System.out.println(next);
 				Thread.sleep(random.nextInt(10) + 1);

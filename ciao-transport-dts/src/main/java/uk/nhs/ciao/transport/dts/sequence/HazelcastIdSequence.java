@@ -8,7 +8,7 @@ import com.hazelcast.core.DistributedObject;
 import com.hazelcast.core.IMap;
 
 /**
- * {@link IdSequence} implementation similar to {@link com.hazelcast.core.IdGenerator} however the distributed
+ * {@link DTSIdSequence} implementation similar to {@link com.hazelcast.core.IdGenerator} however the distributed
  * seed counter is maintained in an IMap rather than an IAtomicLong.
  * <p>
  * The map can be made durable by configuring a MapStore implementation as part of the Hazelcast configuration.
@@ -19,7 +19,7 @@ import com.hazelcast.core.IMap;
  * 
  * @see HazelcastIdSequenceFactory
  */
-public class HazelcastIdSequence extends IdSequence implements DistributedObject {
+public class HazelcastIdSequence extends DTSIdSequence implements DistributedObject {
 	private static final int BLOCK_SIZE = 10000;
 
     private final String name;
