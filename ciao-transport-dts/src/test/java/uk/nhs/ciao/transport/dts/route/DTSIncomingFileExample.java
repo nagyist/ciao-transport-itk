@@ -36,11 +36,11 @@ public class DTSIncomingFileExample extends RouteBuilder {
 				.newSingleThreadScheduledExecutor(this, "data-file-poller");
 		
 		final URIBuilder uri = new URIBuilder("file://./target/example")
-			.add("idempotent", "true")
-			.add("readLock", "idempotent")
-			.add("move", "done")
-			.add("moveFailed", "error")
-			.add("include", "..*\\.ctl"); // .+ does NOT work!
+			.set("idempotent", "true")
+			.set("readLock", "idempotent")
+			.set("move", "done")
+			.set("moveFailed", "error")
+			.set("include", "..*\\.ctl"); // .+ does NOT work!
 		
 		from(uri.toString())
 			.log("Found control file: ${header.CamelFileName}")

@@ -3,18 +3,17 @@ package uk.nhs.ciao.transport.dts.route;
 import static org.apache.camel.builder.PredicateBuilder.*;
 import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
 
-import java.net.URI;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Property;
 import org.apache.camel.spi.IdempotentRepository;
-import org.apache.camel.util.URISupport;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
+import uk.nhs.ciao.camel.URIBuilder;
 import uk.nhs.ciao.dts.AddressType;
 import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.dts.MessageType;
@@ -180,21 +179,22 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	private void configureSendNotificationReceiver() throws Exception {
 		// Additional configuration parameters are appended to the endpoint URI
 		final Map<String, Object> endpointParams = Maps.newLinkedHashMap();
+		final URIBuilder uri = new URIBuilder(dtsMessageSendNotificationReceiverUri);
 		
 		// only process files intended for this application
 		if (!Strings.isNullOrEmpty(dtsFilePrefix)) {
-			endpointParams.put("include", Pattern.quote(dtsFilePrefix) + ".+");
+			uri.set("include", Pattern.quote(dtsFilePrefix) + ".+");
 		}
 		
 		// only process each file once
-		endpointParams.put("idempotent", true);
-		endpointParams.put("idempotentRepository", idempotentRepository);
-		endpointParams.put("inProgressRepository", inProgressRepository);
-		endpointParams.put("readLock", "idempotent");
+		uri.set("idempotent", true)
+			.set("idempotentRepository", idempotentRepository)
+			.set("inProgressRepository", inProgressRepository)
+			.set("readLock", "idempotent");
 		
 		// delete after processing
 		// TODO: Should these be moved to another directory instead of delete?
-		endpointParams.put("delete", true);
+		uri.set("delete", true);
 		
 		// Cleanup the repository after processing / delete
 		// The readLockRemoveOnCommit option is not available in this version of camel
@@ -202,7 +202,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 		// If using hazelcast the backing map can be configured with a max time to live for each key
 //		endpointParams.put("readLockRemoveOnCommit", true);
 		
-		from(URISupport.createRemainingURI(URI.create(dtsMessageSendNotificationReceiverUri), endpointParams).toString())
+		from(uri.toString())
 			.choice()
 				.when(not(endsWith(header(Exchange.FILE_NAME), constant(".ctl"))))
 					/*

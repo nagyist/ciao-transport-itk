@@ -1,17 +1,13 @@
 package uk.nhs.ciao.transport.dts.route;
 
-import java.net.URI;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.apache.camel.spi.IdempotentRepository;
-import org.apache.camel.util.URISupport;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
-import uk.nhs.ciao.dts.ControlFile;
+import uk.nhs.ciao.camel.URIBuilder;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 
 public class DTSMessageReceiverRoute extends BaseRouteBuilder {
@@ -73,22 +69,22 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	@Override
 	public void configure() throws Exception {
 		// Additional configuration parameters are appended to the endpoint URI
-		final Map<String, Object> endpointParams = Maps.newLinkedHashMap();
+		final URIBuilder uri = new URIBuilder(dtsMessageReceiverUri);
 		
 		// only process files intended for this application
 		if (!Strings.isNullOrEmpty(dtsFilePrefix)) {
-			endpointParams.put("include", Pattern.quote(dtsFilePrefix) + ".+\\.ctl");
+			uri.set("include", Pattern.quote(dtsFilePrefix) + ".+\\.ctl");
 		}
 		
 		// only process each file once
-		endpointParams.put("idempotent", true);
-		endpointParams.put("idempotentRepository", idempotentRepository);
-		endpointParams.put("inProgressRepository", inProgressRepository);
-		endpointParams.put("readLock", "idempotent");
+		uri.set("idempotent", true)
+			.set("idempotentRepository", idempotentRepository) // TODO: This can't work - needs ID!
+			.set("inProgressRepository", inProgressRepository) // TODO: This can't work - needs ID!
+			.set("readLock", "idempotent");
 		
 		// delete after processing
 		// TODO: Should these be moved to another directory instead of delete?
-		endpointParams.put("delete", true);
+		uri.set("delete", true);
 		
 		// Cleanup the repository after processing / delete
 		// The readLockRemoveOnCommit option is not available in this version of camel
@@ -96,7 +92,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		// If using hazelcast the backing map can be configured with a max time to live for each key
 //		endpointParams.put("readLockRemoveOnCommit", true);
 		
-		from(URISupport.createRemainingURI(URI.create(dtsMessageReceiverUri), endpointParams).toString())
+		from(uri.toString())
 			
 		.end();
 	}
