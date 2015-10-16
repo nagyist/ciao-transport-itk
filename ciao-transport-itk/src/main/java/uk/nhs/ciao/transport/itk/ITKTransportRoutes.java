@@ -80,13 +80,17 @@ public abstract class ITKTransportRoutes  implements RoutesBuilder {
 	private void addDistributionEnvelopeReceiverRoute(final CamelContext context) throws Exception {
 		final DistributionEnvelopeReceiverRoute route = new DistributionEnvelopeReceiverRoute();
 		
+		configureDistributionEnvelopeReceiverRoute(context, route);
+		
+		context.addRoutes(route);
+	}
+	
+	protected void configureDistributionEnvelopeReceiverRoute(final CamelContext context, final DistributionEnvelopeReceiverRoute route) throws Exception {
 		route.setDistributionEnvelopeReceiverUri(getDistributionEnvelopeReceiverUri() + "?destination.consumer.prefetchSize=0");
 		route.setItkMessageReceiverUri("jms:queue:{{itkMessageReceiverQueue}}");
 		route.setDistributionEnvelopeSenderUri("direct:distribution-envelope-sender");
 		route.setIdempotentRepository(get(context, IdempotentRepository.class, "distributionEnvelopeIdempotentRepository"));
 		route.setInfrastructureResponseFactory(new InfrastructureResponseFactory());
-		
-		context.addRoutes(route);
 	}
 	
 	private void addItkMessageReceiverRoute(final CamelContext context) throws Exception {

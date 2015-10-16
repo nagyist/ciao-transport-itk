@@ -13,9 +13,11 @@ import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddressHelper;
 import uk.nhs.ciao.transport.dts.route.DTSDistributionEnvelopeSenderRoute;
 import uk.nhs.ciao.transport.dts.route.DTSMessageReceiverRoute;
+import uk.nhs.ciao.transport.dts.route.DTSResponseDetailsInjectorRoute;
 import uk.nhs.ciao.transport.dts.sequence.IdGenerator;
 import uk.nhs.ciao.transport.itk.ITKTransportRoutes;
 import uk.nhs.ciao.transport.itk.address.EndpointAddressHelper;
+import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeReceiverRoute;
 import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeSenderRoute;
 
 public class DTSTransportRoutes extends ITKTransportRoutes {
@@ -73,5 +75,24 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		route.setWorflowIds(workflowIds);
 		
 		context.addRoutes(route);
+	}
+	
+	/**
+	 * Updated default behaviour to inject the DTS workflow details into outgoing responses
+	 * @throws Exception 
+	 */
+	@Override
+	protected void configureDistributionEnvelopeReceiverRoute(final CamelContext context, final DistributionEnvelopeReceiverRoute route) throws Exception {
+		super.configureDistributionEnvelopeReceiverRoute(context, route);
+		
+		// have the injector pass the updated messages on to the original target route
+		final DTSResponseDetailsInjectorRoute injectorRoute = new DTSResponseDetailsInjectorRoute();
+		injectorRoute.setFromDistributionEnvelopeReceiverUri("direct:dts-workflow-details-injector");
+		injectorRoute.setToDistributionEnvelopeSenderUri(route.getDistributionEnvelopeSenderUri());
+		
+		// Update the sender to route it's messages through the injector
+		route.setDistributionEnvelopeSenderUri("direct:dts-workflow-details-injector");
+		
+		context.addRoutes(injectorRoute);
 	}
 }

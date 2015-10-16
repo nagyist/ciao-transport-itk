@@ -48,6 +48,10 @@ public class DistributionEnvelopeReceiverRoute extends BaseRouteBuilder {
 		this.itkMessageReceiverUri = itkMessageReceiverUri;
 	}
 	
+	public String getDistributionEnvelopeSenderUri() {
+		return distributionEnvelopeSenderUri;
+	}
+	
 	/**
 	 * URI where outgoing distribution envelope (infrastructure response) messages are sent to
 	 * <p>

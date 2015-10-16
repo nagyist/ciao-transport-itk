@@ -25,13 +25,6 @@ import uk.nhs.ciao.transport.dts.processor.DTSDataFilePoller;
 public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(DTSMessageReceiverRoute.class);
 	
-	/**
-	 * Maintains the control file as a header in the payload message
-	 * <p>
-	 * This is required to join up response messages with the correct worflowId
-	 */
-	public static final String HEADER_CONTROL_FILE = "dtsControlFile";
-	
 	private String dtsMessageReceiverUri;
 	private String payloadDestinationUri;
 	private String idempotentRepositoryId;
@@ -163,17 +156,19 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 					simple("${header.CamelFileName}"), "(..*)\\.ctl", "$1.dat"))
 			.process(new DTSDataFilePoller(executorService, dataFilePollingInterval, dataFileMaxAttempts))
 			
-			// Publish the payload (using multicast/pipeline to maintin original message)
+			// Publish the payload (using multicast/pipeline to maintain original message)
 			.multicast(AggregationStrategies.useOriginal())
 				.pipeline()
-					.setProperty(HEADER_CONTROL_FILE).body(String.class)
+					.setProperty("dtsControlFile").body(ControlFile.class)
 					.setBody().header(DTSDataFilePoller.HEADER_FILE)
 					.convertBodyTo(byte[].class)
 					
-					// Store the control file - it may be required for future DTS exchanges (especially the workflowId)
+					// Store the control file properties - it may be required for future DTS exchanges (especially the workflowId)
 					.removeHeaders("*")
-					.setHeader(HEADER_CONTROL_FILE).property(HEADER_CONTROL_FILE)
-					.removeProperty(HEADER_CONTROL_FILE)
+					.setHeader(DTSHeaders.HEADER_WORKFLOW_ID).simple("${property.dtsControlFile.getWorkflowId}")
+					.setHeader(DTSHeaders.HEADER_FROM_DTS).simple("${property.dtsControlFile.getFromDTS}")
+					.setHeader(DTSHeaders.HEADER_TO_DTS).simple("${property.dtsControlFile.getToDTS}")
+					.removeProperty("dtsControlFile")
 					
 					.to(payloadDestinationUri)
 				.end()

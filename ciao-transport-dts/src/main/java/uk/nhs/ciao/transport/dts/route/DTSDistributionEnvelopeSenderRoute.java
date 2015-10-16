@@ -2,10 +2,12 @@ package uk.nhs.ciao.transport.dts.route;
 
 import static org.apache.camel.builder.PredicateBuilder.*;
 import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
+import static uk.nhs.ciao.transport.dts.route.DTSHeaders.*;
 
 import java.util.regex.Pattern;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.Header;
 import org.apache.camel.Property;
 
 import com.google.common.base.Strings;
@@ -253,20 +255,28 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	// The methods can't live in the route builder - it causes havoc with the debug/tracer logging
 	
 	public class DestinationAddressBuilder {
-		public DTSEndpointAddress buildDestinationAdddress(final DistributionEnvelope envelope) {
+		public DTSEndpointAddress buildDestinationAdddress(final DistributionEnvelope envelope,
+				@Header(HEADER_WORKFLOW_ID) final String workflowId,
+				@Header(HEADER_TO_DTS) final String toDTS) {
 			final DTSEndpointAddress destination = new DTSEndpointAddress();
 			
-			final Address address = envelope.getAddresses().get(0);
-			if (address.isDTS()) {
-				destination.setDtsMailbox(address.getUri());
-			} else if (address.isODS()) {
-				destination.setOdsCode(address.getODSCode());
-			}
+			// Use address header if specified otherwise build from envelope
+			if (!Strings.isNullOrEmpty(toDTS)) {
+				destination.setDtsMailbox(toDTS);
+			} else {
+				final Address address = envelope.getAddresses().get(0);
+				if (address.isDTS()) {
+					destination.setDtsMailbox(address.getUri());
+				} else if (address.isODS()) {
+					destination.setOdsCode(address.getODSCode());
+				}
+			}				
 			
-			// TODO: workflow ID may be different for business messages and acks
-			// 1) Propagate/resolve from incoming workflowId header [not implemented yet] (when sending response messages)
+			// 1) Propagate/resolve from incoming workflowId header (when sending response messages)
 			// 2) Fall-back to prototype control file otherwise
-			if (prototypeControlFile != null) {
+			if (workflowId != null) {
+				destination.setWorkflowId(workflowId);
+			} else if (prototypeControlFile != null) {
 				destination.setWorkflowId(prototypeControlFile.getWorkflowId());
 			}
 			
@@ -279,11 +289,17 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	 */
 	public class ControlFileBuilder {
 		public ControlFile buildControlFile(@Property("distributionEnvelope") final DistributionEnvelope envelope,
-				@Property("destination") final DTSEndpointAddress destination) {
+				@Property("destination") final DTSEndpointAddress destination,
+				@Header(HEADER_FROM_DTS) final String fromDTS) {
 			final ControlFile controlFile = new ControlFile();
 			
 			controlFile.setMessageType(MessageType.Data);
 			controlFile.setAddressType(AddressType.DTS);
+			
+			// Propagate from header (if specified)
+			if (!Strings.isNullOrEmpty(fromDTS)) {
+				controlFile.setFromDTS(fromDTS);
+			}
 			
 			if (!Strings.isNullOrEmpty(destination.getDtsMailbox())) {
 				controlFile.setToDTS(destination.getDtsMailbox());
