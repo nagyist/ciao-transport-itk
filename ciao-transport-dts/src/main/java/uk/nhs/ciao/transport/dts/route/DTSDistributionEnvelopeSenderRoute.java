@@ -151,8 +151,8 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 				.distributionEnvelopeService("${property.distributionEnvelope.service}")
 				.interactionId("${property.distributionEnvelope.handlingSpec.getInteration}")
 				.workflowId("${property.controlFile.getWorkflowId}")
-				.fromDTS("${property.controlFile.getFromDTS")
-				.toDTS("${property.controlFile.getToDTS")
+				.fromDTS("${property.controlFile.getFromDTS}")
+				.toDTS("${property.controlFile.getToDTS}")
 				.eventName("constructed-dts-message")))
 			
 			// write files through a temporary folder (to avoid the client process reading files before they are fully written)
@@ -228,8 +228,8 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 				.documentId(header(Exchange.CORRELATION_ID))
 				.itkTrackingId("${body.localId}")
 				.workflowId("${body.getWorkflowId}")
-				.fromDTS("${body.getFromDTS")
-				.toDTS("${body.getToDTS")
+				.fromDTS("${body.getFromDTS}")
+				.toDTS("${body.getToDTS}")
 				.eventName("received-dts-sent-response")))
 					
 			.choice()
