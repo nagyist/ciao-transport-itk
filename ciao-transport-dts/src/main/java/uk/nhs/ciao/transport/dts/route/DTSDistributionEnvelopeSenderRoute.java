@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Header;
+import org.apache.camel.Predicate;
 import org.apache.camel.Property;
 
 import com.google.common.base.Strings;
@@ -15,7 +16,9 @@ import com.google.common.base.Strings;
 import uk.nhs.ciao.camel.URIBuilder;
 import uk.nhs.ciao.dts.AddressType;
 import uk.nhs.ciao.dts.ControlFile;
+import uk.nhs.ciao.dts.Event;
 import uk.nhs.ciao.dts.MessageType;
+import uk.nhs.ciao.dts.Status;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddress;
 import uk.nhs.ciao.transport.dts.sequence.IdGenerator;
@@ -132,7 +135,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			// Resolve destination address
 			.bean(new DestinationAddressBuilder())
 			.choice()
-				.when().simple("${getDtsMailbox} == null")
+				.when().simple("${body.getDtsMailbox} == null")
 					.to(getEndpointAddressEnricherUri())
 				.endChoice()
 			.end()
@@ -147,6 +150,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 				.itkTrackingId("${property.distributionEnvelope.trackingId}")
 				.distributionEnvelopeService("${property.distributionEnvelope.service}")
 				.interactionId("${property.distributionEnvelope.handlingSpec.getInteration}")
+				.workflowId("${property.controlFile.getWorkflowId}")
 //				.ebxmlMessageId("${property.ebxmlManifest.messageData.messageId}")
 //				.service("${property.ebxmlManifest.service}")
 //				.action("${property.ebxmlManifest.action}")
@@ -216,7 +220,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			.convertBodyTo(ControlFile.class)
 
 			.choice()
-				.when().simple("${body.statusRecord?.event} != ${type:uk.nhs.ciao.dts.Event.TRANSFER}")
+				.when(new IsNotTransferEvent())
 					// only interested in TRANSFER events
 					.stop()
 				.endChoice()
@@ -227,6 +231,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			.process(LOGGER.info(camelLogMsg("Received DTS message send notification")
 				.documentId(header(Exchange.CORRELATION_ID))
 				.itkTrackingId("${body.localId}")
+				.workflowId("${body.getWorkflowId}")
 //				.ebxmlMessageId("${body.messageData.messageId}")
 //				.ebxmlRefToMessageId("${body.messageData.refToMessageId}")
 //				.service("${body.service}")
@@ -235,12 +240,13 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 				.eventName("received-dts-sent-response")))
 					
 			.choice()
-				.when().simple("${body.statusRecord?.status} == ${type:uk.nhs.ciao.dts.StatusRecord.SUCCESS}")
+				.when(new IsSuccessStatus())
 					/*
 					 * TODO: Check the spec to confirm this - it looks as if statusCode == "00" may be a better check
 					 * SUCCESS might also be returned on statusCode == "05" -> Transfer error - retry!
 					 */
 					.setHeader("ciao.messageSendNotification", constant("sent"))
+				.endChoice()
 				.otherwise()
 					.setHeader("ciao.messageSendNotification", constant("send-failed"))
 				.endChoice()
@@ -281,6 +287,28 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			}
 			
 			return destination;
+		}
+	}
+	
+	private static class IsNotTransferEvent implements Predicate {
+		@Override
+		public boolean matches(final Exchange exchange) {
+			final ControlFile controlFile = exchange.getIn().getBody(ControlFile.class);
+			if (controlFile == null || controlFile.getStatusRecord() == null) {
+				return false;
+			}
+			return controlFile.getStatusRecord().getEvent() != Event.TRANSFER;
+		}
+	}
+	
+	private static class IsSuccessStatus implements Predicate {
+		@Override
+		public boolean matches(final Exchange exchange) {
+			final ControlFile controlFile = exchange.getIn().getBody(ControlFile.class);
+			if (controlFile == null || controlFile.getStatusRecord() == null) {
+				return false;
+			}
+			return controlFile.getStatusRecord().getStatus() == Status.SUCCESS;
 		}
 	}
 	
