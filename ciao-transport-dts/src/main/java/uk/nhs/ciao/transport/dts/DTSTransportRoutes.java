@@ -4,6 +4,7 @@ import java.util.Set;
 
 import org.apache.camel.CamelContext;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
@@ -34,9 +35,9 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 			final CamelContext context, final CIAOConfig config) throws Exception {
 		final DTSDistributionEnvelopeSenderRoute route = new DTSDistributionEnvelopeSenderRoute();
 		
-		route.setDTSMessageSenderUri("file://{{dts.rootFolder}}/OUT");
-		route.setDTSMessageSendNotificationReceiverUri("file://{{dts.rootFolder}}/SENT");
-		route.setDTSTemporaryFolder("{{dts.temporaryFolder}}");
+		route.setDTSMessageSenderUri(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/OUT"));
+		route.setDTSMessageSendNotificationReceiverUri(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/SENT"));
+		route.setDTSTemporaryFolder(context.resolvePropertyPlaceholders("{{dts.temporaryFolder}}"));
 		route.setDTSFilePrefix(Strings.nullToEmpty(config.getConfigValue("dts.filePrefix")));
 		route.setIdempotentRepositoryId("dtsSentIdempotentRepository");
 		route.setInProgressRepositoryId("dtsSentInProgressRepository");
@@ -59,8 +60,8 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		final CIAOConfig config = CamelApplication.getConfig(context);
 		final DTSMessageReceiverRoute route = new DTSMessageReceiverRoute();
 		
-		route.setDTSMessageReceiverUri("file://{{dts.rootFolder}}/IN");
-		route.setErrorFolder("{{dts.errorFolder}}");
+		route.setDTSMessageReceiverUri(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/IN"));
+		route.setErrorFolder(context.resolvePropertyPlaceholders("{{dts.errorFolder}}"));
 		route.setPayloadDestinationUri(getDistributionEnvelopeReceiverUri());
 		route.setIdempotentRepositoryId("dtsReceiverIdempotentRepository");
 		route.setInProgressRepositoryId("dtsReceiverInProgressRepository");

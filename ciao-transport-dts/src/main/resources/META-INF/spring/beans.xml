@@ -18,6 +18,8 @@
 	<!-- Select 'dynamic' spring imports - determined via CIAO properties -->
 	<import resource="classpath*:META-INF/spring/processors/${processorConfig}.xml"/>
 	<import resource="classpath*:META-INF/spring/messaging/${messagingConfig}.xml"/>
+	<import resource="classpath*:META-INF/spring/repositories/${repositoryConfig}.xml"/>
+	<import resource="classpath*:META-INF/spring/addressing/${addressingConfig}.xml"/>
     
     <bean id="dtsTransportRoutes" class="uk.nhs.ciao.transport.dts.DTSTransportRoutes" />
     

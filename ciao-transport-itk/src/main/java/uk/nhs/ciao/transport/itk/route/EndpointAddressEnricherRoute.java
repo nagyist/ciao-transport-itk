@@ -29,7 +29,7 @@ public class EndpointAddressEnricherRoute<ID, A> extends BaseRouteBuilder {
 	
 	@Override
 	public void configure() throws Exception {
-		Preconditions.checkNotNull(endpointAddressRepository, "endpointAddressEnricherUrl is required");
+		Preconditions.checkNotNull(endpointAddressRepository, "endpointAddressRepository is required");
 		Preconditions.checkNotNull(helper, "helper is required");
 		
 		from(endpointAddressEnricherUrl)
