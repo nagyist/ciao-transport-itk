@@ -26,17 +26,17 @@ public class DTSDataFilePoller implements AsyncProcessor {
 	/**
 	 * Header containing the name of the file to find
 	 */
-	public static final String HEADER_FOLDER_NAME = "dtsFolderName";
+	public static final String HEADER_DTS_FOLDER_NAME = "dtsFolderName";
 	
 	/**
-	 * Header containing the name of the file to find
+	 * Header containing the name of the data file to find
 	 */
-	public static final String HEADER_FILE_NAME = "dataFileName";
+	public static final String HEADER_DATA_FILE_NAME = "dtsDataFileName";
 	
 	/**
-	 * Header containing the file (once found)
+	 * Header containing the data file (once found)
 	 */
-	public static final String HEADER_FILE = "dataFile";
+	public static final String HEADER_DATA_FILE = "dtsDataFile";
 	
 	private final ScheduledExecutorService executorService;
 	private final long pollingInterval;
@@ -77,8 +77,8 @@ public class DTSDataFilePoller implements AsyncProcessor {
 	 */
 	@Override
 	public boolean process(final Exchange exchange, final AsyncCallback callback) {
-		final File folder = exchange.getIn().getHeader(HEADER_FOLDER_NAME, File.class);
-		final String fileName = exchange.getIn().getHeader(HEADER_FILE_NAME, String.class);
+		final File folder = exchange.getIn().getHeader(HEADER_DTS_FOLDER_NAME, File.class);
+		final String fileName = exchange.getIn().getHeader(HEADER_DATA_FILE_NAME, String.class);
 		final File file = new File(folder, fileName);
 		
 		LOGGER.info(CiaoLogMessage.logMsg("Waiting for DTS data file").fileName(fileName));
@@ -98,7 +98,7 @@ public class DTSDataFilePoller implements AsyncProcessor {
 					
 					if (file.exists()) {
 						LOGGER.info(CiaoLogMessage.logMsg("Succesfully found DTS data file").fileName(fileName));
-						exchange.getIn().setHeader(HEADER_FILE, file);
+						exchange.getIn().setHeader(HEADER_DATA_FILE, file);
 					} else if (attempt >= maxAttempts) {
 						final String message = "DTS data file could not be found - maximum attempts exceeded";
 						LOGGER.info(CiaoLogMessage.logMsg(message).fileName(fileName));

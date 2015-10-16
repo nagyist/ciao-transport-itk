@@ -1,6 +1,9 @@
 package uk.nhs.ciao.transport.dts.route;
 
 import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
+import static uk.nhs.ciao.logging.CiaoLogMessage.logMsg;
+import static uk.nhs.ciao.transport.dts.processor.DTSDataFilePoller.*;
+import static uk.nhs.ciao.transport.dts.route.DTSHeaders.*;
 
 import java.io.File;
 import java.util.Collection;
@@ -22,6 +25,13 @@ import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.dts.processor.DTSDataFilePoller;
 
+/**
+ * 
+ * Route to receive control and data file pairs from the DTS IN folder and publish
+ * the data payload.
+ * <p>
+ * File management of the IN directory is handled by this route.
+ */
 public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(DTSMessageReceiverRoute.class);
 	
@@ -80,6 +90,12 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		this.errorFolder = errorFolder;
 	}
 	
+	/**
+	 * The set of DTS workflowIds this route handles.
+	 * <p>
+	 * Payload data files associated with these workflowIds will be published and the
+	 * corresponding control and data files cleaned up.
+	 */
 	public void setWorflowIds(final Collection<String> workflowIds) {
 		this.workflowIds.clear();
 		this.workflowIds.addAll(workflowIds);
@@ -122,12 +138,13 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		// Unknown files will be left in the folder (other application may be scanning for them)
 		// Error control and data files will be moved to the error folder
 		// Successfully processed control and data files are deleted as part of the route
-		uri.set("delete", false)
-			.set("moveFailed", errorFolder);
+		// Moving of files is handled manually in the route due to difficulties in disabling
+		// the move option while using moveFailed
+		uri.set("noop", true);
 		
 		from(uri.toString())
 			.onException(Exception.class)
-				.process(new DataFileMover())
+				.process(new ControlFileAndDataFileMover())
 			.end()
 		
 			.process(LOGGER.info(camelLogMsg("Received incoming DTS control file")
@@ -137,22 +154,23 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 			
 			// Only handle control files for Data messages and known workflowIds
 			.choice()
-				.when(simple("${getMessageType} != Data"))
-					.process(LOGGER.info(camelLogMsg("Received DTS Report control file - stopping processing of file")
-							.fileName(header(Exchange.FILE_NAME))))
+				.when(simple("${body.getMessageType} != ${type:uk.nhs.ciao.dts.MessageType.Data}"))
+					.process(LOGGER.info(camelLogMsg("Received DTS Report control file - will not process")
+							.fileName(header(Exchange.FILE_NAME))
+							.workflowId(simple("${body.getWorkflowId}"))))
 					.stop()
 				.endChoice()
-				.when(new ContainsSupportedWorkflowId())
-					.process(LOGGER.info(camelLogMsg("Received DTS Data control file with unsupported workflowId - stopping processing of file")
+				.when(new ContainsUnsupportedWorkflowId())
+					.process(LOGGER.info(camelLogMsg("Received DTS Data control file with unsupported workflowId - will not process")
 							.fileName(header(Exchange.FILE_NAME))
-							.workflowId(simple("${getWorkflowId}"))))
+							.workflowId(simple("${body.getWorkflowId}"))))
 					.stop()
 				.endChoice()
 			.end()
 			
 			// Wait for the associated data file
-			.setHeader(DTSDataFilePoller.HEADER_FOLDER_NAME).header(Exchange.FILE_PARENT)
-			.setHeader(DTSDataFilePoller.HEADER_FILE_NAME, regexReplaceAll(
+			.setHeader(HEADER_DTS_FOLDER_NAME).header(Exchange.FILE_PARENT)
+			.setHeader(HEADER_DATA_FILE_NAME, regexReplaceAll(
 					simple("${header.CamelFileName}"), "(..*)\\.ctl", "$1.dat"))
 			.process(new DTSDataFilePoller(executorService, dataFilePollingInterval, dataFileMaxAttempts))
 			
@@ -160,14 +178,14 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 			.multicast(AggregationStrategies.useOriginal())
 				.pipeline()
 					.setProperty("dtsControlFile").body(ControlFile.class)
-					.setBody().header(DTSDataFilePoller.HEADER_FILE)
+					.setBody().header(HEADER_DATA_FILE)
 					.convertBodyTo(byte[].class)
 					
 					// Store the control file properties - it may be required for future DTS exchanges (especially the workflowId)
 					.removeHeaders("*")
-					.setHeader(DTSHeaders.HEADER_WORKFLOW_ID).simple("${property.dtsControlFile.getWorkflowId}")
-					.setHeader(DTSHeaders.HEADER_FROM_DTS).simple("${property.dtsControlFile.getFromDTS}")
-					.setHeader(DTSHeaders.HEADER_TO_DTS).simple("${property.dtsControlFile.getToDTS}")
+					.setHeader(HEADER_WORKFLOW_ID).simple("${property.dtsControlFile.getWorkflowId}")
+					.setHeader(HEADER_FROM_DTS).simple("${property.dtsControlFile.getFromDTS}")
+					.setHeader(HEADER_TO_DTS).simple("${property.dtsControlFile.getToDTS}")
 					.removeProperty("dtsControlFile")
 					
 					.to(payloadDestinationUri)
@@ -180,9 +198,9 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	}
 	
 	/**
-	 * Tests if the control file contains a workflowId handled by this receiver
+	 * Tests if the control file contains a workflowId not handled by this receiver
 	 */
-	private class ContainsSupportedWorkflowId implements Predicate {
+	private class ContainsUnsupportedWorkflowId implements Predicate {
 		@Override
 		public boolean matches(final Exchange exchange) {
 			final ControlFile controlFile = exchange.getIn().getBody(ControlFile.class);
@@ -190,7 +208,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 				return false;
 			}
 			
-			return workflowIds.contains(controlFile.getWorkflowId());
+			return !workflowIds.contains(controlFile.getWorkflowId());
 		}
 	}
 	
@@ -200,9 +218,8 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	private class ControlFileAndDataFileDeleter implements Processor {
 		@Override
 		public void process(final Exchange exchange) throws Exception {
-			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_FILE, File.class);
-			final File controlFile = new File(dataFile.getParentFile(),
-					exchange.getIn().getHeader(Exchange.FILE_NAME, String.class));
+			final File controlFile = exchange.getIn().getHeader(Exchange.FILE_PATH, File.class);
+			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_DATA_FILE, File.class);
 			
 			FileUtil.deleteFile(dataFile);
 			FileUtil.deleteFile(controlFile);
@@ -210,18 +227,38 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	}
 	
 	/**
-	 * If unsuccessful, the data file is moved to the error folder
-	 * <p>
-	 * The main control file is automatically handled by the main file route
+	 * If unsuccessful, the control file and data file (if present) is moved to the error folder
 	 */
-	private class DataFileMover implements Processor {
+	private class ControlFileAndDataFileMover implements Processor {
 		@Override
 		public void process(final Exchange exchange) throws Exception {
-			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_FILE, File.class);
-			if (dataFile != null && dataFile.isFile()) {
-				final File folder = dataFile.getParentFile();
-				FileUtil.renameFile(dataFile, new File(folder, errorFolder), true);
+			final File controlFile = exchange.getIn().getHeader(Exchange.FILE_PATH, File.class);
+			moveToErrorFolder(controlFile);
+			
+			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_DATA_FILE, File.class);
+			moveToErrorFolder(dataFile);
+		}
+		
+		private void moveToErrorFolder(final File file) {
+			if (file != null && file.isFile()) {
+				try {
+					final File sourceFolder = file.getParentFile();
+					final File targetFolder = new File(sourceFolder, errorFolder);
+					if (!targetFolder.exists()) {
+						targetFolder.mkdirs();
+					}
+					
+					final File target = new File(targetFolder, file.getName());
+					
+					final boolean copyAndDeleteOnRenameFail = true;
+					FileUtil.renameFile(file, target, copyAndDeleteOnRenameFail);
+				} catch (Exception e) {
+					LOGGER.getCiaoLogger().warn(
+							logMsg("Unable to move DTS file to error folder")
+							.fileName(file.getName()), e);
+				}
 			}
+			
 		}
 	}
 }

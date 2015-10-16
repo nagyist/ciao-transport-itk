@@ -1,28 +1,29 @@
 package uk.nhs.ciao.transport.dts.route;
 
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.camel.CamelContext;
-import org.apache.camel.Exchange;
-import org.apache.camel.builder.ExpressionBuilder;
-import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.RoutesBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
+import org.apache.camel.impl.SimpleRegistry;
+import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 
+import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.camel.CamelUtils;
-import uk.nhs.ciao.camel.URIBuilder;
-import uk.nhs.ciao.transport.dts.processor.DTSDataFilePoller;
 
 /**
- * Example class checking how to handle incoming pairs of DTS *.ctl and *.dat files
+ * Example class showing how incoming pairs of DTS *.ctl and *.dat files are handled.
  * <p>
- * Will eventually be moved into main routes classes
+ * Incoming payload is logged to the console with details of propagated DTS headers. The file management
+ * of IN / error directory is performed by the route.
  */
-public class DTSIncomingFileExample extends RouteBuilder {
+public class DTSIncomingFileExample implements RoutesBuilder {	
 	public static void main(final String[] args) throws Exception {
-		final CamelContext context = new DefaultCamelContext();
+		final SimpleRegistry registry = new SimpleRegistry();
+		final CamelContext context = new DefaultCamelContext(registry);
 		try {
-			context.addRoutes(new DTSIncomingFileExample());
+			context.addRoutes(new DTSIncomingFileExample(registry));
 			context.start();
 			new CountDownLatch(1).await();
 		} finally {
@@ -30,27 +31,45 @@ public class DTSIncomingFileExample extends RouteBuilder {
 		}
 	}
 	
+	private final SimpleRegistry registry;
+	
+	public DTSIncomingFileExample(final SimpleRegistry registry) {
+		this.registry = registry;
+	}
+	
 	@Override
-	public void configure() throws Exception {
-		final ScheduledExecutorService executorService = getContext().getExecutorServiceManager()
-				.newSingleThreadScheduledExecutor(this, "data-file-poller");
+	public void addRoutesToCamelContext(final CamelContext context) throws Exception {
+		addDTSMessageReceiver(context);
+		addPayloadDestination(context);
+	}
+	
+	private void addDTSMessageReceiver(final CamelContext context) throws Exception {
+		final DTSMessageReceiverRoute route = new DTSMessageReceiverRoute();
 		
-		final URIBuilder uri = new URIBuilder("file://./target/example")
-			.set("idempotent", "true")
-			.set("readLock", "idempotent")
-			.set("move", "done")
-			.set("moveFailed", "error")
-			.set("include", "..*\\.ctl"); // .+ does NOT work!
+		registry.put("idempotentRepository", new MemoryIdempotentRepository());
+		route.setIdempotentRepositoryId("idempotentRepository");
 		
-		from(uri.toString())
-			.log("Found control file: ${header.CamelFileName}")
-			
-			.setHeader("controlFileName").header(Exchange.FILE_NAME)
-			.setHeader(DTSDataFilePoller.HEADER_FOLDER_NAME).header(Exchange.FILE_PARENT)
-			.setHeader(DTSDataFilePoller.HEADER_FILE_NAME, ExpressionBuilder.regexReplaceAll(simple("${header.CamelFileName}"),
-					"(..*)\\.ctl", "$1.dat"))
-			
-			.process(new DTSDataFilePoller(executorService, 200, 5 * 20))
-		.end();
+		registry.put("inProgressRepository", new MemoryIdempotentRepository());
+		route.setInProgressRepositoryId("inProgressRepository");
+		
+		route.setErrorFolder("error");
+		route.setDTSMessageReceiverUri("file://./target/example");
+		route.setPayloadDestinationUri("seda:payload-destination");
+		route.setWorflowIds(Arrays.asList("workflow-1", "workflow-2"));
+		
+		context.addRoutes(route);
+	}
+	
+	private void addPayloadDestination(final CamelContext context) throws Exception {
+		context.addRoutes(new PayloadDestinationRoute());
+	}
+	
+	private class PayloadDestinationRoute extends BaseRouteBuilder {
+		@Override
+		public void configure() throws Exception {
+			from("seda:payload-destination").id("payload-destination")
+				.log("Got payload from DTS - headers: fromDTS=${header.dtsFromDTS}, toDTS=${header.dtsFromDTS}, workflowId=${header.dtsWorkflowId}\n${body}")
+			.end();
+		}
 	}
 }
