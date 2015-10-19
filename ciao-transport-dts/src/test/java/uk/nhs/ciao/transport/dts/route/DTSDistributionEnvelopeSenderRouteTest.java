@@ -28,6 +28,9 @@ import uk.nhs.ciao.dts.Status;
 import uk.nhs.ciao.dts.StatusRecord;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddress;
 import uk.nhs.ciao.transport.dts.sequence.IdGenerator;
+import uk.nhs.ciao.transport.itk.envelope.Address;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope.ManifestItem;
 
 /**
  * Unit tests for {@link DTSDistributionEnvelopeSenderRoute}
@@ -106,6 +109,62 @@ public class DTSDistributionEnvelopeSenderRouteTest {
 		dtsMessageSender.setSynchronous(true);
 		notificationPayloadReceiver = MockEndpoint.resolve(context, "mock:notification-payload-receiver");
 		notificationPayloadReceiver.setSynchronous(true);
+	}
+	
+	@Test
+	public void testSendDistributionEnvelope() throws Exception {
+		final String id = "1234";
+		final String seqNum = "1";
+		Mockito.when(idGenerator.generateId()).thenReturn(seqNum);
+		
+		final DistributionEnvelope envelope = new DistributionEnvelope();
+		envelope.setTrackingId(id);
+
+		final Address receiverAddress = new Address();
+		receiverAddress.setODSCode("receiver");
+		envelope.getAddresses().add(receiverAddress);
+
+		final Address senderAddress = new Address();
+		senderAddress.setODSCode("sender");
+		envelope.setSenderAddress(senderAddress);
+		
+		final ManifestItem manifestItem = new ManifestItem();
+		manifestItem.setMimeType("text/plain");
+		envelope.addPayload(manifestItem, "payload body");
+		
+		envelope.getHandlingSpec().setBusinessAckRequested(false);
+		envelope.getHandlingSpec().setInfrastructureAckRequested(false);
+		envelope.getHandlingSpec().setInteration("interaction");
+		
+		envelope.applyDefaults();
+		
+		// expectations
+		dtsMessageSender.expectedMessageCount(2);
+			
+		// publish the distribution envelope
+		final Exchange exchange = new DefaultExchange(context);
+		exchange.setPattern(ExchangePattern.InOut);
+		exchange.getIn().setHeader(Exchange.CORRELATION_ID, id);
+		exchange.getIn().setBody(envelope, String.class);
+		
+		producerTemplate.send("stub:seda:distribution-envelope-sender", exchange);
+		
+		// verify result
+		dtsMessageSender.assertIsSatisfied(50);
+		
+		// the first output should be the data file - the second should be the control file
+		final Message dataMessage = dtsMessageSender.getExchanges().get(0).getIn();
+		final Message controlMessage = dtsMessageSender.getExchanges().get(1).getIn();
+		
+		Assert.assertEquals(seqNum + ".dat", dataMessage.getHeader(Exchange.FILE_NAME));
+		Assert.assertEquals(seqNum + ".ctl", controlMessage.getHeader(Exchange.FILE_NAME));
+		
+		final DistributionEnvelope dataEnvelope = dataMessage.getMandatoryBody(DistributionEnvelope.class);
+		Assert.assertEquals(id, dataEnvelope.getTrackingId());
+		
+		final ControlFile controlFile = controlMessage.getMandatoryBody(ControlFile.class);
+		Assert.assertEquals(id, controlFile.getLocalId());
+		Assert.assertEquals(toDTS, controlFile.getToDTS());
 	}
 	
 	@Test
