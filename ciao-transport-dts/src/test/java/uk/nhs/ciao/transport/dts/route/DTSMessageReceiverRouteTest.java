@@ -10,6 +10,7 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.Message;
+import org.apache.camel.Processor;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.impl.DefaultCamelContext;
@@ -45,6 +46,7 @@ public class DTSMessageReceiverRouteTest {
 	private MockEndpoint payloadDestination;
 	private DTSDataFilePoller filePoller;
 	private File inputFolder;
+	private File errorFolder;
 	private Map<File, Object> dataFiles;
 	
 	private File controlFile;
@@ -60,6 +62,8 @@ public class DTSMessageReceiverRouteTest {
 		
 		context.start();
 		producerTemplate.start();
+		
+		Mockito.reset(route);
 	}
 	
 	@After
@@ -114,8 +118,10 @@ public class DTSMessageReceiverRouteTest {
 		route.setWorflowIds(Arrays.asList("workflow-1", "workflow-2"));
 		
 		inputFolder = new File("./target/example");
+		errorFolder = new File(inputFolder, "error");
 		
 		payloadDestination = MockEndpoint.resolve(context, "mock:payload-destination");
+		payloadDestination.setSynchronous(true);
 		
 		context.addRoutes(route);
 	}
@@ -184,6 +190,56 @@ public class DTSMessageReceiverRouteTest {
 		assertFilesWereIgnored();		
 	}
 	
+	@Test
+	public void testWhenDataFileDoesNotExistThenControlFileIsMovedToErrorFolder() throws Exception {
+		final String id = "1234";
+		
+		final ControlFile control = createTransferControlFile(id);
+		control.setWorkflowId("workflow-1");
+		control.getStatusRecord().setStatus(Status.SUCCESS);
+		control.getStatusRecord().setStatusCode("00");
+		
+		// expectations
+		payloadDestination.expectedMessageCount(0);
+		
+		// publish the control file
+		final Exchange exchange = sendControlFile(id, control, null); // data file does not exist
+		
+		// verification
+		Assert.assertTrue(exchange.isFailed());
+		payloadDestination.assertIsSatisfied(20);
+		Mockito.verify(route).moveFile(controlFile, new File(errorFolder, controlFile.getName()));
+	}
+	
+	@Test
+	public void testWhenPayloadCannotBePublishedThenControlFileAndDataFileAreMovedToErrorFolder() throws Exception {
+		final String id = "1234";
+		
+		final ControlFile control = createTransferControlFile(id);
+		control.setWorkflowId("workflow-1");
+		control.getStatusRecord().setStatus(Status.SUCCESS);
+		control.getStatusRecord().setStatusCode("00");
+		
+		// expectations
+		payloadDestination.expectedBodiesReceived("payload");
+		payloadDestination.whenAnyExchangeReceived(new Processor() {
+			@Override
+			public void process(Exchange exchange) throws Exception {
+				throw new Exception("Simulating payload publishing error");
+			}
+		});
+		
+		// publish the control file
+		final Exchange exchange = sendControlFile(id, control, "payload");
+		
+		// verification
+		Assert.assertTrue(exchange.isFailed());
+		payloadDestination.assertIsSatisfied(20);
+		
+		Thread.sleep(100); // completion hook runs *after* the exchange has returned!
+		Mockito.verify(route).moveFile(controlFile, new File(errorFolder, controlFile.getName()));
+	}
+	
 	private void assertControlFileHeadersWerePropagated(final String workflowId) {
 		final Message payload = payloadDestination.getReceivedExchanges().get(0).getIn();
 		Assert.assertEquals(workflowId, payload.getHeader(DTSHeaders.HEADER_WORKFLOW_ID));
@@ -231,7 +287,7 @@ public class DTSMessageReceiverRouteTest {
 		
 		if (data != null) {
 			dataFile = new File(inputFolder, id + ".dat");
-			dataFiles.put(dataFile, "payload contents");
+			dataFiles.put(dataFile, data);
 		}
 		
 		return producerTemplate.send("stub:file://./target/example", exchange);

@@ -145,10 +145,12 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		uri.set("noop", true);
 		
 		from(uri.toString())
-			.onException(Exception.class)
-				.process(new ControlFileAndDataFileMover())
+			.onCompletion()
+				.onFailureOnly()
+					.process(new ControlFileAndDataFileMover())
+				.end()
 			.end()
-		
+			
 			.process(LOGGER.info(camelLogMsg("Received incoming DTS control file")
 					.fileName(header(Exchange.FILE_NAME))))
 			.setHeader("controlFileName").header(Exchange.FILE_NAME)
@@ -180,8 +182,9 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 					simple("${header.CamelFileName}"), "(..*)\\.ctl", "$1.dat"))
 			.process(createDataFilePoller(executorService, dataFilePollingInterval, dataFileMaxAttempts))
 			
-			// Publish the payload (using multicast/pipeline to maintain original message)
+			// Publish the payload (using multicast to maintain original message)
 			.multicast(AggregationStrategies.useOriginal())
+				.shareUnitOfWork()
 				.pipeline()
 					.setProperty("dtsControlFile").body(ControlFile.class)
 					.setBody().header(HEADER_DATA_FILE)
@@ -282,7 +285,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		}
 		
 		private void moveToErrorFolder(final File file) {
-			if (file != null && file.isFile()) {
+			if (file != null) {
 				try {
 					final File sourceFolder = file.getParentFile();
 					final File targetFolder = new File(sourceFolder, errorFolder);

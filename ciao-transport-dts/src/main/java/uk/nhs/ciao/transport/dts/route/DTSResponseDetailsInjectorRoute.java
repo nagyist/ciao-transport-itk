@@ -33,6 +33,7 @@ public class DTSResponseDetailsInjectorRoute extends BaseRouteBuilder {
 		from(fromDistributionEnvelopeReceiverUri)
 			// Using multicast/pipeline to maintain original message
 			.multicast(AggregationStrategies.useOriginal())
+				.shareUnitOfWork()
 				.pipeline()
 					.bean(new ResponseDetailsInjector())
 					.to(toDistributionEnvelopeSenderUri)
