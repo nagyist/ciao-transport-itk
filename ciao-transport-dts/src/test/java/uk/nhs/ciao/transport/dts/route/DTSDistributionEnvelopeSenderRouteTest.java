@@ -158,6 +158,27 @@ public class DTSDistributionEnvelopeSenderRouteTest {
 		Assert.assertEquals(id, message.getHeader(Exchange.CORRELATION_ID));
 	}
 	
+	@Test
+	public void testNonTransferSendNotificationIsIgnored() throws Exception {
+		final String id = "1234";
+		final ControlFile controlFile = generateControlFile(id);
+		
+		final StatusRecord statusRecord = new StatusRecord();
+		statusRecord.setEvent(Event.COLLECT); // not a transfer event
+		statusRecord.setStatus(Status.SUCCESS);
+		statusRecord.applyDefaults();
+		controlFile.setStatusRecord(statusRecord);
+		
+		// expectations
+		notificationPayloadReceiver.expectedMessageCount(0);
+		
+		// publish the notification
+		sendNotification(controlFile);
+		
+		// verify result
+		notificationPayloadReceiver.assertIsSatisfied(50);
+	}
+	
 	private Exchange sendNotification(final ControlFile controlFile) {
 		final Exchange exchange = new DefaultExchange(context);
 		exchange.setPattern(ExchangePattern.InOut);
