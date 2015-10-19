@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.AsyncProcessor;
 import org.apache.camel.Exchange;
+import org.apache.camel.Message;
 import org.apache.camel.util.AsyncProcessorHelper;
 
 import uk.nhs.ciao.logging.CiaoLogMessage;
@@ -32,6 +33,11 @@ public class DTSDataFilePoller implements AsyncProcessor {
 	 * Header containing the name of the data file to find
 	 */
 	public static final String HEADER_DATA_FILE_NAME = "dtsDataFileName";
+	
+	/**
+	 * Header containing the full path of the data file
+	 */
+	public static final String HEADER_DATA_FILE_PATH = "dtsDataFilePath";
 	
 	/**
 	 * Header containing the data file (once found)
@@ -79,7 +85,9 @@ public class DTSDataFilePoller implements AsyncProcessor {
 	public boolean process(final Exchange exchange, final AsyncCallback callback) {
 		final File folder = exchange.getIn().getHeader(HEADER_DTS_FOLDER_NAME, File.class);
 		final String fileName = exchange.getIn().getHeader(HEADER_DATA_FILE_NAME, String.class);
+
 		final File file = new File(folder, fileName);
+		exchange.getIn().setHeader(HEADER_DATA_FILE_PATH, file.getPath());
 		
 		LOGGER.info(CiaoLogMessage.logMsg("Waiting for DTS data file").fileName(fileName));
 		
@@ -96,9 +104,9 @@ public class DTSDataFilePoller implements AsyncProcessor {
 				try {
 					attempt++; // safe - only one thread runs concurrently
 					
-					if (file.exists()) {
+					if (fileExists(file)) {
 						LOGGER.info(CiaoLogMessage.logMsg("Succesfully found DTS data file").fileName(fileName));
-						exchange.getIn().setHeader(HEADER_DATA_FILE, file);
+						addDataFileToMessage(exchange.getIn(), file);
 					} else if (attempt >= maxAttempts) {
 						final String message = "DTS data file could not be found - maximum attempts exceeded";
 						LOGGER.info(CiaoLogMessage.logMsg(message).fileName(fileName));
@@ -121,5 +129,13 @@ public class DTSDataFilePoller implements AsyncProcessor {
 		
 		final boolean isSync = true;
 		return new PollForFileTask().run(isSync);
+	}
+	
+	protected boolean fileExists(final File file) {
+		return file != null && file.isFile();
+	}
+	
+	protected void addDataFileToMessage(final Message message, final File file) {
+		message.setHeader(HEADER_DATA_FILE, file);
 	}
 }

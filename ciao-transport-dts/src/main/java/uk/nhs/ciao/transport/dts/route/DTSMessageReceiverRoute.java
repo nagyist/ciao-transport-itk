@@ -6,6 +6,7 @@ import static uk.nhs.ciao.transport.dts.processor.DTSDataFilePoller.*;
 import static uk.nhs.ciao.transport.dts.route.DTSHeaders.*;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
@@ -22,6 +23,7 @@ import com.google.common.collect.Sets;
 import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.camel.URIBuilder;
 import uk.nhs.ciao.dts.ControlFile;
+import uk.nhs.ciao.dts.Event;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.dts.processor.DTSDataFilePoller;
 
@@ -154,7 +156,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 			
 			// Only handle control files for Data messages and known workflowIds
 			.choice()
-				.when(simple("${body.getMessageType} != ${type:uk.nhs.ciao.dts.MessageType.Data}"))
+				.when(new IsNotTransferEvent())
 					.process(LOGGER.info(camelLogMsg("Received DTS Report control file - will not process")
 							.fileName(header(Exchange.FILE_NAME))
 							.workflowId("${body.getWorkflowId}")
@@ -176,7 +178,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 			.setHeader(HEADER_DTS_FOLDER_NAME).header(Exchange.FILE_PARENT)
 			.setHeader(HEADER_DATA_FILE_NAME, regexReplaceAll(
 					simple("${header.CamelFileName}"), "(..*)\\.ctl", "$1.dat"))
-			.process(new DTSDataFilePoller(executorService, dataFilePollingInterval, dataFileMaxAttempts))
+			.process(createDataFilePoller(executorService, dataFilePollingInterval, dataFileMaxAttempts))
 			
 			// Publish the payload (using multicast/pipeline to maintain original message)
 			.multicast(AggregationStrategies.useOriginal())
@@ -207,6 +209,36 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		.end();
 	}
 	
+	// protected scope (for unit tests)
+	
+	protected DTSDataFilePoller createDataFilePoller(final ScheduledExecutorService executorService,
+			final long pollingInterval, final int maxAttempts) {
+		return new DTSDataFilePoller(executorService, pollingInterval, maxAttempts);
+	}
+	
+	protected void moveFile(final File source, final File destination) throws IOException {
+		final boolean copyAndDeleteOnRenameFail = true;
+		FileUtil.renameFile(source, destination, copyAndDeleteOnRenameFail);
+	}
+	
+	protected void deleteFile(final File file) {
+		if (file != null && file.isFile()) {
+			FileUtil.deleteFile(file);
+		}
+	}
+	
+	/**
+	 * Tests if the control file is not for a TRANSFER event
+	 */
+	private class IsNotTransferEvent implements Predicate {
+		@Override
+		public boolean matches(final Exchange exchange) {
+			final ControlFile controlFile = exchange.getIn().getBody(ControlFile.class);
+			return controlFile == null || controlFile.getStatusRecord() == null ||
+					controlFile.getStatusRecord().getEvent() != Event.TRANSFER; 
+		}
+	}
+	
 	/**
 	 * Tests if the control file contains a workflowId not handled by this receiver
 	 */
@@ -215,7 +247,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		public boolean matches(final Exchange exchange) {
 			final ControlFile controlFile = exchange.getIn().getBody(ControlFile.class);
 			if (controlFile == null || Strings.isNullOrEmpty(controlFile.getWorkflowId())) {
-				return false;
+				return true;
 			}
 			
 			return !workflowIds.contains(controlFile.getWorkflowId());
@@ -229,10 +261,10 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		@Override
 		public void process(final Exchange exchange) throws Exception {
 			final File controlFile = exchange.getIn().getHeader(Exchange.FILE_PATH, File.class);
-			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_DATA_FILE, File.class);
+			deleteFile(controlFile);
 			
-			FileUtil.deleteFile(dataFile);
-			FileUtil.deleteFile(controlFile);
+			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_DATA_FILE_PATH, File.class);
+			deleteFile(dataFile);
 		}
 	}
 	
@@ -245,7 +277,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 			final File controlFile = exchange.getIn().getHeader(Exchange.FILE_PATH, File.class);
 			moveToErrorFolder(controlFile);
 			
-			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_DATA_FILE, File.class);
+			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_DATA_FILE_PATH, File.class);
 			moveToErrorFolder(dataFile);
 		}
 		
@@ -259,16 +291,13 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 					}
 					
 					final File target = new File(targetFolder, file.getName());
-					
-					final boolean copyAndDeleteOnRenameFail = true;
-					FileUtil.renameFile(file, target, copyAndDeleteOnRenameFail);
+					moveFile(file, target);
 				} catch (Exception e) {
 					LOGGER.getCiaoLogger().warn(
 							logMsg("Unable to move DTS file to error folder")
 							.fileName(file.getName()), e);
 				}
 			}
-			
 		}
 	}
 }
