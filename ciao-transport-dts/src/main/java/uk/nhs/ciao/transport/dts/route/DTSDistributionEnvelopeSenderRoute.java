@@ -264,14 +264,14 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			// Use address header if specified otherwise build from envelope
 			if (!Strings.isNullOrEmpty(toDTS)) {
 				destination.setDtsMailbox(toDTS);
-			} else {
+			} else if (!envelope.getAddresses().isEmpty()) {
 				final Address address = envelope.getAddresses().get(0);
 				if (address.isDTS()) {
 					destination.setDtsMailbox(address.getUri());
 				} else if (address.isODS()) {
 					destination.setOdsCode(address.getODSCode());
 				}
-			}				
+			}
 			
 			// 1) Propagate/resolve from incoming workflowId header (when sending response messages)
 			// 2) Fall-back to prototype control file otherwise
@@ -326,6 +326,10 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			
 			if (!Strings.isNullOrEmpty(destination.getDtsMailbox())) {
 				controlFile.setToDTS(destination.getDtsMailbox());
+			}
+			
+			if (!Strings.isNullOrEmpty(destination.getWorkflowId())) {
+				controlFile.setWorkflowId(destination.getWorkflowId());
 			}
 
 			controlFile.setLocalId(envelope.getTrackingId()); 

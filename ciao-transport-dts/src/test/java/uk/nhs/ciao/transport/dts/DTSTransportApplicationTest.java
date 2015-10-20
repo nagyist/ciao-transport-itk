@@ -5,21 +5,25 @@ import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
+import org.apache.camel.ExchangePattern;
 import org.apache.camel.Message;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.Route;
 import org.apache.camel.builder.PredicateBuilder;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.impl.DefaultExchange;
 import org.apache.camel.impl.DefaultMessage;
 import org.apache.camel.impl.DefaultProducerTemplate;
 import org.apache.camel.util.FileUtil;
@@ -45,10 +49,15 @@ import uk.nhs.ciao.docs.parser.Document;
 import uk.nhs.ciao.docs.parser.ParsedDocument;
 import uk.nhs.ciao.docs.parser.route.InProgressFolderManagerRoute.EventType;
 import uk.nhs.ciao.docs.parser.route.InProgressFolderManagerRoute.Header;
+import uk.nhs.ciao.dts.AddressType;
 import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.dts.Event;
+import uk.nhs.ciao.dts.MessageType;
 import uk.nhs.ciao.dts.Status;
 import uk.nhs.ciao.dts.StatusRecord;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
+import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope.ManifestItem;
+import uk.nhs.ciao.transport.itk.envelope.InfrastructureResponse;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
@@ -252,6 +261,85 @@ public class DTSTransportApplicationTest {
 		
 		final ControlFile controlFile = sendNotification.getMandatoryBody(ControlFile.class);
 		Assert.assertEquals(controlFile.getLocalId(), sendNotification.getHeader(Exchange.CORRELATION_ID));
+	}
+	
+	@Test
+	public void testInfrastructureResponseIsReceived() throws Exception {
+		runApplication();
+		
+		final CamelContext context = getCamelContext();
+		
+		context.addRoutes(new RouteBuilder() {
+			@Override
+			public void configure() throws Exception {
+				from(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/OUT") +
+						"?sortBy=${file:name}&noop=true") // find control file first
+				.to("mock:output");
+			}
+		});
+		
+		final MockEndpoint output = MockEndpoint.resolve(context, "mock:output");
+		
+		final String trackingId = UUID.randomUUID().toString();
+		
+		final DistributionEnvelope busAck = new DistributionEnvelope();
+		busAck.setTrackingId(trackingId);
+		busAck.setService("service");
+		busAck.getHandlingSpec().setBusinessAck(true);
+		busAck.getHandlingSpec().setInfrastructureAckRequested(true);
+		
+		final ManifestItem manifestItem = new ManifestItem();
+		manifestItem.setMimeType("application/xml");
+		busAck.addPayload(manifestItem, "<root></root>");
+		
+		busAck.applyDefaults();
+		
+		final ControlFile controlFile = new ControlFile();
+		controlFile.setAddressType(AddressType.DTS);
+		controlFile.setMessageType(MessageType.Data);
+		controlFile.setLocalId(trackingId);
+		controlFile.setWorkflowId("TOC_DISCH_DMS_ACK");
+		
+		final StatusRecord statusRecord = new StatusRecord();
+		statusRecord.setEvent(Event.TRANSFER);
+		statusRecord.setStatus(Status.SUCCESS);
+		statusRecord.setStatusCode("00");
+		controlFile.setStatusRecord(statusRecord);
+		controlFile.applyDefaults();
+		
+		final String dtsId = UUID.randomUUID().toString();
+		final Exchange dataExchange = new DefaultExchange(context);
+		dataExchange.getIn().setBody(busAck, String.class);
+		dataExchange.getIn().setHeader(Exchange.FILE_NAME, dtsId + ".dat");
+		
+		final Exchange controlExchange = new DefaultExchange(context);
+		controlExchange.getIn().setBody(controlFile, String.class);
+		controlExchange.getIn().setHeader(Exchange.FILE_NAME, dtsId + ".ctl");
+		
+		// expectations
+		output.expectedMessageCount(2); // control + data for INF ack
+		
+		// publish the files
+		
+		for (final Exchange exchange: Arrays.asList(dataExchange, controlExchange)) {
+			exchange.setPattern(ExchangePattern.InOut);
+			getProducerTemplate().send(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/IN?tempPrefix=../in-temp"), exchange);
+		}
+		
+		// assertions
+		MockEndpoint.assertIsSatisfied(10, TimeUnit.SECONDS, output);
+		
+		final ControlFile responseControlFile = output.getExchanges().get(0).getIn().getMandatoryBody(ControlFile.class);
+		Assert.assertEquals(controlFile.getWorkflowId(), responseControlFile.getWorkflowId());
+		
+		final DistributionEnvelope infAck = output.getExchanges().get(1).getIn().getMandatoryBody(DistributionEnvelope.class);
+		Assert.assertTrue(infAck.containsInfrastructureAck());
+		
+		final byte[] body = infAck.getDecodedPayloadBody(infAck.getManifestItems().get(0).getId());
+		final InfrastructureResponse infrastructureResponse = context.getTypeConverter().mandatoryConvertTo(
+				InfrastructureResponse.class, body);
+		
+		Assert.assertEquals(trackingId, infrastructureResponse.getTrackingIdRef());
 	}
 	
 	public static class SuccessResponseBuilder {

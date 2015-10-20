@@ -4,6 +4,7 @@ import static org.apache.camel.builder.ExpressionBuilder.append;
 import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.builder.PredicateBuilder;
 import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.spring.spi.TransactionErrorHandlerBuilder;
 
@@ -182,12 +183,26 @@ public class ItkMessageReceiverRoute extends BaseRouteBuilder {
 		final Namespaces namespaces = new Namespaces("hl7", "urn:hl7-org:v3");
 		
 		from(getBusinessAckHandlerUri())
+			.setProperty("trackingId", simple("${body.trackingId}"))
 			.setProperty("distributionEnvelopeService", simple("${body.service}"))
 			.setProperty("interactionId", simple("${body.handlingSpec.getInteration}"))
 		
 			.setBody().spel("#{body.getDecodedPayloadBody(body.payloads[0].id)}")
 			.convertBodyTo(String.class)
+			
 			.setHeader(Exchange.CORRELATION_ID).xpath("/hl7:BusinessResponseMessage/hl7:acknowledgedBy3/hl7:conveyingTransmission/hl7:id/@root", String.class, namespaces)
+			
+			.choice()
+				.when(PredicateBuilder.isEqualTo(header(Exchange.CORRELATION_ID), constant("")))
+					.process(LOGGER.warn(camelLogMsg("Unable to process incoming ITK document - original trackingId could not be found on business ack")
+						.itkTrackingId("${property.trackingId}")
+						.distributionEnvelopeService("${property.distributionEnvelopeService}")
+						.interactionId("${property.interactionId}")
+						.eventName("itk-message-unsupported-interaction")))
+				
+					.stop()
+				.endChoice()
+			.end()
 			
 			.setHeader(InProgressFolderManagerRoute.Header.ACTION, constant(InProgressFolderManagerRoute.Action.STORE))
 			.setHeader(InProgressFolderManagerRoute.Header.FILE_TYPE, constant(InProgressFolderManagerRoute.FileType.EVENT))
