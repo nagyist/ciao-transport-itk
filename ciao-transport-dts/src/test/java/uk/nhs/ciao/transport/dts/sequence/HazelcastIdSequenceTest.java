@@ -1,5 +1,6 @@
 package uk.nhs.ciao.transport.dts.sequence;
 
+import java.util.Arrays;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -10,6 +11,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Sets;
 import com.hazelcast.config.Config;
+import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.config.ServiceConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
@@ -29,6 +31,13 @@ public class HazelcastIdSequenceTest {
 		
 		final Config config = new Config();
 		config.getServicesConfig().addServiceConfig(serviceConfig);
+		
+		final NetworkConfig networkConfig = config.getNetworkConfig();
+		networkConfig.getInterfaces().setEnabled(true);
+		networkConfig.getInterfaces().setInterfaces(Arrays.asList("127.0.0.1"));
+		networkConfig.getJoin().getMulticastConfig().setEnabled(false);
+		networkConfig.getJoin().getTcpIpConfig().setMembers(Arrays.asList("127.0.0.1:5701"));
+		networkConfig.getJoin().getTcpIpConfig().setEnabled(true);
 		
 		hazelcastInstance = Hazelcast.newHazelcastInstance(config);
 	}
@@ -51,5 +60,14 @@ public class HazelcastIdSequenceTest {
 			
 			Assert.assertTrue("Expected 8 digits", pattern.matcher(id).matches());
 		}
+	}
+	
+	@Test
+	public void testWraparound() throws Exception {
+		final HazelcastIdSequence sequence = new HazelcastIdSequenceFactory(hazelcastInstance, "seq").getObject();
+		sequence.init(99999997);
+		
+		Assert.assertEquals("99999999", sequence.generateId());
+		Assert.assertEquals("00000001", sequence.generateId());
 	}
 }
