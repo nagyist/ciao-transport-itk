@@ -35,7 +35,7 @@ public class ItkDocumentSenderRoute extends BaseRouteBuilder {
 	/**
 	 * Header used to maintain the ITK-level correlation ID between message / send notification message pairs
 	 */
-	private static final String ITK_CORRELATION_ID_HEADER = "ciao.itkCorrelationId";
+	public static final String ITK_CORRELATION_ID_HEADER = "ciao.itkCorrelationId";
 	
 	private String documentSenderRouteUri;
 	private String distributionEnvelopeSenderUri;

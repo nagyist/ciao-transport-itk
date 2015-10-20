@@ -25,6 +25,7 @@ import uk.nhs.ciao.transport.dts.sequence.IdGenerator;
 import uk.nhs.ciao.transport.itk.envelope.Address;
 import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
 import uk.nhs.ciao.transport.itk.route.DistributionEnvelopeSenderRoute;
+import uk.nhs.ciao.transport.itk.route.ItkDocumentSenderRoute;
 
 public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSenderRoute {
 	private static final CiaoCamelLogger LOGGER = CiaoCamelLogger.getLogger(DTSDistributionEnvelopeSenderRoute.class);
@@ -223,6 +224,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			.end()
 			
 			.setHeader(Exchange.CORRELATION_ID).simple("${body.localId}")
+			.setHeader(ItkDocumentSenderRoute.ITK_CORRELATION_ID_HEADER).header(Exchange.CORRELATION_ID)
 			
 			.process(LOGGER.info(camelLogMsg("Received DTS message send notification")
 				.documentId(header(Exchange.CORRELATION_ID))
