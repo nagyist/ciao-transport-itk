@@ -17,6 +17,7 @@ import org.apache.camel.Processor;
 import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.toolbox.AggregationStrategies;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
@@ -42,6 +43,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	private String idempotentRepositoryId;
 	private String inProgressRepositoryId;
 	private String errorFolder;
+	private String mailbox;
 	private final Set<String> workflowIds = Sets.newHashSet();
 	
 	// optional properties
@@ -78,6 +80,15 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	 */
 	public void setInProgressRepositoryId(final String inProgressRepositoryId) {
 		this.inProgressRepositoryId = inProgressRepositoryId;
+	}
+	
+	/**
+	 * Identifies the DTS mailbox that incoming messages should be addressed to
+	 * <p>
+	 * Messages where ToDTS does not match this mailbox are ignored.
+	 */
+	public void setMailbox(final String mailbox) {
+		this.mailbox = mailbox;
 	}
 	
 	/**
@@ -158,12 +169,20 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 			
 			// Only handle control files for Data messages and known workflowIds
 			.choice()
+				.when(new IsToUnknownMailbox())
+					.process(LOGGER.info(camelLogMsg("Received DTS Data control file for unknown ToDTS mailbox - will not process")
+							.fileName(header(Exchange.FILE_NAME))
+							.workflowId("${body.getWorkflowId}")
+							.fromDTS("${body.getFromDTS}")
+							.toDTS("${body.getToDTS}")))
+					.stop()
+				.endChoice()
 				.when(new IsNotTransferEvent())
 					.process(LOGGER.info(camelLogMsg("Received DTS Report control file - will not process")
 							.fileName(header(Exchange.FILE_NAME))
 							.workflowId("${body.getWorkflowId}")
 							.fromDTS("${body.getFromDTS}")
-							.toDTS("${bodygetToDTS}")))
+							.toDTS("${body.getToDTS}")))
 					.stop()
 				.endChoice()
 				.when(new ContainsUnsupportedWorkflowId())
@@ -171,7 +190,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 							.fileName(header(Exchange.FILE_NAME))
 							.workflowId("${body.getWorkflowId}")
 							.fromDTS("${body.getFromDTS}")
-							.toDTS("${bodygetToDTS}")))
+							.toDTS("${body.getToDTS}")))
 					.stop()
 				.endChoice()
 			.end()
@@ -227,6 +246,21 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	protected void deleteFile(final File file) {
 		if (file != null && file.isFile()) {
 			FileUtil.deleteFile(file);
+		}
+	}
+	
+	/**
+	 * Tests if the control file ToDTS does not match the configured mailbox
+	 */
+	private class IsToUnknownMailbox implements Predicate {
+		@Override
+		public boolean matches(final Exchange exchange) {
+			final ControlFile controlFile = exchange.getIn().getBody(ControlFile.class);
+			if (controlFile == null || Strings.isNullOrEmpty(controlFile.getToDTS())) {
+				return true;
+			}
+			
+			return !Objects.equal(mailbox, controlFile.getToDTS());
 		}
 	}
 	

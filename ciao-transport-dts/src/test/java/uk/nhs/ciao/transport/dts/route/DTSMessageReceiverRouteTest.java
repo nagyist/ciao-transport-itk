@@ -116,6 +116,7 @@ public class DTSMessageReceiverRouteTest {
 		route.setDTSMessageReceiverUri("stub:file://./target/example");
 		route.setPayloadDestinationUri("mock:payload-destination");
 		route.setWorflowIds(Arrays.asList("workflow-1", "workflow-2"));
+		route.setMailbox("to-dts");
 		
 		inputFolder = new File("./target/example");
 		errorFolder = new File(inputFolder, "error");
@@ -177,6 +178,29 @@ public class DTSMessageReceiverRouteTest {
 		control.getStatusRecord().setEvent(Event.COLLECT); // not TRANSFER
 		control.getStatusRecord().setStatus(Status.SUCCESS);
 		control.getStatusRecord().setStatusCode("00");
+		
+		// expectations
+		payloadDestination.expectedMessageCount(0);
+		
+		// publish the control file
+		final Exchange exchange = sendControlFile(id, control, "payload contents");
+		
+		// verification
+		Assert.assertFalse(exchange.isFailed());
+		payloadDestination.assertIsSatisfied(20);
+		assertFilesWereIgnored();		
+	}
+	
+	@Test
+	public void testControlFileToUnknownMailboxIsIgnored() throws Exception {
+		final String id = "1234";
+		
+		final ControlFile control = createTransferControlFile(id);
+		control.setWorkflowId("workflow-1");
+		control.getStatusRecord().setEvent(Event.TRANSFER);
+		control.getStatusRecord().setStatus(Status.SUCCESS);
+		control.getStatusRecord().setStatusCode("00");
+		control.setToDTS("unknown-mailbox"); // invalid mailbox
 		
 		// expectations
 		payloadDestination.expectedMessageCount(0);

@@ -65,6 +65,7 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		route.setPayloadDestinationUri(getDistributionEnvelopeReceiverUri());
 		route.setIdempotentRepositoryId("dtsReceiverIdempotentRepository");
 		route.setInProgressRepositoryId("dtsReceiverInProgressRepository");
+		route.setMailbox(config.getConfigValue("dts.senderMailbox"));
 		
 		final Set<String> workflowIds = Sets.newHashSet();
 		for (final String workflowId: config.getConfigValue("dts.receiverWorkflowIds").split(",")) {

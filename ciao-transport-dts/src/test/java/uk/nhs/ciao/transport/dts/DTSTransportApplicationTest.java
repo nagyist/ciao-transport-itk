@@ -298,6 +298,7 @@ public class DTSTransportApplicationTest {
 		controlFile.setAddressType(AddressType.DTS);
 		controlFile.setMessageType(MessageType.Data);
 		controlFile.setLocalId(trackingId);
+		controlFile.setToDTS("sender");
 		controlFile.setWorkflowId("TOC_DISCH_DMS_ACK");
 		
 		final StatusRecord statusRecord = new StatusRecord();
