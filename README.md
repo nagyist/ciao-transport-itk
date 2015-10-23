@@ -15,7 +15,7 @@ This results in a layered system of the form:
 
 ## Modules
 
-To support the previously outlined layered system, this component is split into multiple sub-modules.
+To support the layered system outlined above, this component is split into multiple sub-modules.
 
 ### Libraries
 - [ciao-transport-itk](ciao-transport-itk) - Provides models of key ITK-level components (`Distribution Envelope`, `Infrastructure Response`, ...), and the base classes/routes required by transport CIPs to handle the ITK-level message flows.
