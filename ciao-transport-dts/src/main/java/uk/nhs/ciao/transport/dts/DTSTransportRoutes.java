@@ -46,7 +46,7 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		
 		// File housekeeping
 		final DTSFileHousekeeper fileHousekeeper = new DTSFileHousekeeper();
-		// TODO: Config for success directory
+		fileHousekeeper.setDestinationFolder(context.resolvePropertyPlaceholders("{{dts.completedFolder}}"));
 		route.setFileHousekeeper(fileHousekeeper);
 		
 		final DTSFileHousekeeper errorFileHousekeeper = new DTSFileHousekeeper();
@@ -105,7 +105,7 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		
 		// File housekeeping
 		final DTSFileHousekeeper fileHousekeeper = new DTSFileHousekeeper();
-		// TODO: Config for success directory
+		fileHousekeeper.setDestinationFolder(context.resolvePropertyPlaceholders("{{dts.completedFolder}}"));
 		route.setFileHousekeeper(fileHousekeeper);
 		
 		final DTSFileHousekeeper errorFileHousekeeper = new DTSFileHousekeeper();
