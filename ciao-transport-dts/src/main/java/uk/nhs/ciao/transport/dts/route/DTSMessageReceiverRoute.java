@@ -7,24 +7,15 @@ import static uk.nhs.ciao.transport.dts.route.DTSHeaders.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.camel.Exchange;
-import org.apache.camel.Predicate;
 import org.apache.camel.Processor;
 import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.toolbox.AggregationStrategies;
 
-import com.google.common.base.Objects;
-import com.google.common.base.Strings;
-import com.google.common.collect.Sets;
-
 import uk.nhs.ciao.camel.BaseRouteBuilder;
-import uk.nhs.ciao.camel.URIBuilder;
 import uk.nhs.ciao.dts.ControlFile;
-import uk.nhs.ciao.dts.Event;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.dts.processor.DTSDataFilePoller;
 
@@ -40,11 +31,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	
 	private String dtsMessageReceiverUri;
 	private String payloadDestinationUri;
-	private String idempotentRepositoryId;
-	private String inProgressRepositoryId;
-	private String errorFolder;
-	private String mailbox;
-	private final Set<String> workflowIds = Sets.newHashSet();
+	private String dtsErrorFolder;
 	
 	// optional properties
 	private long dataFilePollingInterval = 200;
@@ -69,51 +56,15 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	}
 	
 	/**
-	 * Identifier of idempotent repository used to track incoming messages
-	 */
-	public void setIdempotentRepositoryId(final String idempotentRepositoryId) {
-		this.idempotentRepositoryId = idempotentRepositoryId;
-	}
-	
-	/**
-	 * Identifier of idempotent repository to use to track in-progress incoming messages
-	 */
-	public void setInProgressRepositoryId(final String inProgressRepositoryId) {
-		this.inProgressRepositoryId = inProgressRepositoryId;
-	}
-	
-	/**
-	 * Identifies the DTS mailbox that incoming messages should be addressed to
-	 * <p>
-	 * Messages where ToDTS does not match this mailbox are ignored.
-	 */
-	public void setMailbox(final String mailbox) {
-		this.mailbox = mailbox;
-	}
-	
-	/**
 	 * Folder files should be moved to if an error occurs while processing
 	 * <p>
 	 * Only files intended for this application will be moved, other files will be left in the
 	 * processing folder.
-	 * 
-	 * @see #setDTSFilePrefix(String)
 	 */
-	public void setErrorFolder(final String errorFolder) {
-		this.errorFolder = errorFolder;
+	public void setDTSErrorFolder(final String dtsErrorFolder) {
+		this.dtsErrorFolder = dtsErrorFolder;
 	}
-	
-	/**
-	 * The set of DTS workflowIds this route handles.
-	 * <p>
-	 * Payload data files associated with these workflowIds will be published and the
-	 * corresponding control and data files cleaned up.
-	 */
-	public void setWorflowIds(final Collection<String> workflowIds) {
-		this.workflowIds.clear();
-		this.workflowIds.addAll(workflowIds);
-	}
-	
+
 	/**
 	 * Time to wait between poll attempts when waiting for a DTS data file
 	 */
@@ -132,30 +83,8 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	public void configure() throws Exception {
 		final ScheduledExecutorService executorService = getContext().getExecutorServiceManager()
 				.newSingleThreadScheduledExecutor(this, "data-file-poller");
-		
-		// Additional configuration parameters are appended to the endpoint URI
-		final URIBuilder uri = new URIBuilder(dtsMessageReceiverUri);
-		
-		// only handle control files
-		uri.set("include", "..*\\.ctl");
-		
-		// only process each file once
-		// Details of processed files should be kept in the repository (they can be expunged over time)
-		// The backing repository will need additional configuration to expunge old entries
-		// If using hazelcast the backing map can be configured with a max time to live for each key
-		uri.set("idempotent", true)
-			.set("idempotentRepository", "#" + idempotentRepositoryId)
-			.set("inProgressRepository", "#" + inProgressRepositoryId)
-			.set("readLock", "idempotent");
-		
-		// Unknown files will be left in the folder (other application may be scanning for them)
-		// Error control and data files will be moved to the error folder
-		// Successfully processed control and data files are deleted as part of the route
-		// Moving of files is handled manually in the route due to difficulties in disabling
-		// the move option while using moveFailed
-		uri.set("noop", true);
-		
-		from(uri.toString())
+
+		from(dtsMessageReceiverUri)
 			.onCompletion()
 				.onFailureOnly()
 					.process(new ControlFileAndDataFileMover())
@@ -166,34 +95,6 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 					.fileName(header(Exchange.FILE_NAME))))
 			.setHeader("controlFileName").header(Exchange.FILE_NAME)
 			.convertBodyTo(ControlFile.class)
-			
-			// Only handle control files for Data messages and known workflowIds
-			.choice()
-				.when(new IsToUnknownMailbox())
-					.process(LOGGER.info(camelLogMsg("Received DTS Data control file for unknown ToDTS mailbox - will not process")
-							.fileName(header(Exchange.FILE_NAME))
-							.workflowId("${body.getWorkflowId}")
-							.fromDTS("${body.getFromDTS}")
-							.toDTS("${body.getToDTS}")))
-					.stop()
-				.endChoice()
-				.when(new IsNotTransferEvent())
-					.process(LOGGER.info(camelLogMsg("Received DTS Report control file - will not process")
-							.fileName(header(Exchange.FILE_NAME))
-							.workflowId("${body.getWorkflowId}")
-							.fromDTS("${body.getFromDTS}")
-							.toDTS("${body.getToDTS}")))
-					.stop()
-				.endChoice()
-				.when(new ContainsUnsupportedWorkflowId())
-					.process(LOGGER.info(camelLogMsg("Received DTS Data control file with unsupported workflowId - will not process")
-							.fileName(header(Exchange.FILE_NAME))
-							.workflowId("${body.getWorkflowId}")
-							.fromDTS("${body.getFromDTS}")
-							.toDTS("${body.getToDTS}")))
-					.stop()
-				.endChoice()
-			.end()
 			
 			// Wait for the associated data file
 			.setHeader(HEADER_DTS_FOLDER_NAME).header(Exchange.FILE_PARENT)
@@ -250,48 +151,6 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	}
 	
 	/**
-	 * Tests if the control file ToDTS does not match the configured mailbox
-	 */
-	private class IsToUnknownMailbox implements Predicate {
-		@Override
-		public boolean matches(final Exchange exchange) {
-			final ControlFile controlFile = exchange.getIn().getBody(ControlFile.class);
-			if (controlFile == null || Strings.isNullOrEmpty(controlFile.getToDTS())) {
-				return true;
-			}
-			
-			return !Objects.equal(mailbox, controlFile.getToDTS());
-		}
-	}
-	
-	/**
-	 * Tests if the control file is not for a TRANSFER event
-	 */
-	private class IsNotTransferEvent implements Predicate {
-		@Override
-		public boolean matches(final Exchange exchange) {
-			final ControlFile controlFile = exchange.getIn().getBody(ControlFile.class);
-			return controlFile == null || controlFile.getStatusRecord() == null ||
-					controlFile.getStatusRecord().getEvent() != Event.TRANSFER; 
-		}
-	}
-	
-	/**
-	 * Tests if the control file contains a workflowId not handled by this receiver
-	 */
-	private class ContainsUnsupportedWorkflowId implements Predicate {
-		@Override
-		public boolean matches(final Exchange exchange) {
-			final ControlFile controlFile = exchange.getIn().getBody(ControlFile.class);
-			if (controlFile == null || Strings.isNullOrEmpty(controlFile.getWorkflowId())) {
-				return true;
-			}
-			
-			return !workflowIds.contains(controlFile.getWorkflowId());
-		}
-	}
-	
-	/**
 	 * If successful, the control and data file are deleted
 	 */
 	private class ControlFileAndDataFileDeleter implements Processor {
@@ -322,7 +181,7 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 			if (file != null) {
 				try {
 					final File sourceFolder = file.getParentFile();
-					final File targetFolder = new File(sourceFolder, errorFolder);
+					final File targetFolder = new File(sourceFolder, dtsErrorFolder);
 					if (!targetFolder.exists()) {
 						targetFolder.mkdirs();
 					}

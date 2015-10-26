@@ -1,22 +1,20 @@
 package uk.nhs.ciao.transport.dts.route;
 
-import static org.apache.camel.builder.PredicateBuilder.*;
 import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
 import static uk.nhs.ciao.transport.dts.route.DTSHeaders.*;
 
-import java.util.regex.Pattern;
+import java.io.File;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Header;
 import org.apache.camel.Predicate;
 import org.apache.camel.Property;
+import org.apache.camel.util.FileUtil;
 
 import com.google.common.base.Strings;
 
-import uk.nhs.ciao.camel.URIBuilder;
 import uk.nhs.ciao.dts.AddressType;
 import uk.nhs.ciao.dts.ControlFile;
-import uk.nhs.ciao.dts.Event;
 import uk.nhs.ciao.dts.MessageType;
 import uk.nhs.ciao.dts.Status;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
@@ -33,8 +31,7 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	private String dtsMessageSenderUri;
 	private String dtsMessageSendNotificationReceiverUri;
 	private String dtsTemporaryFolder;
-	private String idempotentRepositoryId;
-	private String inProgressRepositoryId;
+	private String dtsErrorFolder;
 	private IdGenerator idGenerator;
 	
 	// optional properties
@@ -71,19 +68,15 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	}
 	
 	/**
-	 * Identifier of idempotent repository used to track incoming messages
+	 * Folder files should be moved to if an error occurs while processing
+	 * <p>
+	 * Only files intended for this application will be moved, other files will be left in the
+	 * processing folder.
 	 */
-	public void setIdempotentRepositoryId(final String idempotentRepositoryId) {
-		this.idempotentRepositoryId = idempotentRepositoryId;
+	public void setDTSErrorFolder(final String dtsErrorFolder) {
+		this.dtsErrorFolder = dtsErrorFolder;
 	}
-	
-	/**
-	 * Identifier of idempotent repository to use to track in-progress incoming messages
-	 */
-	public void setInProgressRepositoryId(final String inProgressRepositoryId) {
-		this.inProgressRepositoryId = inProgressRepositoryId;
-	}
-	
+
 	/**
 	 * Generator for generating DTS transaction IDs
 	 */
@@ -177,52 +170,8 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	}
 	
 	private void configureSendNotificationReceiver() throws Exception {
-		// Additional configuration parameters are appended to the endpoint URI
-		final URIBuilder uri = new URIBuilder(dtsMessageSendNotificationReceiverUri);
-		
-		// only process files intended for this application
-		if (!Strings.isNullOrEmpty(dtsFilePrefix)) {
-			uri.set("include", Pattern.quote(dtsFilePrefix) + ".+");
-		}
-		
-		// only process each file once
-		uri.set("idempotent", true)
-			.set("idempotentRepository", "#" + idempotentRepositoryId)
-			.set("inProgressRepository", "#" + inProgressRepositoryId)
-			.set("readLock", "idempotent");
-		
-		// delete after processing
-		// TODO: Should these be moved to another directory instead of delete?
-		uri.set("delete", true);
-		
-		// Cleanup the repository after processing / delete
-		// The readLockRemoveOnCommit option is not available in this version of camel
-		// The backing repository will need additional configuration to expunge old entries
-		// If using hazelcast the backing map can be configured with a max time to live for each key
-//		endpointParams.put("readLockRemoveOnCommit", true);
-		
-		from(uri.toString())
-			.choice()
-				.when(not(endsWith(header(Exchange.FILE_NAME), constant(".ctl"))))
-					/*
-					 * only interested in processing control files
-					 * this is not handled in the main consumer include parameter because
-					 * the files still need housekeeping to be applied (move/delete etc)
-					 */
-					.stop()
-				.endChoice()
-			.end()
-		
-			.setProperty("original-body").body() // maintain original serialised form
+		from(dtsMessageSendNotificationReceiverUri)
 			.convertBodyTo(ControlFile.class)
-
-			.choice()
-				.when(new IsNotTransferEvent())
-					// only interested in TRANSFER events
-					.stop()
-				.endChoice()
-			.end()
-			
 			.setHeader(Exchange.CORRELATION_ID).simple("${body.localId}")
 			.setHeader(ItkDocumentSenderRoute.ITK_CORRELATION_ID_HEADER).header(Exchange.CORRELATION_ID)
 			
@@ -249,11 +198,32 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			
 			.setBody().property("original-body") // restore original serialised form
 			.to(getDistributionEnvelopeResponseUri())
+			
+			// on success - delete the control file
+			.bean(new ControlFileDeleter())
 		.end();
+	}
+	
+	// protected scope (for unit testing)
+	protected void deleteFile(final File file) {
+		if (file != null && file.isFile()) {
+			FileUtil.deleteFile(file);
+		}
 	}
 	
 	// Processor / bean methods
 	// The methods can't live in the route builder - it causes havoc with the debug/tracer logging
+	
+	/**
+	 * Deletes the control file
+	 * <p>
+	 * Alternative to use the delete=true option on the file component
+	 */
+	public class ControlFileDeleter {
+		public void deleteControlFile(@Header(Exchange.FILE_PATH) final File file) {
+			deleteFile(file);
+		}
+	}
 	
 	public class DestinationAddressBuilder {
 		public DTSEndpointAddress buildDestinationAdddress(final DistributionEnvelope envelope,
@@ -282,17 +252,6 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			}
 			
 			return destination;
-		}
-	}
-	
-	private static class IsNotTransferEvent implements Predicate {
-		@Override
-		public boolean matches(final Exchange exchange) {
-			final ControlFile controlFile = exchange.getIn().getBody(ControlFile.class);
-			if (controlFile == null || controlFile.getStatusRecord() == null) {
-				return false;
-			}
-			return controlFile.getStatusRecord().getEvent() != Event.TRANSFER;
 		}
 	}
 	

@@ -106,17 +106,32 @@ public class DTSMessageReceiverRouteTest {
 			}
 		});
 		
-		registry.put("idempotentRepository", new MemoryIdempotentRepository());
-		route.setIdempotentRepositoryId("idempotentRepository");
-		
-		registry.put("inProgressRepository", new MemoryIdempotentRepository());
-		route.setInProgressRepositoryId("inProgressRepository");
-		
-		route.setErrorFolder("error");
-		route.setDTSMessageReceiverUri("stub:file://./target/example");
+		route.setDTSMessageReceiverUri("direct:dts-message-receiver");
 		route.setPayloadDestinationUri("mock:payload-destination");
-		route.setWorflowIds(Arrays.asList("workflow-1", "workflow-2"));
-		route.setMailbox("to-dts");
+		route.setDTSErrorFolder("error");
+		
+		// add file router
+		final DTSIncomingFileRouterRoute router = new DTSIncomingFileRouterRoute();
+		
+		registry.put("dtsInIdempotentRepository", new MemoryIdempotentRepository());
+		router.setInIdempotentRepositoryId("dtsInIdempotentRepository");
+		
+		registry.put("dtsInInProgressRepository", new MemoryIdempotentRepository());
+		router.setInInProgressRepositoryId("dtsInInProgressRepository");
+		
+		registry.put("dtsSentIdempotentRepository", new MemoryIdempotentRepository());
+		router.setSentIdempotentRepositoryId("dtsSentIdempotentRepository");
+		
+		registry.put("dtsSentInProgressRepository", new MemoryIdempotentRepository());
+		router.setSentInProgressRepositoryId("dtsSentInProgressRepository");
+		
+		router.setDTSInUri("stub:file://./target/example");
+		router.setDTSMessageSendNotificationReceiverUri("mock:send-notification-receiver");
+		router.setDTSSentUri("stub:send:send-notification-sender");
+		router.setDTSMessageReceiverUri("direct:dts-message-receiver");
+		router.setMailboxes(Arrays.asList("to-dts"));
+		router.setWorkflowIds(Arrays.asList("workflow-1", "workflow-2"));
+		context.addRoutes(router);
 		
 		inputFolder = new File("./target/example");
 		errorFolder = new File(inputFolder, "error");

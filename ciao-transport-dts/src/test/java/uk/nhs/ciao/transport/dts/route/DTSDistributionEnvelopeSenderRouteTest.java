@@ -1,5 +1,7 @@
 package uk.nhs.ciao.transport.dts.route;
 
+import java.util.Arrays;
+
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
@@ -66,15 +68,10 @@ public class DTSDistributionEnvelopeSenderRouteTest {
 		route = new DTSDistributionEnvelopeSenderRoute();
 		route.setDistributionEnvelopeSenderUri("stub:seda:distribution-envelope-sender");
 		route.setDTSMessageSenderUri("mock:dts-message-sender");
-		route.setDTSTemporaryFolder("../sender-temp/");		
-		route.setDTSMessageSendNotificationReceiverUri("stub:send:send-notification-sender");
+		route.setDTSTemporaryFolder("../sender-temp/");
+		route.setDTSErrorFolder("../sender-error/");
+		route.setDTSMessageSendNotificationReceiverUri("direct:send-notification-receiver");
 		route.setDistributionEnvelopeResponseUri("mock:notification-payload-receiver");
-		
-		registry.put("dtsSentIdempotentRepository", new MemoryIdempotentRepository());
-		route.setIdempotentRepositoryId("dtsSentIdempotentRepository");
-		
-		registry.put("dtsSentInProgressRepository", new MemoryIdempotentRepository());
-		route.setInProgressRepositoryId("dtsSentInProgressRepository");
 		
 		idGenerator = Mockito.mock(IdGenerator.class);
 		route.setIdGenerator(idGenerator);
@@ -87,6 +84,29 @@ public class DTSDistributionEnvelopeSenderRouteTest {
 		route.setPrototypeControlFile(controlFile);
 		
 		context.addRoutes(route);
+		
+		// add file router
+		final DTSIncomingFileRouterRoute router = new DTSIncomingFileRouterRoute();
+		
+		registry.put("dtsInIdempotentRepository", new MemoryIdempotentRepository());
+		router.setInIdempotentRepositoryId("dtsInIdempotentRepository");
+		
+		registry.put("dtsInInProgressRepository", new MemoryIdempotentRepository());
+		router.setInInProgressRepositoryId("dtsInInProgressRepository");
+		
+		registry.put("dtsSentIdempotentRepository", new MemoryIdempotentRepository());
+		router.setSentIdempotentRepositoryId("dtsSentIdempotentRepository");
+		
+		registry.put("dtsSentInProgressRepository", new MemoryIdempotentRepository());
+		router.setSentInProgressRepositoryId("dtsSentInProgressRepository");
+		
+		router.setDTSInUri("stub:seda:dts-in");
+		router.setDTSMessageSendNotificationReceiverUri("direct:send-notification-receiver");
+		router.setDTSSentUri("stub:send:send-notification-sender");
+		router.setDTSMessageReceiverUri("mock:dts-message-receiver");
+		router.setMailboxes(Arrays.asList(controlFile.getFromDTS()));
+		router.setWorkflowIds(Arrays.asList(controlFile.getWorkflowId()));
+		context.addRoutes(router);
 		
 		// Always resolve to the specified DTS address
 		context.addRoutes(new RouteBuilder() {			

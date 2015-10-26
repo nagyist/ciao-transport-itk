@@ -1,6 +1,7 @@
 package uk.nhs.ciao.transport.dts.route;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.camel.Body;
@@ -161,16 +162,10 @@ public class DTSOutgoingDistributionEnvelopeExample implements RoutesBuilder {
 		route.setDistributionEnvelopeSenderUri("seda:distribution-envelope-sender");
 		route.setDTSMessageSenderUri("file://./target/dts/OUT");
 		route.setDTSTemporaryFolder("../sender-temp/");		
-		route.setDTSMessageSendNotificationReceiverUri("file://./target/dts/SENT");
+		route.setDTSMessageSendNotificationReceiverUri("direct:dts-send-notification-receiver");
 		route.setDistributionEnvelopeResponseUri("direct:notification-receiver");
-		
-		registry.put("dtsSentIdempotentRepository", new MemoryIdempotentRepository());
-		route.setIdempotentRepositoryId("dtsSentIdempotentRepository");
-		
-		registry.put("dtsSentInProgressRepository", new MemoryIdempotentRepository());
-		route.setInProgressRepositoryId("dtsSentInProgressRepository");
 		route.setIdGenerator(new UUIDGenerator());
-		
+		route.setDTSErrorFolder("error");
 		route.setEndpointAddressEnricherUri("direct:endpoint-address-enricher");
 		
 		final ControlFile controlFile = new ControlFile();
@@ -179,6 +174,29 @@ public class DTSOutgoingDistributionEnvelopeExample implements RoutesBuilder {
 		route.setPrototypeControlFile(controlFile);
 		
 		context.addRoutes(route);
+		
+		// add file router
+		final DTSIncomingFileRouterRoute router = new DTSIncomingFileRouterRoute();
+		
+		registry.put("dtsInIdempotentRepository", new MemoryIdempotentRepository());
+		router.setInIdempotentRepositoryId("dtsInIdempotentRepository");
+		
+		registry.put("dtsInInProgressRepository", new MemoryIdempotentRepository());
+		router.setInInProgressRepositoryId("dtsInInProgressRepository");
+		
+		registry.put("dtsSentIdempotentRepository", new MemoryIdempotentRepository());
+		router.setSentIdempotentRepositoryId("dtsSentIdempotentRepository");
+		
+		registry.put("dtsSentInProgressRepository", new MemoryIdempotentRepository());
+		router.setSentInProgressRepositoryId("dtsSentInProgressRepository");
+		
+		router.setDTSInUri("stub:file://./target/example");
+		router.setDTSMessageSendNotificationReceiverUri("direct:dts-send-notification-receiver");
+		router.setDTSSentUri("file://./target/dts/SENT");
+		router.setDTSMessageReceiverUri("mock:dts-message-receiver?retainLast=1");
+		router.setMailboxes(Arrays.asList("sender"));
+		router.setWorkflowIds(Arrays.asList("sender-workflow"));
+		context.addRoutes(router);
 	}
 	
 	private void addNotificationReceiver(final CamelContext context) throws Exception {

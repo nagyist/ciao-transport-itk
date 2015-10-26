@@ -1,10 +1,10 @@
 package uk.nhs.ciao.transport.dts;
 
+import java.util.Arrays;
 import java.util.Set;
 
 import org.apache.camel.CamelContext;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
@@ -13,6 +13,7 @@ import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddressHelper;
 import uk.nhs.ciao.transport.dts.route.DTSDistributionEnvelopeSenderRoute;
+import uk.nhs.ciao.transport.dts.route.DTSIncomingFileRouterRoute;
 import uk.nhs.ciao.transport.dts.route.DTSMessageReceiverRoute;
 import uk.nhs.ciao.transport.dts.route.DTSResponseDetailsInjectorRoute;
 import uk.nhs.ciao.transport.dts.sequence.IdGenerator;
@@ -27,6 +28,7 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		super.addRoutesToCamelContext(context);
 		
 		// Receivers
+		addDTSIncomingFileRouter(context);
 		addDTSMessageReceiverRoute(context);
 	}
 	
@@ -36,11 +38,10 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		final DTSDistributionEnvelopeSenderRoute route = new DTSDistributionEnvelopeSenderRoute();
 		
 		route.setDTSMessageSenderUri(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/OUT"));
-		route.setDTSMessageSendNotificationReceiverUri(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/SENT"));
+		route.setDTSMessageSendNotificationReceiverUri("direct:dtsMessageSendNotificationReceiver");
 		route.setDTSTemporaryFolder(context.resolvePropertyPlaceholders("{{dts.temporaryFolder}}"));
+		route.setDTSErrorFolder(context.resolvePropertyPlaceholders("{{dts.errorFolder}}"));
 		route.setDTSFilePrefix(Strings.nullToEmpty(config.getConfigValue("dts.filePrefix")));
-		route.setIdempotentRepositoryId("dtsSentIdempotentRepository");
-		route.setInProgressRepositoryId("dtsSentInProgressRepository");
 		route.setIdGenerator(get(context, IdGenerator.class, "dtsIdGenerator"));
 		
 		final ControlFile prototype = new ControlFile();
@@ -56,25 +57,43 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		return new DTSEndpointAddressHelper();
 	}
 	
-	private void addDTSMessageReceiverRoute(final CamelContext context) throws Exception {
+	private void addDTSIncomingFileRouter(final CamelContext context) throws Exception {
 		final CIAOConfig config = CamelApplication.getConfig(context);
-		final DTSMessageReceiverRoute route = new DTSMessageReceiverRoute();
+		final DTSIncomingFileRouterRoute route = new DTSIncomingFileRouterRoute();
 		
-		route.setDTSMessageReceiverUri(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/IN"));
-		route.setErrorFolder(context.resolvePropertyPlaceholders("{{dts.errorFolder}}"));
-		route.setPayloadDestinationUri(getDistributionEnvelopeReceiverUri());
-		route.setIdempotentRepositoryId("dtsReceiverIdempotentRepository");
-		route.setInProgressRepositoryId("dtsReceiverInProgressRepository");
-		route.setMailbox(config.getConfigValue("dts.senderMailbox"));
+		// IN folder properties
+		route.setDTSInUri(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/IN"));
+		route.setDTSMessageReceiverUri("direct:dtsMessageReceiver");
+		route.setInIdempotentRepositoryId("dtsReceiverIdempotentRepository");
+		route.setInInProgressRepositoryId("dtsReceiverInProgressRepository");
 		
-		final Set<String> workflowIds = Sets.newHashSet();
+		// SEND folder properties
+		route.setDTSSentUri(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/SENT"));
+		route.setDTSMessageSendNotificationReceiverUri("direct:dtsMessageSendNotificationReceiver");
+		route.setSentIdempotentRepositoryId("dtsSentIdempotentRepository");
+		route.setSentInProgressRepositoryId("dtsSentInProgressRepository");
+		route.setDTSFilePrefix(Strings.nullToEmpty(config.getConfigValue("dts.filePrefix")));
+		
+		// common properties
+		route.setMailboxes(Arrays.asList(config.getConfigValue("dts.senderMailbox")));
+		
+		final Set<String> workflowIds = Sets.newHashSet(config.getConfigValue("dts.workflowId"));
 		for (final String workflowId: config.getConfigValue("dts.receiverWorkflowIds").split(",")) {
 			if (!workflowId.trim().isEmpty()) {
 				workflowIds.add(workflowId);
 			}
 		}
+		route.setWorkflowIds(workflowIds);
 		
-		route.setWorflowIds(workflowIds);
+		context.addRoutes(route);
+	}
+	
+	private void addDTSMessageReceiverRoute(final CamelContext context) throws Exception {
+		final DTSMessageReceiverRoute route = new DTSMessageReceiverRoute();
+		
+		route.setDTSMessageReceiverUri("direct:dtsMessageReceiver");
+		route.setDTSErrorFolder(context.resolvePropertyPlaceholders("{{dts.errorFolder}}"));
+		route.setPayloadDestinationUri(getDistributionEnvelopeReceiverUri());
 		
 		context.addRoutes(route);
 	}

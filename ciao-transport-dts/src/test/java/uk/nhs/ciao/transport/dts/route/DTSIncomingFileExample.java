@@ -46,18 +46,34 @@ public class DTSIncomingFileExample implements RoutesBuilder {
 	private void addDTSMessageReceiver(final CamelContext context) throws Exception {
 		final DTSMessageReceiverRoute route = new DTSMessageReceiverRoute();
 		
-		registry.put("idempotentRepository", new MemoryIdempotentRepository());
-		route.setIdempotentRepositoryId("idempotentRepository");
-		
-		registry.put("inProgressRepository", new MemoryIdempotentRepository());
-		route.setInProgressRepositoryId("inProgressRepository");
-		
-		route.setErrorFolder("error");
-		route.setDTSMessageReceiverUri("file://./target/example");
+		route.setDTSErrorFolder("error");
+		route.setDTSMessageReceiverUri("direct:dts-message-receiver");
 		route.setPayloadDestinationUri("seda:payload-destination");
-		route.setWorflowIds(Arrays.asList("workflow-1", "workflow-2"));
 		
 		context.addRoutes(route);
+		
+		// add file router
+		final DTSIncomingFileRouterRoute router = new DTSIncomingFileRouterRoute();
+		
+		registry.put("dtsInIdempotentRepository", new MemoryIdempotentRepository());
+		router.setInIdempotentRepositoryId("dtsInIdempotentRepository");
+		
+		registry.put("dtsInInProgressRepository", new MemoryIdempotentRepository());
+		router.setInInProgressRepositoryId("dtsInInProgressRepository");
+		
+		registry.put("dtsSentIdempotentRepository", new MemoryIdempotentRepository());
+		router.setSentIdempotentRepositoryId("dtsSentIdempotentRepository");
+		
+		registry.put("dtsSentInProgressRepository", new MemoryIdempotentRepository());
+		router.setSentInProgressRepositoryId("dtsSentInProgressRepository");
+		
+		router.setDTSInUri("file://./target/example");
+		router.setDTSMessageSendNotificationReceiverUri("mock:send-notification-receiver?retainLast=1");
+		router.setDTSSentUri("stub:send:send-notification-sender");
+		router.setDTSMessageReceiverUri("direct:dts-message-receiver");
+		router.setMailboxes(Arrays.asList("to-dts"));
+		router.setWorkflowIds(Arrays.asList("workflow-1", "workflow-2"));
+		context.addRoutes(router);
 	}
 	
 	private void addPayloadDestination(final CamelContext context) throws Exception {
