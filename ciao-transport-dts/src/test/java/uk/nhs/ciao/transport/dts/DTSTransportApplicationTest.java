@@ -146,7 +146,7 @@ public class DTSTransportApplicationTest {
 	private void cleanDirectories(final File rootFolder) {
 		try {
 			if (rootFolder != null && rootFolder.isDirectory()) {
-				//FileUtil.removeDir(rootFolder);
+				FileUtil.removeDir(rootFolder);
 			}
 		} catch (Exception e) {
 			LOGGER.warn("Unable to clean directories", e);
