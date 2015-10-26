@@ -11,6 +11,7 @@ import org.apache.camel.processor.idempotent.MemoryIdempotentRepository;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.camel.CamelUtils;
+import uk.nhs.ciao.transport.dts.processor.DTSFileHousekeeper;
 
 /**
  * Example class showing how incoming pairs of DTS *.ctl and *.dat files are handled.
@@ -46,7 +47,7 @@ public class DTSIncomingFileExample implements RoutesBuilder {
 	private void addDTSMessageReceiver(final CamelContext context) throws Exception {
 		final DTSMessageReceiverRoute route = new DTSMessageReceiverRoute();
 		
-		route.setDTSErrorFolder("error");
+		route.setErrorFileHousekeeper(new DTSFileHousekeeper("error"));
 		route.setDTSMessageReceiverUri("direct:dts-message-receiver");
 		route.setPayloadDestinationUri("seda:payload-destination");
 		

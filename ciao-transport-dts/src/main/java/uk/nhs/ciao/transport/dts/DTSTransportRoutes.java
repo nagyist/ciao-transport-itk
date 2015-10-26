@@ -12,6 +12,7 @@ import uk.nhs.ciao.camel.CamelApplication;
 import uk.nhs.ciao.configuration.CIAOConfig;
 import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddressHelper;
+import uk.nhs.ciao.transport.dts.processor.DTSFileHousekeeper;
 import uk.nhs.ciao.transport.dts.route.DTSDistributionEnvelopeSenderRoute;
 import uk.nhs.ciao.transport.dts.route.DTSIncomingFileRouterRoute;
 import uk.nhs.ciao.transport.dts.route.DTSMessageReceiverRoute;
@@ -40,9 +41,17 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		route.setDTSMessageSenderUri(context.resolvePropertyPlaceholders("file://{{dts.rootFolder}}/OUT"));
 		route.setDTSMessageSendNotificationReceiverUri("direct:dtsMessageSendNotificationReceiver");
 		route.setDTSTemporaryFolder(context.resolvePropertyPlaceholders("{{dts.temporaryFolder}}"));
-		route.setDTSErrorFolder(context.resolvePropertyPlaceholders("{{dts.errorFolder}}"));
 		route.setDTSFilePrefix(Strings.nullToEmpty(config.getConfigValue("dts.filePrefix")));
 		route.setIdGenerator(get(context, IdGenerator.class, "dtsIdGenerator"));
+		
+		// File housekeeping
+		final DTSFileHousekeeper fileHousekeeper = new DTSFileHousekeeper();
+		// TODO: Config for success directory
+		route.setFileHousekeeper(fileHousekeeper);
+		
+		final DTSFileHousekeeper errorFileHousekeeper = new DTSFileHousekeeper();
+		errorFileHousekeeper.setDestinationFolder(context.resolvePropertyPlaceholders("{{dts.errorFolder}}"));
+		route.setErrorFileHousekeeper(errorFileHousekeeper);
 		
 		final ControlFile prototype = new ControlFile();
 		prototype.setWorkflowId(config.getConfigValue("dts.workflowId"));
@@ -92,8 +101,16 @@ public class DTSTransportRoutes extends ITKTransportRoutes {
 		final DTSMessageReceiverRoute route = new DTSMessageReceiverRoute();
 		
 		route.setDTSMessageReceiverUri("direct:dtsMessageReceiver");
-		route.setDTSErrorFolder(context.resolvePropertyPlaceholders("{{dts.errorFolder}}"));
 		route.setPayloadDestinationUri(getDistributionEnvelopeReceiverUri());
+		
+		// File housekeeping
+		final DTSFileHousekeeper fileHousekeeper = new DTSFileHousekeeper();
+		// TODO: Config for success directory
+		route.setFileHousekeeper(fileHousekeeper);
+		
+		final DTSFileHousekeeper errorFileHousekeeper = new DTSFileHousekeeper();
+		errorFileHousekeeper.setDestinationFolder(context.resolvePropertyPlaceholders("{{dts.errorFolder}}"));
+		route.setErrorFileHousekeeper(errorFileHousekeeper);
 		
 		context.addRoutes(route);
 	}

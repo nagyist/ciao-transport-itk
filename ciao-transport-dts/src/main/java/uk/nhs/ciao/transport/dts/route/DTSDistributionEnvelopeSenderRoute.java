@@ -8,8 +8,8 @@ import java.io.File;
 import org.apache.camel.Exchange;
 import org.apache.camel.Header;
 import org.apache.camel.Predicate;
+import org.apache.camel.Processor;
 import org.apache.camel.Property;
-import org.apache.camel.util.FileUtil;
 
 import com.google.common.base.Strings;
 
@@ -19,6 +19,7 @@ import uk.nhs.ciao.dts.MessageType;
 import uk.nhs.ciao.dts.Status;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddress;
+import uk.nhs.ciao.transport.dts.processor.DTSFileHousekeeper;
 import uk.nhs.ciao.transport.dts.sequence.IdGenerator;
 import uk.nhs.ciao.transport.itk.envelope.Address;
 import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
@@ -31,7 +32,8 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	private String dtsMessageSenderUri;
 	private String dtsMessageSendNotificationReceiverUri;
 	private String dtsTemporaryFolder;
-	private String dtsErrorFolder;
+	private DTSFileHousekeeper fileHousekeeper = new DTSFileHousekeeper();
+	private DTSFileHousekeeper errorFileHousekeeper = new DTSFileHousekeeper();
 	private IdGenerator idGenerator;
 	
 	// optional properties
@@ -68,13 +70,21 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	}
 	
 	/**
-	 * Folder files should be moved to if an error occurs while processing
+	 * Housekeeper called after processing an incoming file
 	 * <p>
-	 * Only files intended for this application will be moved, other files will be left in the
-	 * processing folder.
+	 * Only files intended for this application will have housekeeping applied.
 	 */
-	public void setDTSErrorFolder(final String dtsErrorFolder) {
-		this.dtsErrorFolder = dtsErrorFolder;
+	public void setFileHousekeeper(final DTSFileHousekeeper fileHousekeeper) {
+		this.fileHousekeeper = fileHousekeeper;
+	}
+	
+	/**
+	 * Housekeeper called if an error occurs while processing an incoming file
+	 * <p>
+	 * Only files intended for this application will have housekeeping applied.
+	 */
+	public void setErrorFileHousekeeper(final DTSFileHousekeeper errorFileHousekeeper) {
+		this.errorFileHousekeeper = errorFileHousekeeper;
 	}
 
 	/**
@@ -171,7 +181,16 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 	
 	private void configureSendNotificationReceiver() throws Exception {
 		from(dtsMessageSendNotificationReceiverUri)
+			.onCompletion()
+				.onFailureOnly()
+					.process(new ErrorHousekeeping())
+				.end()
+			.end()
+		
+			// maintain original serialized form
+			.setProperty("original-body").body()
 			.convertBodyTo(ControlFile.class)
+			
 			.setHeader(Exchange.CORRELATION_ID).simple("${body.localId}")
 			.setHeader(ItkDocumentSenderRoute.ITK_CORRELATION_ID_HEADER).header(Exchange.CORRELATION_ID)
 			
@@ -199,31 +218,13 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			.setBody().property("original-body") // restore original serialised form
 			.to(getDistributionEnvelopeResponseUri())
 			
-			// on success - delete the control file
-			.bean(new ControlFileDeleter())
+			// on success - perform control file housekeeping
+			.process(new SuccessHousekeeping())
 		.end();
 	}
-	
-	// protected scope (for unit testing)
-	protected void deleteFile(final File file) {
-		if (file != null && file.isFile()) {
-			FileUtil.deleteFile(file);
-		}
-	}
-	
+
 	// Processor / bean methods
 	// The methods can't live in the route builder - it causes havoc with the debug/tracer logging
-	
-	/**
-	 * Deletes the control file
-	 * <p>
-	 * Alternative to use the delete=true option on the file component
-	 */
-	public class ControlFileDeleter {
-		public void deleteControlFile(@Header(Exchange.FILE_PATH) final File file) {
-			deleteFile(file);
-		}
-	}
 	
 	public class DestinationAddressBuilder {
 		public DTSEndpointAddress buildDestinationAdddress(final DistributionEnvelope envelope,
@@ -299,6 +300,36 @@ public class DTSDistributionEnvelopeSenderRoute extends DistributionEnvelopeSend
 			controlFile.applyDefaults();
 			
 			return controlFile;
+		}
+	}
+	
+	/**
+	 * If successful, housekeeping is applied to the control and data files
+	 */
+	private class SuccessHousekeeping implements Processor {
+		@Override
+		public void process(final Exchange exchange) throws Exception {
+			if (fileHousekeeper == null) {
+				return;
+			}
+			
+			final File controlFile = exchange.getIn().getHeader(Exchange.FILE_PATH, File.class);
+			fileHousekeeper.cleanup(controlFile);
+		}
+	}
+	
+	/**
+	 * If unsuccessful, error housekeeping is applied to the control and data files
+	 */
+	private class ErrorHousekeeping implements Processor {
+		@Override
+		public void process(final Exchange exchange) throws Exception {
+			if (errorFileHousekeeper == null) {
+				return;
+			}
+			
+			final File controlFile = exchange.getIn().getHeader(Exchange.FILE_PATH, File.class);
+			errorFileHousekeeper.cleanup(controlFile);
 		}
 	}
 }

@@ -1,7 +1,6 @@
 package uk.nhs.ciao.transport.dts.route;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,6 +33,7 @@ import uk.nhs.ciao.dts.MessageType;
 import uk.nhs.ciao.dts.Status;
 import uk.nhs.ciao.dts.StatusRecord;
 import uk.nhs.ciao.transport.dts.processor.DTSDataFilePoller;
+import uk.nhs.ciao.transport.dts.processor.DTSFileHousekeeper;
 
 /**
  * Unit tests for {@link DTSMessageReceiverRoute}
@@ -45,8 +45,9 @@ public class DTSMessageReceiverRouteTest {
 	private DTSMessageReceiverRoute route;
 	private MockEndpoint payloadDestination;
 	private DTSDataFilePoller filePoller;
+	private DTSFileHousekeeper fileHousekeeper;
+	private DTSFileHousekeeper errorFileHousekeeper;
 	private File inputFolder;
-	private File errorFolder;
 	private Map<File, Object> dataFiles;
 	
 	private File controlFile;
@@ -87,18 +88,11 @@ public class DTSMessageReceiverRouteTest {
 			}
 		};
 		
-		// stub out direct interactions with the file system
+		// mock out direct interactions with the file system
+		fileHousekeeper = Mockito.mock(DTSFileHousekeeper.class);
+		errorFileHousekeeper = Mockito.mock(DTSFileHousekeeper.class);
+		
 		route = Mockito.spy(new DTSMessageReceiverRoute() {
-			@Override
-			protected void moveFile(final File source, final File destination) throws IOException {
-				// NOOP
-			}
-			
-			@Override
-			protected void deleteFile(final File file) {
-				// NOOP
-			}
-			
 			@Override
 			protected DTSDataFilePoller createDataFilePoller(final ScheduledExecutorService executorService,
 					final long pollingInterval, final int maxAttempts) {
@@ -108,7 +102,8 @@ public class DTSMessageReceiverRouteTest {
 		
 		route.setDTSMessageReceiverUri("direct:dts-message-receiver");
 		route.setPayloadDestinationUri("mock:payload-destination");
-		route.setDTSErrorFolder("error");
+		route.setFileHousekeeper(fileHousekeeper);
+		route.setErrorFileHousekeeper(errorFileHousekeeper);
 		
 		// add file router
 		final DTSIncomingFileRouterRoute router = new DTSIncomingFileRouterRoute();
@@ -134,7 +129,6 @@ public class DTSMessageReceiverRouteTest {
 		context.addRoutes(router);
 		
 		inputFolder = new File("./target/example");
-		errorFolder = new File(inputFolder, "error");
 		
 		payloadDestination = MockEndpoint.resolve(context, "mock:payload-destination");
 		payloadDestination.setSynchronous(true);
@@ -230,7 +224,7 @@ public class DTSMessageReceiverRouteTest {
 	}
 	
 	@Test
-	public void testWhenDataFileDoesNotExistThenControlFileIsMovedToErrorFolder() throws Exception {
+	public void testWhenDataFileDoesNotExistThenControlFileHasErrorHousekeepingApplied() throws Exception {
 		final String id = "1234";
 		
 		final ControlFile control = createTransferControlFile(id);
@@ -247,11 +241,11 @@ public class DTSMessageReceiverRouteTest {
 		// verification
 		Assert.assertTrue(exchange.isFailed());
 		payloadDestination.assertIsSatisfied(20);
-		Mockito.verify(route).moveFile(controlFile, new File(errorFolder, controlFile.getName()));
+		Mockito.verify(errorFileHousekeeper).cleanup(controlFile);
 	}
 	
 	@Test
-	public void testWhenPayloadCannotBePublishedThenControlFileAndDataFileAreMovedToErrorFolder() throws Exception {
+	public void testWhenPayloadCannotBePublishedThenControlFileAndDataFileHaveErrorHousekeepingApplied() throws Exception {
 		final String id = "1234";
 		
 		final ControlFile control = createTransferControlFile(id);
@@ -276,7 +270,8 @@ public class DTSMessageReceiverRouteTest {
 		payloadDestination.assertIsSatisfied(20);
 		
 		Thread.sleep(100); // completion hook runs *after* the exchange has returned!
-		Mockito.verify(route).moveFile(controlFile, new File(errorFolder, controlFile.getName()));
+		Mockito.verify(errorFileHousekeeper).cleanup(controlFile);
+		Mockito.verify(errorFileHousekeeper).cleanup(dataFile);
 	}
 	
 	private void assertControlFileHeadersWerePropagated(final String workflowId) {
@@ -287,13 +282,12 @@ public class DTSMessageReceiverRouteTest {
 	}
 	
 	private void assertFilesWereDeleted() {
-		Mockito.verify(route).deleteFile(controlFile);
-		Mockito.verify(route).deleteFile(dataFile);
+		Mockito.verify(fileHousekeeper).cleanup(controlFile);
+		Mockito.verify(fileHousekeeper).cleanup(dataFile);
 	}
 	
 	private void assertFilesWereIgnored() throws Exception {
-		Mockito.verify(route, Mockito.times(0)).deleteFile(Mockito.any(File.class));
-		Mockito.verify(route, Mockito.times(0)).moveFile(Mockito.any(File.class), Mockito.any(File.class));
+		Mockito.verifyZeroInteractions(fileHousekeeper, errorFileHousekeeper);
 	}
 	
 	private ControlFile createTransferControlFile(final String id) {

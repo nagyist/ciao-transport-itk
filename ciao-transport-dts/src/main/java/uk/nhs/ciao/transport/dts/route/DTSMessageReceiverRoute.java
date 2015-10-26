@@ -1,23 +1,21 @@
 package uk.nhs.ciao.transport.dts.route;
 
 import static uk.nhs.ciao.logging.CiaoCamelLogMessage.camelLogMsg;
-import static uk.nhs.ciao.logging.CiaoLogMessage.logMsg;
 import static uk.nhs.ciao.transport.dts.processor.DTSDataFilePoller.*;
 import static uk.nhs.ciao.transport.dts.route.DTSHeaders.*;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.toolbox.AggregationStrategies;
 
 import uk.nhs.ciao.camel.BaseRouteBuilder;
 import uk.nhs.ciao.dts.ControlFile;
 import uk.nhs.ciao.logging.CiaoCamelLogger;
 import uk.nhs.ciao.transport.dts.processor.DTSDataFilePoller;
+import uk.nhs.ciao.transport.dts.processor.DTSFileHousekeeper;
 
 /**
  * 
@@ -31,7 +29,8 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	
 	private String dtsMessageReceiverUri;
 	private String payloadDestinationUri;
-	private String dtsErrorFolder;
+	private DTSFileHousekeeper fileHousekeeper = new DTSFileHousekeeper();
+	private DTSFileHousekeeper errorFileHousekeeper = new DTSFileHousekeeper();
 	
 	// optional properties
 	private long dataFilePollingInterval = 200;
@@ -56,13 +55,21 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 	}
 	
 	/**
-	 * Folder files should be moved to if an error occurs while processing
+	 * Housekeeper called after processing an incoming file
 	 * <p>
-	 * Only files intended for this application will be moved, other files will be left in the
-	 * processing folder.
+	 * Only files intended for this application will have housekeeping applied.
 	 */
-	public void setDTSErrorFolder(final String dtsErrorFolder) {
-		this.dtsErrorFolder = dtsErrorFolder;
+	public void setFileHousekeeper(final DTSFileHousekeeper fileHousekeeper) {
+		this.fileHousekeeper = fileHousekeeper;
+	}
+	
+	/**
+	 * Housekeeper called if an error occurs while processing an incoming file
+	 * <p>
+	 * Only files intended for this application will have housekeeping applied.
+	 */
+	public void setErrorFileHousekeeper(final DTSFileHousekeeper errorFileHousekeeper) {
+		this.errorFileHousekeeper = errorFileHousekeeper;
 	}
 
 	/**
@@ -87,14 +94,14 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 		from(dtsMessageReceiverUri)
 			.onCompletion()
 				.onFailureOnly()
-					.process(new ControlFileAndDataFileMover())
+					.process(new ErrorHousekeeping())
 				.end()
 			.end()
 			
 			.process(LOGGER.info(camelLogMsg("Received incoming DTS control file")
 					.fileName(header(Exchange.FILE_NAME))))
 			.setHeader("controlFileName").header(Exchange.FILE_NAME)
-			.convertBodyTo(ControlFile.class)
+			//.convertBodyTo(ControlFile.class)
 			
 			// Wait for the associated data file
 			.setHeader(HEADER_DTS_FOLDER_NAME).header(Exchange.FILE_PARENT)
@@ -125,10 +132,10 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 				.fileName(header(HEADER_DATA_FILE_NAME))
 				.workflowId("${body.getWorkflowId}")
 				.fromDTS("${body.getFromDTS}")
-				.toDTS("${bodygetToDTS}")))
+				.toDTS("${body.getToDTS}")))
 			
 			// If successful delete the pair of files
-			.process(new ControlFileAndDataFileDeleter())
+			.process(new SuccessHousekeeping())
 		.end();
 	}
 	
@@ -138,62 +145,40 @@ public class DTSMessageReceiverRoute extends BaseRouteBuilder {
 			final long pollingInterval, final int maxAttempts) {
 		return new DTSDataFilePoller(executorService, pollingInterval, maxAttempts);
 	}
-	
-	protected void moveFile(final File source, final File destination) throws IOException {
-		final boolean copyAndDeleteOnRenameFail = true;
-		FileUtil.renameFile(source, destination, copyAndDeleteOnRenameFail);
-	}
-	
-	protected void deleteFile(final File file) {
-		if (file != null && file.isFile()) {
-			FileUtil.deleteFile(file);
-		}
-	}
-	
+
 	/**
-	 * If successful, the control and data file are deleted
+	 * If successful, housekeeping is applied to the control and data files
 	 */
-	private class ControlFileAndDataFileDeleter implements Processor {
+	private class SuccessHousekeeping implements Processor {
 		@Override
 		public void process(final Exchange exchange) throws Exception {
-			final File controlFile = exchange.getIn().getHeader(Exchange.FILE_PATH, File.class);
-			deleteFile(controlFile);
-			
-			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_DATA_FILE_PATH, File.class);
-			deleteFile(dataFile);
-		}
-	}
-	
-	/**
-	 * If unsuccessful, the control file and data file (if present) is moved to the error folder
-	 */
-	private class ControlFileAndDataFileMover implements Processor {
-		@Override
-		public void process(final Exchange exchange) throws Exception {
-			final File controlFile = exchange.getIn().getHeader(Exchange.FILE_PATH, File.class);
-			moveToErrorFolder(controlFile);
-			
-			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_DATA_FILE_PATH, File.class);
-			moveToErrorFolder(dataFile);
-		}
-		
-		private void moveToErrorFolder(final File file) {
-			if (file != null) {
-				try {
-					final File sourceFolder = file.getParentFile();
-					final File targetFolder = new File(sourceFolder, dtsErrorFolder);
-					if (!targetFolder.exists()) {
-						targetFolder.mkdirs();
-					}
-					
-					final File target = new File(targetFolder, file.getName());
-					moveFile(file, target);
-				} catch (Exception e) {
-					LOGGER.getCiaoLogger().warn(
-							logMsg("Unable to move DTS file to error folder")
-							.fileName(file.getName()), e);
-				}
+			if (fileHousekeeper == null) {
+				return;
 			}
+			
+			final File controlFile = exchange.getIn().getHeader(Exchange.FILE_PATH, File.class);
+			fileHousekeeper.cleanup(controlFile);
+			
+			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_DATA_FILE_PATH, File.class);
+			fileHousekeeper.cleanup(dataFile);
+		}
+	}
+	
+	/**
+	 * If unsuccessful, error housekeeping is applied to the control and data files
+	 */
+	private class ErrorHousekeeping implements Processor {
+		@Override
+		public void process(final Exchange exchange) throws Exception {
+			if (errorFileHousekeeper == null) {
+				return;
+			}
+			
+			final File controlFile = exchange.getIn().getHeader(Exchange.FILE_PATH, File.class);
+			errorFileHousekeeper.cleanup(controlFile);
+			
+			final File dataFile = exchange.getIn().getHeader(DTSDataFilePoller.HEADER_DATA_FILE_PATH, File.class);
+			errorFileHousekeeper.cleanup(dataFile);
 		}
 	}
 }

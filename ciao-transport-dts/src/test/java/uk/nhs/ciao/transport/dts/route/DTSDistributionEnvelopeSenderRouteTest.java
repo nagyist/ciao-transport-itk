@@ -1,5 +1,6 @@
 package uk.nhs.ciao.transport.dts.route;
 
+import java.io.File;
 import java.util.Arrays;
 
 import org.apache.camel.CamelContext;
@@ -29,6 +30,7 @@ import uk.nhs.ciao.dts.MessageType;
 import uk.nhs.ciao.dts.Status;
 import uk.nhs.ciao.dts.StatusRecord;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddress;
+import uk.nhs.ciao.transport.dts.processor.DTSFileHousekeeper;
 import uk.nhs.ciao.transport.dts.sequence.IdGenerator;
 import uk.nhs.ciao.transport.itk.envelope.Address;
 import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
@@ -42,6 +44,8 @@ public class DTSDistributionEnvelopeSenderRouteTest {
 	private CamelContext context;
 	private ProducerTemplate producerTemplate;
 	private DTSDistributionEnvelopeSenderRoute route;
+	private DTSFileHousekeeper fileHousekeeper;
+	private DTSFileHousekeeper errorFileHousekeeper;
 	private IdGenerator idGenerator;
 	private MockEndpoint dtsMessageSender;
 	private MockEndpoint notificationPayloadReceiver;
@@ -69,9 +73,14 @@ public class DTSDistributionEnvelopeSenderRouteTest {
 		route.setDistributionEnvelopeSenderUri("stub:seda:distribution-envelope-sender");
 		route.setDTSMessageSenderUri("mock:dts-message-sender");
 		route.setDTSTemporaryFolder("../sender-temp/");
-		route.setDTSErrorFolder("../sender-error/");
 		route.setDTSMessageSendNotificationReceiverUri("direct:send-notification-receiver");
 		route.setDistributionEnvelopeResponseUri("mock:notification-payload-receiver");
+		
+		// mock out direct interactions with the file system
+		fileHousekeeper = Mockito.mock(DTSFileHousekeeper.class);
+		errorFileHousekeeper = Mockito.mock(DTSFileHousekeeper.class);
+		route.setFileHousekeeper(fileHousekeeper);
+		route.setErrorFileHousekeeper(errorFileHousekeeper);
 		
 		idGenerator = Mockito.mock(IdGenerator.class);
 		route.setIdGenerator(idGenerator);
@@ -210,6 +219,9 @@ public class DTSDistributionEnvelopeSenderRouteTest {
 		final Message message = notificationPayloadReceiver.getExchanges().get(0).getIn();
 		Assert.assertEquals("sent", message.getHeader("ciao.messageSendNotification"));
 		Assert.assertEquals(id, message.getHeader(Exchange.CORRELATION_ID));
+		
+		// housekeeping should have been performed
+		Mockito.verify(fileHousekeeper).cleanup(new File(id + ".ctl"));
 	}
 	
 	@Test
@@ -235,6 +247,9 @@ public class DTSDistributionEnvelopeSenderRouteTest {
 		final Message message = notificationPayloadReceiver.getExchanges().get(0).getIn();
 		Assert.assertEquals("send-failed", message.getHeader("ciao.messageSendNotification"));
 		Assert.assertEquals(id, message.getHeader(Exchange.CORRELATION_ID));
+		
+		// housekeeping should have been performed
+		Mockito.verify(fileHousekeeper).cleanup(new File(id + ".ctl"));
 	}
 	
 	@Test
@@ -262,7 +277,9 @@ public class DTSDistributionEnvelopeSenderRouteTest {
 		final Exchange exchange = new DefaultExchange(context);
 		exchange.setPattern(ExchangePattern.InOut);
 		
-		exchange.getIn().setHeader(Exchange.FILE_NAME, controlFile.getLocalId() + ".ctl");
+		final File file = new File(controlFile.getLocalId() + ".ctl");
+		exchange.getIn().setHeader(Exchange.FILE_PATH, file.getPath());
+		exchange.getIn().setHeader(Exchange.FILE_NAME, file.getName());
 		exchange.getIn().setBody(controlFile, String.class);
 		
 		return producerTemplate.send("stub:send:send-notification-sender", exchange);

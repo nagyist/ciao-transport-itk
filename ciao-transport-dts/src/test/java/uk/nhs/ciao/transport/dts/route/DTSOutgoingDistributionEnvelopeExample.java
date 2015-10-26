@@ -25,6 +25,7 @@ import uk.nhs.ciao.dts.Event;
 import uk.nhs.ciao.dts.Status;
 import uk.nhs.ciao.dts.StatusRecord;
 import uk.nhs.ciao.transport.dts.address.DTSEndpointAddress;
+import uk.nhs.ciao.transport.dts.processor.DTSFileHousekeeper;
 import uk.nhs.ciao.transport.dts.sequence.UUIDGenerator;
 import uk.nhs.ciao.transport.itk.envelope.Address;
 import uk.nhs.ciao.transport.itk.envelope.DistributionEnvelope;
@@ -165,7 +166,7 @@ public class DTSOutgoingDistributionEnvelopeExample implements RoutesBuilder {
 		route.setDTSMessageSendNotificationReceiverUri("direct:dts-send-notification-receiver");
 		route.setDistributionEnvelopeResponseUri("direct:notification-receiver");
 		route.setIdGenerator(new UUIDGenerator());
-		route.setDTSErrorFolder("error");
+		route.setErrorFileHousekeeper(new DTSFileHousekeeper("error"));
 		route.setEndpointAddressEnricherUri("direct:endpoint-address-enricher");
 		
 		final ControlFile controlFile = new ControlFile();
