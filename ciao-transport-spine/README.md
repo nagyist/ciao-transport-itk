@@ -294,3 +294,9 @@ Spine uses the [Multipart/Related Content-Type](https://tools.ietf.org/html/rfc2
 -	[Part](src/main/java/uk/nhs/ciao/transport/spine/multipart/Part.java) provides a bean-like representation of an individual part of a multipart message. Additionally this class integrates with Camel's Message interface.
 -	[MultipartParser](src/main/java/uk/nhs/ciao/transport/spine/multipart/MultipartParser.java) - parses multipart messages between object and serialized text form. 
 -	[MultipartTypeConverter](src/main/java/uk/nhs/ciao/transport/spine/multipart/MultipartTypeConverter.java) - Integrates the multipart parser with Camel.
+
+### Spine Directory Service
+
+`ciao-transport-spine` can handle ITK to Spine address resolution by querying the Spine Directory Service (SDS). 
+
+The SDS LDAP directory contains many object classes, only some of which are relevant to this CIP. The [ciao-spine-sds](https://github.com/nhs-ciao/ciao-utils/tree/master/ciao-spine-sds) library provides Java models for these classes, and an associated query-builder layer for finding matching objects in the LDAP tree.
