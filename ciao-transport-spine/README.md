@@ -10,7 +10,7 @@ As outlined in the main project [README](../README.md), transferring documents u
 - **ITK Layer** - `Distribution Envelope` and `Acknowledgement Framework`
 - **Transport Layer** - e.g. [Spine](http://systems.hscic.gov.uk/spine) or [DTS/MESH](http://systems.hscic.gov.uk/spine/DTS)
 
-This CIP includes the `ITK Layer` (by importing [ciao-transport-itk](../ciao-transport-itk)) and the `Transport Layer` by provding Spine-specific functionality.
+This CIP includes the `ITK Layer` (by importing [ciao-transport-itk](../ciao-transport-itk)) and the `Transport Layer` by providing Spine-specific functionality.
 
 ## How it Works
 
@@ -20,7 +20,7 @@ In order to understand how this CIP sends documents over the Spine, we first nee
 
 If we were to consider the full set of activities to send a document over the Spine using the below protocols, the process would appear quite complex. By splitting the activities into the two main layers (ITK and ebXML), the processing required is much easier to understand.
 
-The ITK layer includes the basic sending, coupled with a simple acknowledgement framework which allows the sender to request an Infrastructrue Acknowledgement (to confirm the ITK message has reached it's destination), and a Business Acknowledgement (to confirm "business receipt" - the exact meaning of which is specific to the type of document being sent).
+The ITK layer includes the basic sending, coupled with a simple acknowledgement framework which allows the sender to request an Infrastructure Acknowledgement (to confirm the ITK message has reached it's destination), and a Business Acknowledgement (to confirm "business receipt" - the exact meaning of which is specific to the type of document being sent).
 
 The below activity diagram shows the high level activities involved in processing the overall message and ITK-layer interactions:
 
@@ -127,7 +127,7 @@ At runtime ciao-transport-spine uses the available CIAO properties to determine 
 
 **Address Resolution Configuration:**
 - `addressing.staticFiles` - A comma-separated list of static files which provide static JSON-encoded [SpineEndpointAddress](src/main/java/uk/nhs/ciao/transport/spine/address/SpineEndpointAddress.java) values.
-- `addressing.sdsCacheUri` - Defines the Hazelcast distributed map used to cache resolved endpoint adddresses.
+- `addressing.sdsCacheUri` - Defines the Hazelcast distributed map used to cache resolved endpoint addresses.
 
 > Configuration of the cache (e.g. time to live, cache size) is specified in the `repositories\hazelcast.xml` spring file. 
 
