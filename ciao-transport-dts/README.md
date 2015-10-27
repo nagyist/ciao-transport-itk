@@ -25,7 +25,7 @@ The ITK layer includes the basic sending, coupled with a simple acknowledgement 
 
 The below activity diagram shows the high level activities involved in processing the overall message and ITK-layer interactions:
 
-![ITK Activity Diagram](../ciao-transport-itk/docs/ITKActivityDiagram.gif)
+![ITK Activity Diagram](./docs/ITKActivityDiagram.gif)
 
 Some of the individual boxes on the ITK diagram above represent the lower level DTS interactions - these lower level protocol activities are shown in the below DTS activity diagram.
 
