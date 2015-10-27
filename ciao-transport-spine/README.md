@@ -2,7 +2,6 @@
 
 *CIP to transport messages over Spine*
 
-
 ## Introduction
 
 As outlined in the main project [README](../README.md), transferring documents using the [Interoperability Toolkit(ITK)](http://systems.hscic.gov.uk/interop/itk) specifications results in a layered system of:
@@ -24,7 +23,7 @@ The ITK layer includes the basic sending, coupled with a simple acknowledgement 
 
 The below activity diagram shows the high level activities involved in processing the overall message and ITK-layer interactions:
 
-![ITK Activity Diagram](./docs/ITKActivityDiagram.gif)
+![ITK Activity Diagram](../ciao-transport-itk/docs/ITKActivityDiagram.gif)
 
 Some of the individual boxes on the ITK diagram above represent the lower level ebXML interactions - these lower level protocol activities are shown in the below ebXML activity diagram.
 
@@ -258,7 +257,7 @@ The CIP requires access to various file system directories and network ports (de
 
 ## Models
 
-Several message types are used when sending messages over Spine and acknowledging receipt. The `ciao-transport-spine` library provides Java representations of these types, along with serialization to/from XML, and integration with Apache Camel's [type conversion system](http://camel.apache.org/type-converter.html).
+Several message types are used when sending messages over Spine and acknowledging receipt. The `ciao-transport-spine` CIP provides Java representations of these types, along with serialization to/from XML, and integration with Apache Camel's [type conversion system](http://camel.apache.org/type-converter.html).
 
 ### EbXml
 
