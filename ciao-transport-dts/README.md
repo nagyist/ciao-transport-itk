@@ -209,7 +209,7 @@ You can then compile the module via:
     cd ciao-transport-itk-parent
 	mvn clean install -P bin-archive
 
-This will compile a number of related modules - the main CIP module for Spine is `ciao-transport-dts`, and the full binary archive (with dependencies) can be found at `ciao-transport-spine\target\ciao-transport-dts-{version}-bin.zip`. To run the CIP, unpack this zip to a directory of your choosing and follow the instructions in the README.txt.
+This will compile a number of related modules - the main CIP module for DTS/MESH is `ciao-transport-dts`, and the full binary archive (with dependencies) can be found at `ciao-transport-dts\target\ciao-transport-dts-{version}-bin.zip`. To run the CIP, unpack this zip to a directory of your choosing and follow the instructions in the README.txt.
 
 The CIP requires access to various file system directories and network ports (dependent on the selected configuration):
 
