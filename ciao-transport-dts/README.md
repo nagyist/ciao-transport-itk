@@ -121,7 +121,7 @@ At runtime ciao-transport-dts uses the available CIAO properties to determine wh
 - `distributionEnvelopeReceiverQueue` - JMS queue for processing incoming ITK Distribution Envelopes
 - `itkMessageReceiverQueue` - JMS queue for processing incoming ITK messages
 
-> *The main input queue (`itkDocumentSenderQueue`) uses the JSON-encoded representation of [ParsedDocument](https://github.com/nhs-ciao/ciao-docs-parser/blob/master/docs/parsed-document.md).*
+> *The main input queue (`itkDocumentSenderQueue`) uses the JSON-encoded representation of [ParsedDocument](https://github.com/nhs-ciao/ciao-docs-parser/blob/master/docs/parsed-document.md). The `originalDocument` property contains the document to send, while the `properties` section contains additional details such as the recipient ODS code.*
 
 **Address Resolution Configuration:**
 - `addressing.staticFiles` - A comma-separated list of static files which provide static JSON-encoded [DTSEndpointAddress](src/main/java/uk/nhs/ciao/transport/dts/address/DTSEndpointAddress.java) values.
