@@ -124,6 +124,8 @@ At runtime ciao-transport-spine uses the available CIAO properties to determine 
 - `distributionEnvelopeReceiverQueue` - JMS queue for processing incoming ITK Distribution Envelopes
 - `itkMessageReceiverQueue` - JMS queue for processing incoming ITK messages
 
+> *The main input queue (`itkDocumentSenderQueue`) uses the JSON-encoded representation of [ParsedDocument](https://github.com/nhs-ciao/ciao-docs-parser/blob/master/docs/parsed-document.md).*
+
 **Address Resolution Configuration:**
 - `addressing.staticFiles` - A comma-separated list of static files which provide static JSON-encoded [SpineEndpointAddress](src/main/java/uk/nhs/ciao/transport/spine/address/SpineEndpointAddress.java) values.
 - `addressing.sdsCacheUri` - Defines the Hazelcast distributed map used to cache resolved endpoint addresses.
