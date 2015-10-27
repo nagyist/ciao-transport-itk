@@ -32,6 +32,44 @@ The ebXML layer deals with sending these higher level ITK interactions over the 
 
 ![ebXML Activity Diagram](./docs/ebXMLActivityDiagram.gif)
 
+## Models
+
+Several message types are used when sending messages over Spine and acknowledging receipt. The `ciao-transport-spine` library provides Java representations of these types, along with serialization to/from XML, and integration with Apache Camel's [type conversion system](http://camel.apache.org/type-converter.html).
+
+### EbXml
+
+During part of the message flow, the `ebXml` message is used to describe one or more payloads, along with details of the sender, intended receiver, and a manifest describing the payload. Later in the message flow, an asynchronous `ebXml` message is used to acknowledge receipt (or failure).
+
+> ebXml provides extension elements to a SOAP XML message.
+
+**Java Classes:**
+-	[EbxmlEnvelope](src/main/java/uk/nhs/ciao/transport/spine/ebxml/EbxmlEnvelope.java) provides a bean-like representation of a ebXml envelope.
+-	[EbxmlEnvelopeParser](src/main/java/uk/nhs/ciao/transport/spine/ebxml/EbxmlEnvelopeParser.java) parses an XML serialized ebXml envelope to object form.
+-	[EbxmlEnvelopeSerializer](src/main/java/uk/nhs/ciao/transport/spine/ebxml/EbxmlEnvelopeSerializer.java) - serializes an ebXml envelope object into XML.
+-	[EbxmlEnvelopeTypeConverter](src/main/java/uk/nhs/ciao/transport/spine/ebxml/EbxmlEnvelopeTypeConverter.java) - Integrates the ebXml envelope parser and serializer with Camel.
+
+### HL7
+
+In multipart messages, an HL7 part is included providing details of the sender/receiver ASIDs for Spine.
+
+> This message type/part only applies to outgoing multi-part messages - not asynchronous acknowledgements.
+
+**Java Classes:**
+-	[HL7Part](src/main/java/uk/nhs/ciao/transport/spine/hl7/HL7Part.java) provides a bean-like representation of a HL7 message part.
+-	[HL7PartParser](src/main/java/uk/nhs/ciao/transport/spine/hl7/HL7PartParser.java) parses an XML serialized HL7 message part to object form.
+-	[HL7PartSerializer](src/main/java/uk/nhs/ciao/transport/spine/hl7/HL7PartSerializer.java) - serializes an HL7 message part object into XML.
+-	[HL7PartTypeConverter](src/main/java/uk/nhs/ciao/transport/spine/hl7/HL7PartTypeConverter.java) - Integrates the HL7 message part parser and serializer with Camel.
+
+### Multipart Message
+
+Spine uses the [Multipart/Related Content-Type](https://tools.ietf.org/html/rfc2387) to bundle multiple message parts into a single message representation. The bundled message typically includes an ebXml part, an HL7 part, and a payload (which for `itk-transport-spine` is an ITK Distribution Envelope).
+
+**Java Classes:**
+-	[MultipartBody](src/main/java/uk/nhs/ciao/transport/spine/multipart/MultipartBody.java) provides a bean-like representation of a multipart message.
+-	[Part](src/main/java/uk/nhs/ciao/transport/spine/multipart/Part.java) provides a bean-like representation of an individual part of a multipart message. Additionally this class integrates with Camel's Message interface.
+-	[MultipartParser](src/main/java/uk/nhs/ciao/transport/spine/multipart/MultipartParser.java) - parses multipart messages between object and serialized text form. 
+-	[MultipartTypeConverter](src/main/java/uk/nhs/ciao/transport/spine/multipart/MultipartTypeConverter.java) - Integrates the multipart parser with Camel.
+
 ## Configuration
 
 For further details of how ciao-configuration and Spring XML interact, please see [ciao-core](https://github.com/nhs-ciao/ciao-core).
@@ -220,8 +258,7 @@ itkMessageReceiverQueue=itk-message-receiver
 inProgressFolder=./in-progress
 ```
 
-Building and Running
---------------------
+## Building and Running
 
 To pull down the code, run:
 
