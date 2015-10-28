@@ -301,6 +301,27 @@ envelope.copyFrom(prototype, overwrite);
 String xml = serializer.serialize(envelope);
 ```
 
+**Camel type conversion:**
+```java
+public class ExampleRoute extends RouteBuilder {
+    @Override
+    public void configure() throws Exception {
+        from("jms:queue:input")
+            // the ebxml type converter is automatically registered in Camel
+            .convertBodyTo(EbxmlEnvelope.class)
+            .log("Found ebxml envelope from ${body.fromParty} with messageId: ${body.messageData.messageId}")
+
+            // Use / modify the envelope in some way
+            .bean(new EbxmlEnvelopeProcessor())
+
+            // Serialize the updated envelope as XML
+            .convertBodyTo(String.class)
+            .log("Converted the envelope to XML: ${body}")
+        .end();
+    }
+}
+```
+
 ### HL7
 
 In multipart messages, an HL7 part is included providing details of the sender/receiver ASIDs for Spine.
@@ -337,6 +358,27 @@ part.copyFrom(prototype, overwrite);
 
 // Serializing an HL7 part
 String xml = serializer.serialize(part);
+```
+
+**Camel type conversion:**
+```java
+public class ExampleRoute extends RouteBuilder {
+    @Override
+    public void configure() throws Exception {
+        from("jms:queue:input")
+            // the HL7 type converter is automatically registered in Camel
+            .convertBodyTo(HL7Part.class)
+            .log("Found HL7 part from ${body.senderAsid} with interactionId: ${body.interactionId}")
+
+            // Use / modify the part in some way
+            .bean(new HL7PartProcessor())
+
+            // Serialize the updated part as XML
+            .convertBodyTo(String.class)
+            .log("Converted the HL7 part to XML: ${body}")
+        .end();
+    }
+}
 ```
 
 ### Multipart Message
@@ -379,6 +421,32 @@ body = parser.parse(contentType, in);
 // Accessing a part (when the id is known)
 part = body.findPartByContentId("1234567");
 ```
+
+**Camel type conversion:**
+```java
+public class ExampleRoute extends RouteBuilder {
+    @Override
+    public void configure() throws Exception {
+        from("jms:queue:input")
+            // the multipart type converter is automatically registered in Camel
+            .convertBodyTo(MultipartBody.class)
+            .log("Found multipart body with ${body.getParts.size} parts - boundary: ${body.boundary}")
+
+            // Use the first part
+            .setProperty("multipart-body").body()
+            .setBody().spel("#{body.parts[0].body}")
+            .convertBodyTo(EbxmlEnvelope.class) // example part conversion
+            .log("First part of multipart body: ${body}")
+
+            // Serialize the body as a string
+            .setBody().property("multipart-body")
+            .convertBodyTo(String.class)
+            .log("Converted the multipart body to XML: ${body}")
+        .end();
+    }
+}
+```
+
 > `Part` is actually a subclass of Camel's `DefaultMessage` - allowing Part instances to be integrated easily in Camel routes. However, for the type conversion to operate as expected `part.setExchange(exchange)` should be called to ensure the type converter has access to the current `CamelContext`.
 > The `MultipartParser` automatically handles this for parsed objects (when the appropriate method is used), and instances converted inside a Camel route will have the exchange set. However, manually created objects will need the exchange to be provided.
 
