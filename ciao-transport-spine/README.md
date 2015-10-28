@@ -273,6 +273,34 @@ During part of the message flow, the `ebXml` message is used to describe one or 
 -	[EbxmlEnvelopeSerializer](src/main/java/uk/nhs/ciao/transport/spine/ebxml/EbxmlEnvelopeSerializer.java) - serializes an ebXml envelope object into XML.
 -	[EbxmlEnvelopeTypeConverter](src/main/java/uk/nhs/ciao/transport/spine/ebxml/EbxmlEnvelopeTypeConverter.java) - Integrates the ebXml envelope parser and serializer with Camel.
 
+**Creating, parsing and serializing ebXml envelopes:**
+```java
+// Serializer/parser configuration (reusable objects)
+EbxmlEnvelopeParser parser = new EbxmlEnvelopeParser();
+EbxmlEnvelopeSerializer serializer = new EbxmlEnvelopeSerializer();
+
+// Creating an envelope
+EbxmlEnvelope prototype = new EbxmlEnvelope();
+prototype.setAction("action");
+prototype.setService("service");
+prototype.setFromParty("from-party");
+prototype.setAckRequested(true);
+
+// Applying default values for non-specified fields (e.g. timestamp)
+prototype.applyDefaults();
+
+// Parsing an envelope
+InputStream in = new FileInputStream("example-envelope.xml");
+EbxmlEnvelope envelope = parser.parse(in);
+
+// Merging / copying properties between envelopes
+boolean overwrite = false;
+envelope.copyFrom(prototype, overwrite);
+
+// Serializing an envelope
+String xml = serializer.serialize(envelope);
+```
+
 ### HL7
 
 In multipart messages, an HL7 part is included providing details of the sender/receiver ASIDs for Spine.
@@ -285,6 +313,32 @@ In multipart messages, an HL7 part is included providing details of the sender/r
 -	[HL7PartSerializer](src/main/java/uk/nhs/ciao/transport/spine/hl7/HL7PartSerializer.java) - serializes an HL7 message part object into XML.
 -	[HL7PartTypeConverter](src/main/java/uk/nhs/ciao/transport/spine/hl7/HL7PartTypeConverter.java) - Integrates the HL7 message part parser and serializer with Camel.
 
+**Creating, parsing and serializing HL7 parts:**
+```java
+// Serializer/parser configuration (reusable objects)
+HL7PartParser parser = new HL7PartParser();
+HL7PartSerializer serializer = new HL7PartSerializer();
+
+// Creating an HL7 part
+HL7Part prototype = new HL7Part();
+prototype.setInteractionId("interaction-id");
+prototype.setSenderAsid("sender-asid");
+
+// Applying default values for non-specified fields (e.g. timestamp)
+prototype.applyDefaults();
+
+// Parsing an HL7 part
+InputStream in = new FileInputStream("example-part.xml");
+HL7Part part = parser.parse(in);
+
+// Merging / copying properties between HL7 parts
+boolean overwrite = false;
+part.copyFrom(prototype, overwrite);
+
+// Serializing an HL7 part
+String xml = serializer.serialize(part);
+```
+
 ### Multipart Message
 
 Spine uses the [Multipart/Related Content-Type](https://tools.ietf.org/html/rfc2387) to bundle multiple message parts into a single message representation. The bundled message typically includes an ebXml part, an HL7 part, and a payload (which for `itk-transport-spine` is an ITK Distribution Envelope).
@@ -294,6 +348,39 @@ Spine uses the [Multipart/Related Content-Type](https://tools.ietf.org/html/rfc2
 -	[Part](src/main/java/uk/nhs/ciao/transport/spine/multipart/Part.java) provides a bean-like representation of an individual part of a multipart message. Additionally this class integrates with Camel's Message interface.
 -	[MultipartParser](src/main/java/uk/nhs/ciao/transport/spine/multipart/MultipartParser.java) - parses multipart messages between object and serialized text form. 
 -	[MultipartTypeConverter](src/main/java/uk/nhs/ciao/transport/spine/multipart/MultipartTypeConverter.java) - Integrates the multipart parser with Camel.
+
+**Creating, parsing and serializing multipart messages:**
+```java
+// Serializer/parser configuration (reusable objects)
+MultipartParser parser = new MultipartParser();
+
+// Creating a multi-part body
+MultipartBody body = new MultipartBody();
+
+// Creating and adding parts to the body
+Part part = new Part();
+part.setContentType("text/plain");
+part.setBody("content of the first part\n");
+body.addPart(part);
+
+// A short-hand way of adding a part
+body.addPart("text/xml", "<root>content of the second part</root>\n");
+
+// Serializing a multi-part body
+FileOutputStream out = new FileOutputStream("multipart.xml");
+body.write(out);
+
+// Parsing a multi-part body
+// The content type (with boundary) is typically provided as a message header (e.g. via HTTP)
+String contentType = "multipart/related; boundary=__some-boundary__";
+InputStream in = new FileInputStream("example-multipart.xml");
+body = parser.parse(contentType, in);
+
+// Accessing a part (when the id is known)
+part = body.findPartByContentId("1234567");
+```
+> `Part` is actually a subclass of Camel's `DefaultMessage` - allowing Part instances to be integrated easily in Camel routes. However, for the type conversion to operate as expected `part.setExchange(exchange)` should be called to ensure the type converter has access to the current `CamelContext`.
+> The `MultipartParser` automatically handles this for parsed objects (when the appropriate method is used), and instances converted inside a Camel route will have the exchange set. However, manually created objects will need the exchange to be provided.
 
 ### Spine Directory Service
 

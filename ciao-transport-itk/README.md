@@ -110,7 +110,7 @@ prototype.setTrackingIdRef("1234567");
 prototype.setServiceRef("original-service-ref");
 
 // Parsing a response
-InputStream in = new FileInputStream("example-envelope.xml");
+InputStream in = new FileInputStream("example-response.xml");
 InfrastructureResponse response = parser.parse(in);
 
 // Serializing a response
