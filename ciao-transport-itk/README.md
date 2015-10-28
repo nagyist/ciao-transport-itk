@@ -27,6 +27,61 @@ The `Distribution Envelope` is a **fundamental** component of the ITK-transports
 -	[DistributionEnvelopeSerializer](src/main/java/uk/nhs/ciao/transport/itk/envelope/DistributionEnvelopeSerializer.java) - serializes a distribution envelope object into XML.
 -	[DistributionEnvelopeTypeConverter](src/main/java/uk/nhs/ciao/transport/itk/envelope/DistributionEnvelopeTypeConverter.java) - Integrates the distribution envelope parser and serializer with Camel.
 
+**Creating, parsing and serializing distribution envelopes:**
+```java
+// Serializer/parser configuration (reusable objects)
+DistributionEnvelopeParser parser = new DistributionEnvelopeParser();
+DistributionEnvelopeSerializer serializer = new DistributionEnvelopeSerializer();
+
+// Creating an envelope
+DistributionEnvelope prototype = new DistributionEnvelope();
+prototype.setService("service-id");
+prototype.setSenderAddress(new Address("urn:nhs-uk:addressing:ods:sender-ods-code"));
+prototype.addAddress(new Address("urn:nhs-uk:addressing:ods:receiver-ods-code"));
+
+// Applying default values for non-specified fields (e.g. timestamp)
+prototype.applyDefaults();
+
+// Parsing an envelope
+InputStream in = new FileInputStream("example-envelope.xml");
+DistributionEnvelope envelope = parser.parse(in);
+
+// Merging / copying properties between envelopes
+boolean overwrite = false;
+envelope.copyFrom(prototype, overwrite);
+
+// Adding a payload
+ManifestItem item = new ManifestItem();
+item.setMimeType("application/xml");
+item.setBase64(true);
+
+boolean encodeBody = true;
+envelope.addPayload(item, "<root>payload content</root>", encodeBody);
+
+// Serializing an envelope
+String xml = serializer.serialize(envelope);
+```
+
+**Camel type conversion:**
+```java
+public class ExampleRoute extends RouteBuilder {
+    @Override
+    public void configure() throws Exception {
+        from("jms:queue:incoming-messages")
+            // the distribution envelope type converter is automatically registered in Camel
+            .convertBodyTo(DistributionEnvelope.class)
+            .log("Found distribution envelope from ${body.senderAddress} with trackingId: ${body.trackingId}")
+
+            // Use / modify the distribution envelope in some way
+            .bean(new DistributionEnvelopeProcessor())
+
+            // Serialize the updated distribution envelope as XML
+            .convertBodyTo(String.class)
+            .log("Converted the distribution envelope to XML: ${body}")
+        .end();
+    }
+}
+```
 
 ### Infrastructure Response
 
@@ -41,6 +96,47 @@ An `Infrastructure Response` may represent either a success or a failure (for ex
 -	[InfrastructureResponseParser](src/main/java/uk/nhs/ciao/transport/itk/envelope/InfrastructureResponseParser.java) parses an XML serialized infrastructure response to object form.
 -	[InfrastructureResponseSerializer](src/main/java/uk/nhs/ciao/transport/itk/envelope/InfrastructureResponseSerializer.java) - serializes an infrastructure response object into XML.
 -	[InfrastructureResponseTypeConverter](src/main/java/uk/nhs/ciao/transport/itk/envelope/InfrastructureResponseTypeConverter.java) - Integrates the infrastructure response parser and serializer with Camel.
+
+**Creating, parsing and serializing infrastructure responses:**
+```java
+// Serializer/parser configuration (reusable objects)
+InfrastructureResponseParser parser = new InfrastructureResponseParser();
+InfrastructureResponseSerializer serializer = new InfrastructureResponseSerializer();
+
+// Creating a response
+InfrastructureResponse prototype = new InfrastructureResponse();
+prototype.setTimestamp(System.currentTimeMillis());
+prototype.setTrackingIdRef("1234567");
+prototype.setServiceRef("original-service-ref");
+
+// Parsing a response
+InputStream in = new FileInputStream("example-envelope.xml");
+InfrastructureResponse response = parser.parse(in);
+
+// Serializing a response
+String xml = serializer.serialize(response);
+```
+
+**Camel type conversion:**
+```java
+public class ExampleRoute extends RouteBuilder {
+    @Override
+    public void configure() throws Exception {
+        from("jms:queue:incoming-messages")
+            // the infrastructure response type converter is automatically registered in Camel
+            .convertBodyTo(InfrastructureResponse.class)
+            .log("Found infrastructure response for trackingId: ${body.trackingIdRef} - isAck: ${body.isAck}")
+
+            // Use / modify the response in some way
+            .bean(new InfrastructureResponseProcessor())
+
+            // Serialize the updated infrastructure response as XML
+            .convertBodyTo(String.class)
+            .log("Converted the infrastructure response to XML: ${body}")
+        .end();
+    }
+}
+```
 
 ### Business Acknowledgement
 
