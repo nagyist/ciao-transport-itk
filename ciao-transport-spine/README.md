@@ -139,6 +139,18 @@ At runtime ciao-transport-spine uses the available CIAO properties to determine 
 
 - `inProgressFolder` - Defines the root folder that *document upload process* events are written to.
 
+**Hazelcast Configuration:**
+
+The following properties are applicable for `repositoryConfig=hazelcast`:
+
+- `hazelcast.group.name` - Name of the hazelcast cluster group
+- `hazelcast.group.password` - Password of the hazelcast cluster group
+- `hazelcast.network.port` - The network port to use for the hazelcast server - if the port is already in use it will be incremented until a free port is found
+- `hazelcast.network.join.tcp_ip` - Comma separated list of static cluster members - if empty, multicast join should be enabled
+- `hazelcast.network.join.multicast.enabled` - Boolean value specifying whether multicast join should be used to find cluster members - if false, static TCP-IP members should be specified
+- `hazelcast.network.join.multicast.group` - Multicast address to use for finding cluster members
+- `hazelcast.network.join.multicast.port` - Multicast port to use for finding cluster members
+
 ### Example
 ```INI
 # Camel logging
@@ -194,6 +206,8 @@ jms2.concurrentConsumers=2
 hazelcast.group.name=ciao-transport-spine
 hazelcast.group.password=ciao-transport-spine-pass
 hazelcast.network.port=5701
+hazelcast.network.join.tcp_ip.members=
+hazelcast.network.join.multicast.enabled=true
 hazelcast.network.join.multicast.group=224.2.2.3
 hazelcast.network.join.multicast.port=54327
 
@@ -243,8 +257,9 @@ The CIP requires access to various file system directories and network ports (de
  -  Connects to: `localhost:61616`
 
 **Hazelcast**:
- -  Multicast discovery: `224.2.2.3:54327`
+ -  Multicast discovery: `224.2.2.3:54327` (If enabled)
  -  Listens on: `*:5701` (If port is already taken, the port number is incremented until a free port is found)
+ -  Connects to clustered nodes defined by the `hazelcast.network.join.tcp_ip.members` property
 
 **Spine**:
  -	Connects to the HTTP/HTTPS server specified by `spine.toUri`
