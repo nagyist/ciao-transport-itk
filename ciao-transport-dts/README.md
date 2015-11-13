@@ -142,6 +142,7 @@ The following properties are applicable for `repositoryConfig=hazelcast`:
 - `hazelcast.group.name` - Name of the hazelcast cluster group
 - `hazelcast.group.password` - Password of the hazelcast cluster group
 - `hazelcast.network.port` - The network port to use for the hazelcast server - if the port is already in use it will be incremented until a free port is found
+- `hazelcast.network.publicAddress` - The (optional) public address of the hazelcast node - this can be used if nodes need to communicate over NAT.
 - `hazelcast.network.join.tcp_ip` - Comma separated list of static cluster members - if empty, multicast join should be enabled
 - `hazelcast.network.join.multicast.enabled` - Boolean value specifying whether multicast join should be used to find cluster members - if false, static TCP-IP members should be specified
 - `hazelcast.network.join.multicast.group` - Multicast address to use for finding cluster members
@@ -180,6 +181,7 @@ jms.concurrentConsumers=20
 hazelcast.group.name=ciao-transport-dts
 hazelcast.group.password=ciao-transport-dts-pass
 hazelcast.network.port=5701
+hazelcast.network.publicAddress=
 hazelcast.network.join.tcp_ip.members=
 hazelcast.network.join.multicast.enabled=true
 hazelcast.network.join.multicast.group=224.2.2.3

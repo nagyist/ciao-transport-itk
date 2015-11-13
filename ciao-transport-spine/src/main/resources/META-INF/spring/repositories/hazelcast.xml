@@ -10,7 +10,7 @@
 	<hz:hazelcast id="hazelcastInstance">
 		<hz:config>
 			<hz:group name="${hazelcast.group.name}" password="${hazelcast.group.password}" />
-			<hz:network port="${hazelcast.network.port}">
+			<hz:network port="${hazelcast.network.port}" public-address="#{'${hazelcast.network.publicAddress}'.isEmpty() ? null : '${hazelcast.network.publicAddress}'}">
 				<hz:join>
 					<hz:multicast enabled="${hazelcast.network.join.multicast.enabled}" multicast-group="${hazelcast.network.join.multicast.group}" multicast-port="${hazelcast.network.join.multicast.port}" />
 					<hz:tcp-ip enabled="#{!'${hazelcast.network.join.tcp_ip.members}'.isEmpty()}">
